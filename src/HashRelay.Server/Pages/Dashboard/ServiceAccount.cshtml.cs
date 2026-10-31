@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace HashRelay.Server.Pages.Dashboard;
 
-public sealed class ServiceAccountModel(CurrentTenant current, IOptions<HashRelayOptions> options, ServiceAccountService accounts, AuditService audit, TimeProvider clock)
+public sealed class ServiceAccountModel(CurrentTenant current, IOptions<HashRelayOptions> options, ServiceAccountService accounts, AuditService audit, OAuthService oauth, TimeProvider clock)
     : DashboardPageModel(current, options)
 {
     [BindProperty(SupportsGet = true)] public Guid Id { get; set; }
@@ -15,6 +15,9 @@ public sealed class ServiceAccountModel(CurrentTenant current, IOptions<HashRela
     public List<AuditEvent> Activity { get; private set; } = [];
     public string? NewSecret { get; private set; }
     public string? NewLabel { get; private set; }
+    /// <summary>Set when this service account was created by an OAuth consent (a connected app such as claude.ai).</summary>
+    public OAuthClient? ConnectedClient { get; private set; }
+    public OAuthGrant? Grant { get; private set; }
     public string McpUrl => McpUrlHelper.Resolve(options.Value, PublicUrl);
     public DateTimeOffset Now => clock.GetUtcNow();
 
@@ -27,6 +30,8 @@ public sealed class ServiceAccountModel(CurrentTenant current, IOptions<HashRela
         NewLabel = TempData["svckey.label"] as string;
         Keys = await accounts.KeysAsync(Current.TenantId, Id, ct);
         Activity = await audit.ForServiceAccountAsync(Current.TenantId, Id, 50, ct);
+        Grant = await oauth.GrantForServiceAccountAsync(Current.TenantId, Id, ct);
+        if (Grant is not null) ConnectedClient = await oauth.ClientOfGrantAsync(Grant, ct);
         return Page();
     }
 
@@ -78,6 +83,17 @@ public sealed class ServiceAccountModel(CurrentTenant current, IOptions<HashRela
         catch (ApiException ex) { return Flash("danger", ex.Message); }
     }
 
+    public async Task<IActionResult> OnPostDisconnectAsync(CancellationToken ct)
+    {
+        if (!CanManage) return Flash("danger", "Only workspace owners and admins can disconnect apps.");
+        try
+        {
+            await oauth.DisconnectAsync(Current.TenantId, Id, Current.Account!.Id, ct);
+            return Flash("success", "App disconnected. Its tokens were revoked and the service account is disabled.");
+        }
+        catch (ApiException ex) { return Flash("danger", ex.Message); }
+    }
+
     public static string ActionLabel(string action) => action switch
     {
         AuditActions.ServiceAccountCreated => "Created",
@@ -89,12 +105,15 @@ public sealed class ServiceAccountModel(CurrentTenant current, IOptions<HashRela
         AuditActions.Published => "Published",
         AuditActions.PublishRefused => "Refused",
         AuditActions.SubscriptionsChanged => "Subscriptions changed",
+        AuditActions.OAuthGranted => "App connected",
+        AuditActions.OAuthRefreshed => "Token refreshed",
+        AuditActions.OAuthRevoked => "App disconnected",
         _ => action,
     };
 
     public static string ActionBadge(string action) => action switch
     {
-        AuditActions.PublishRefused or AuditActions.ServiceAccountDisabled or AuditActions.KeyRevoked => "badge-danger",
+        AuditActions.PublishRefused or AuditActions.ServiceAccountDisabled or AuditActions.KeyRevoked or AuditActions.OAuthRevoked => "badge-danger",
         AuditActions.Published => "badge-success",
         _ => "badge-accent",
     };

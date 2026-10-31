@@ -133,7 +133,10 @@ public sealed class ApiKeyAuthenticationHandler(
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
     {
         Response.StatusCode = StatusCodes.Status401Unauthorized;
-        Response.Headers.WWWAuthenticate = "Bearer realm=\"HashRelay\"";
+        // RFC 9728: tell MCP clients where to discover the authorization server so they can start the OAuth flow.
+        Response.Headers.WWWAuthenticate = Request.Path.StartsWithSegments("/mcp")
+            ? $"Bearer realm=\"HashRelay\", resource_metadata=\"{Request.Scheme}://{Request.Host}/.well-known/oauth-protected-resource\""
+            : "Bearer realm=\"HashRelay\"";
         return ApiErrors.WriteAsync(Context, StatusCodes.Status401Unauthorized, Contracts.ErrorCodes.Unauthenticated,
             "A valid API key, service-account key or device token is required. Send it as 'Authorization: Bearer hr_…'.");
     }

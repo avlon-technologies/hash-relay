@@ -121,6 +121,9 @@ builder.Services.AddSingleton<IDiagramRenderer, HttpDiagramRenderer>();
 builder.Services.AddScoped<DevicePairingService>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<ServiceAccountService>();
+builder.Services.AddScoped<OAuthService>();
+// OAuth metadata/token endpoints are called cross-origin by browser-based MCP clients (e.g. MCP Inspector); they carry no cookies.
+builder.Services.AddCors(o => o.AddPolicy(OAuthEndpoints.CorsPolicy, p => p.AllowAnyOrigin().AllowAnyHeader().WithMethods("GET", "POST")));
 
 // ---- MCP server for AI agents: Streamable HTTP at /mcp, stateless so replicas can scale to zero, bearer-authenticated ----
 builder.Services.AddMcpServer(o =>
@@ -187,11 +190,13 @@ var relayOptions = app.Services.GetRequiredService<Microsoft.Extensions.Options.
 app.UseMcpHostSplit(relayOptions.McpHost, relayOptions.McpAllowedOrigins);
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHashRelayApi();
+app.MapOAuth();
 app.MapDashboardEndpoints();
 app.MapHub<NotificationsHub>(HubMethods.Path);
 app.MapMcp(McpHosting.Path).RequireAuthorization(ApiAuth.PolicyAny);

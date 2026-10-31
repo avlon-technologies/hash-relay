@@ -15,6 +15,10 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
     public DbSet<DevicePairing> DevicePairings => Set<DevicePairing>();
     public DbSet<ServiceAccount> ServiceAccounts => Set<ServiceAccount>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<OAuthClient> OAuthClients => Set<OAuthClient>();
+    public DbSet<OAuthGrant> OAuthGrants => Set<OAuthGrant>();
+    public DbSet<OAuthCode> OAuthCodes => Set<OAuthCode>();
+    public DbSet<OAuthRefreshToken> OAuthRefreshTokens => Set<OAuthRefreshToken>();
 
     /// <summary>SQLite cannot compare DateTimeOffset text; store every timestamp as UTC ticks (INTEGER) instead.</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
@@ -70,6 +74,44 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Ignore(x => x.ScopeList);
             e.Ignore(x => x.AllowedTagList);
             e.Ignore(x => x.AllowedUrlHostList);
+        });
+
+        b.Entity<OAuthClient>(e =>
+        {
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.Name).HasMaxLength(120);
+            e.Property(x => x.RedirectUris).HasMaxLength(4000);
+            e.Property(x => x.AuthMethod).HasMaxLength(32);
+            e.Property(x => x.SecretHash).HasMaxLength(64);
+            e.Property(x => x.ClientUri).HasMaxLength(2048);
+            e.Property(x => x.LogoUri).HasMaxLength(2048);
+            e.Ignore(x => x.RedirectUriList);
+        });
+
+        b.Entity<OAuthGrant>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.AccountId, x.ClientId });
+            e.HasIndex(x => x.ServiceAccountId);
+            e.Property(x => x.ClientId).HasMaxLength(64);
+            e.Property(x => x.Scopes).HasMaxLength(200);
+        });
+
+        b.Entity<OAuthCode>(e =>
+        {
+            e.HasIndex(x => x.CodeHash).IsUnique();
+            e.Property(x => x.CodeHash).HasMaxLength(64);
+            e.Property(x => x.ClientId).HasMaxLength(64);
+            e.Property(x => x.RedirectUri).HasMaxLength(2048);
+            e.Property(x => x.CodeChallenge).HasMaxLength(128);
+            e.Property(x => x.Resource).HasMaxLength(2048);
+            e.Property(x => x.Scopes).HasMaxLength(200);
+        });
+
+        b.Entity<OAuthRefreshToken>(e =>
+        {
+            e.HasIndex(x => x.Hash).IsUnique();
+            e.HasIndex(x => x.GrantId);
+            e.Property(x => x.Hash).HasMaxLength(64);
         });
 
         b.Entity<AuditEvent>(e =>

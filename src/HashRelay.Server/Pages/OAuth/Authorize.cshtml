@@ -1,0 +1,82 @@
+@page "/oauth/authorize"
+@using HashRelay.Contracts
+@model HashRelay.Server.Pages.OAuth.AuthorizeModel
+@{
+    ViewData["Title"] = "Connect an app";
+}
+<div class="auth">
+    <div class="card" style="max-width: 560px">
+        <div class="card-body">
+            <div class="brand-mark" aria-hidden="true">#</div>
+            @if (Model.FatalError is not null)
+            {
+                <h1>Can't connect</h1>
+                <p class="sub">@Model.FatalError</p>
+                <p class="alt"><a href="/dashboard">Back to the dashboard</a></p>
+            }
+            else
+            {
+                var c = Model.Client!;
+                <h1>@c.Name wants to connect</h1>
+                <p class="sub">It will act in your workspace through a <strong>service account</strong> you can inspect, limit and revoke any time under Dashboard → Service accounts. Signed in as <strong>@Model.AccountEmail</strong>.</p>
+                @if (c.ClientUri is not null) { <p class="small muted" style="margin-top:-.5rem">@c.ClientUri</p> }
+                <form method="post" novalidate>
+                    <input type="hidden" name="client_id" value="@Model.ClientId" />
+                    <input type="hidden" name="redirect_uri" value="@Model.RedirectUri" />
+                    <input type="hidden" name="response_type" value="@Model.ResponseType" />
+                    <input type="hidden" name="scope" value="@Model.Scope" />
+                    <input type="hidden" name="state" value="@Model.State" />
+                    <input type="hidden" name="code_challenge" value="@Model.CodeChallenge" />
+                    <input type="hidden" name="code_challenge_method" value="@Model.CodeChallengeMethod" />
+                    <input type="hidden" name="resource" value="@Model.Resource" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="field">
+                        <label for="tenantId">Workspace</label>
+                        @if (Model.Memberships.Count == 0)
+                        {
+                            <p class="hint">You are not an owner or admin of any workspace, so you cannot connect apps.</p>
+                        }
+                        else
+                        {
+                            <select class="input" id="tenantId" name="tenantId">
+                                @foreach (var m in Model.Memberships)
+                                {
+                                    <option value="@m.TenantId" selected="@(m.TenantId == Model.CurrentTenantId)">@m.Tenant.Name</option>
+                                }
+                            </select>
+                        }
+                    </div>
+                    <div class="field">
+                        <label>Allow @c.Name to</label>
+                        <div class="checks">
+                            @foreach (var s in ServiceScopes.All)
+                            {
+                                <label class="check"><input type="checkbox" name="scopes" value="@s" checked="@(Model.RequestedScopes.Contains(s))" /> <span>@AuthorizeModel.Describe(s) <span class="muted mono small">@s</span></span></label>
+                            }
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="field">
+                            <label for="allowedTags">Allowed hashtags</label>
+                            <input class="input mono" id="allowedTags" name="allowedTags" value="*" required />
+                        </div>
+                        <div class="field">
+                            <label for="hourlyLimit">Publishes per hour</label>
+                            <select class="input" id="hourlyLimit" name="hourlyLimit">
+                                <option value="20">20</option>
+                                <option value="60" selected>60</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                    <p class="hint" style="margin-top:-.5rem"><code>*</code> allows every hashtag; <code>agent-*</code> keeps the app in its own lane. You can tighten this later on the service account.</p>
+                    </div>
+                    <div class="modal-actions" style="justify-content:flex-end">
+                        <button type="submit" class="btn btn-ghost" asp-page-handler="Deny" formnovalidate>Cancel</button>
+                        <button type="submit" class="btn btn-primary" asp-page-handler="Approve" disabled="@(Model.Memberships.Count == 0)">Connect</button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>

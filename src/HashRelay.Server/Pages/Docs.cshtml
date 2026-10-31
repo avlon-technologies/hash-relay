@@ -165,7 +165,7 @@ CredentialRevoked(reason)</code></pre></div>
             <tr><td class="mono">set_subscriptions</td><td>Add, remove or replace a device's hashtags. Needs <code>subscriptions:write</code>.</td></tr>
         </table>
         <p>The resource <code>hashrelay://workspace</code> tells the agent its workspace, permissions, allowed hashtags and remaining quota. Read-tool results are marked as untrusted content written by other publishers, and a publish-only account cannot read them at all, which keeps a misled agent from being fed instructions through notifications.</p>
-        <p>Browser-based clients need their origin listed in <code>HashRelay:McpAllowedOrigins</code>; requests with any other <code>Origin</code> header are refused. Hosted assistants that require OAuth (claude.ai, ChatGPT connectors) are not supported yet.</p>
+        <p>Browser-based clients need their origin listed in <code>HashRelay:McpAllowedOrigins</code>; requests with any other <code>Origin</code> header are refused. Hosted assistants that use OAuth (claude.ai and Claude Desktop connectors, ChatGPT) discover the authorization server through <code>/.well-known/oauth-protected-resource</code>: paste the MCP URL, sign in, and approve the consent screen. Each approval creates a service account named after the app, so the same policy, quota and activity log apply to it, and <strong>Disconnect</strong> on that service account revokes every token at once. Tokens last one hour and refresh automatically; clients register themselves (RFC 7591) and must use PKCE.</p>
 
         <h2 id="dotnet">.NET client</h2>
         <p>The <code>HashRelay.Client</code> library (in the repository) wraps the API and hub used by the CLI and agent:</p>
