@@ -1,11 +1,24 @@
+# HashRelay on Azure, scale-to-zero edition.
+#
+#   Container Apps (consumption, 0..1 replicas)  <- the server image, pulled from a Basic container registry
+#   Azure Files share                            <- SQLite database + data-protection keys (/data)
+#   Log Analytics (pay-per-GB, 1 GB/day cap)     <- container logs
+#   Azure DNS records + Container Apps managed certificate for the custom domain
+#
+# Nothing here bills while idle except the registry (Basic, a few dollars a month) and a few MB of storage.
+# When no browser or agent is connected the app scales to zero; the first request wakes it in a few seconds.
+
 locals {
-  prefix = "${var.name_prefix}-${var.environment}"
+  prefix  = "${var.name_prefix}-${var.environment}"
+  compact = "${var.name_prefix}${var.environment}"
   tags = {
     application = "hash-relay"
     environment = var.environment
     managed-by  = "terraform"
   }
   custom_domain = var.dns_zone_name != "" ? "${var.dns_record_name}.${var.dns_zone_name}" : ""
+  image         = "${azurerm_container_registry.acr.login_server}/${var.image_repository}:${var.image_tag}"
+  public_url    = local.custom_domain != "" ? "https://${local.custom_domain}" : "https://${azurerm_container_app.app.ingress[0].fqdn}"
 }
 
 resource "azurerm_resource_group" "app" {
@@ -14,82 +27,170 @@ resource "azurerm_resource_group" "app" {
   tags     = local.tags
 }
 
-resource "azurerm_service_plan" "app" {
-  name                = "asp-${local.prefix}"
+# ---- image registry + pull identity (created first so the image can be pushed before the app exists) ----
+
+resource "azurerm_container_registry" "acr" {
+  name                = "cr${local.compact}"
   resource_group_name = azurerm_resource_group.app.name
   location            = azurerm_resource_group.app.location
-  os_type             = "Linux"
-  sku_name            = var.service_plan_sku
+  sku                 = "Basic"
+  admin_enabled       = false
   tags                = local.tags
 }
 
-resource "azurerm_signalr_service" "realtime" {
-  name                = "sigr-${local.prefix}"
+resource "azurerm_user_assigned_identity" "app" {
+  name                = "id-${local.prefix}"
   resource_group_name = azurerm_resource_group.app.name
   location            = azurerm_resource_group.app.location
-  service_mode        = "Default"
-
-  sku {
-    name     = var.signalr_sku
-    capacity = var.signalr_capacity
-  }
-
-  tags = local.tags
+  tags                = local.tags
 }
 
-resource "azurerm_linux_web_app" "app" {
-  name                    = "app-${local.prefix}"
-  resource_group_name     = azurerm_resource_group.app.name
-  location                = azurerm_resource_group.app.location
-  service_plan_id         = azurerm_service_plan.app.id
-  https_only              = true
-  client_affinity_enabled = false
+resource "azurerm_role_assignment" "acr_pull" {
+  scope                = azurerm_container_registry.acr.id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.app.principal_id
+}
+
+# ---- persistent data: Azure Files share mounted at /data ----
+
+resource "azurerm_storage_account" "data" {
+  name                       = "st${local.compact}"
+  resource_group_name        = azurerm_resource_group.app.name
+  location                   = azurerm_resource_group.app.location
+  account_tier               = "Standard"
+  account_replication_type   = "LRS"
+  min_tls_version            = "TLS1_2"
+  https_traffic_only_enabled = true
+  tags                       = local.tags
+}
+
+resource "azurerm_storage_share" "data" {
+  name               = "hashrelay-data"
+  storage_account_id = azurerm_storage_account.data.id
+  quota              = 5
+}
+
+# ---- logs + container apps environment ----
+
+resource "azurerm_log_analytics_workspace" "logs" {
+  name                = "log-${local.prefix}"
+  resource_group_name = azurerm_resource_group.app.name
+  location            = azurerm_resource_group.app.location
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  daily_quota_gb      = 1
+  tags                = local.tags
+}
+
+resource "azurerm_container_app_environment" "env" {
+  name                       = "cae-${local.prefix}"
+  resource_group_name        = azurerm_resource_group.app.name
+  location                   = azurerm_resource_group.app.location
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.logs.id
+  tags                       = local.tags
+}
+
+resource "azurerm_container_app_environment_storage" "data" {
+  name                         = "data"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  account_name                 = azurerm_storage_account.data.name
+  share_name                   = azurerm_storage_share.data.name
+  access_key                   = azurerm_storage_account.data.primary_access_key
+  access_mode                  = "ReadWrite"
+}
+
+# ---- the app ----
+
+resource "azurerm_container_app" "app" {
+  name                         = "ca-${local.prefix}"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.app.name
+  revision_mode                = "Single"
+  tags                         = local.tags
 
   identity {
-    type = "SystemAssigned"
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.app.id]
   }
 
-  site_config {
-    always_on                         = var.service_plan_sku != "F1" && var.service_plan_sku != "D1"
-    websockets_enabled                = true
-    http2_enabled                     = true
-    health_check_path                 = "/health/live"
-    health_check_eviction_time_in_min = 5
-    application_stack {
-      dotnet_version = "10.0"
+  registry {
+    server   = azurerm_container_registry.acr.login_server
+    identity = azurerm_user_assigned_identity.app.id
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8080
+    transport        = "auto" # HTTP/1.1, HTTP/2 and WebSockets (SignalR)
+    traffic_weight {
+      latest_revision = true
+      percentage      = 100
     }
   }
 
-  app_settings = {
-    "ASPNETCORE_ENVIRONMENT"           = var.environment == "prod" ? "Production" : "Production"
-    "Azure__SignalR__ConnectionString" = "Endpoint=https://${azurerm_signalr_service.realtime.hostname};AuthType=azure.msi;Version=1.0;"
-    "HashRelay__PublicUrl"             = local.custom_domain != "" ? "https://${local.custom_domain}" : ""
-    "HashRelay__DatabasePath"          = "/home/data/hashrelay.db"
-    "HashRelay__AllowSignup"           = tostring(var.allow_signup)
-  }
+  template {
+    min_replicas = 0 # scale to zero when idle
+    max_replicas = 1 # SQLite = single writer; in-process SignalR = single node
 
-  logs {
-    application_logs {
-      file_system_level = "Information"
-    }
-    http_logs {
-      file_system {
-        retention_in_days = 3
-        retention_in_mb   = 35
+    container {
+      name   = "server"
+      image  = local.image
+      cpu    = var.container_cpu
+      memory = var.container_memory
+
+      env {
+        name  = "ASPNETCORE_ENVIRONMENT"
+        value = "Production"
+      }
+      env {
+        name  = "HashRelay__PublicUrl"
+        value = local.custom_domain != "" ? "https://${local.custom_domain}" : ""
+      }
+      env {
+        name  = "HashRelay__DatabasePath"
+        value = "/data/hashrelay.db"
+      }
+      env {
+        name  = "HashRelay__UseWal"
+        value = "false" # WAL is not safe on an SMB share
+      }
+      env {
+        name  = "HashRelay__AllowSignup"
+        value = tostring(var.allow_signup)
+      }
+
+      liveness_probe {
+        transport        = "HTTP"
+        port             = 8080
+        path             = "/health/live"
+        initial_delay    = 10
+        interval_seconds = 30
+      }
+
+      volume_mounts {
+        name = "data"
+        path = "/data"
       }
     }
+
+    volume {
+      name         = "data"
+      storage_name = azurerm_container_app_environment_storage.data.name
+      storage_type = "AzureFile"
+    }
   }
 
-  tags = local.tags
+  lifecycle {
+    # deploy.ps1 rolls new image tags with `az containerapp update`; Terraform owns everything else.
+    ignore_changes = [template[0].container[0].image]
+  }
+
+  depends_on = [azurerm_role_assignment.acr_pull]
 }
 
-resource "azurerm_role_assignment" "signalr_app_server" {
-  scope                = azurerm_signalr_service.realtime.id
-  role_definition_name = "SignalR App Server"
-  principal_id         = azurerm_linux_web_app.app.identity[0].principal_id
-}
-
-# ---- optional custom domain in an existing Azure DNS zone, with a free App Service managed certificate ----
+# ---- optional custom domain in an existing Azure DNS zone ----
+# Terraform publishes the DNS records and attaches the hostname; the free managed certificate is created and
+# bound by deploy.ps1 (`az containerapp hostname bind`), which is why the certificate fields are ignored below.
 
 data "azurerm_dns_zone" "zone" {
   count               = var.dns_zone_name != "" ? 1 : 0
@@ -103,7 +204,7 @@ resource "azurerm_dns_cname_record" "app" {
   zone_name           = data.azurerm_dns_zone.zone[0].name
   resource_group_name = data.azurerm_dns_zone.zone[0].resource_group_name
   ttl                 = 300
-  record              = azurerm_linux_web_app.app.default_hostname
+  record              = azurerm_container_app.app.ingress[0].fqdn
   tags                = local.tags
 }
 
@@ -114,32 +215,19 @@ resource "azurerm_dns_txt_record" "asuid" {
   resource_group_name = data.azurerm_dns_zone.zone[0].resource_group_name
   ttl                 = 300
   record {
-    value = azurerm_linux_web_app.app.custom_domain_verification_id
+    value = azurerm_container_app_environment.env.custom_domain_verification_id
   }
   tags = local.tags
 }
 
-resource "azurerm_app_service_custom_hostname_binding" "app" {
-  count               = var.dns_zone_name != "" ? 1 : 0
-  hostname            = local.custom_domain
-  app_service_name    = azurerm_linux_web_app.app.name
-  resource_group_name = azurerm_resource_group.app.name
-  depends_on          = [azurerm_dns_cname_record.app, azurerm_dns_txt_record.asuid]
+resource "azurerm_container_app_custom_domain" "app" {
+  count            = var.dns_zone_name != "" ? 1 : 0
+  name             = local.custom_domain
+  container_app_id = azurerm_container_app.app.id
 
   lifecycle {
-    ignore_changes = [ssl_state, thumbprint]
+    ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
   }
-}
 
-resource "azurerm_app_service_managed_certificate" "app" {
-  count                      = var.dns_zone_name != "" ? 1 : 0
-  custom_hostname_binding_id = azurerm_app_service_custom_hostname_binding.app[0].id
-  tags                       = local.tags
-}
-
-resource "azurerm_app_service_certificate_binding" "app" {
-  count               = var.dns_zone_name != "" ? 1 : 0
-  hostname_binding_id = azurerm_app_service_custom_hostname_binding.app[0].id
-  certificate_id      = azurerm_app_service_managed_certificate.app[0].id
-  ssl_state           = "SniEnabled"
+  depends_on = [azurerm_dns_cname_record.app, azurerm_dns_txt_record.asuid]
 }

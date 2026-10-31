@@ -18,7 +18,7 @@ hash-relay publish #builds "Build complete" "212 tests passed in 48s"
 | Agent | `src/HashRelay.Agent` | Windows tray agent: native toasts, pairing window, start with Windows |
 | Installer | `installer/HashRelay.iss` | Per-user Inno Setup EXE (no admin), agent + CLI, PATH, autostart, clean uninstall |
 | Tests | `tests/HashRelay.Server.Tests` | xunit v3 integration tests over the real server |
-| Infra | `infra/terraform` | Azure App Service (Linux, .NET 10) + SignalR + custom domain with managed certificate |
+| Infra | `infra/terraform` | Azure Container Apps (consumption, scales to zero) + Azure Files for SQLite + container registry + custom domain with managed certificate |
 | Architecture | `architecture/`, `docs/` | Continuum ADL/BDL model, development contract, ADRs |
 
 ## Quick start (hosted)
@@ -41,12 +41,17 @@ dotnet run --project src/HashRelay.Server # http://127.0.0.1:5075
 dotnet run --project tests/HashRelay.Server.Tests
 ```
 
-Deploy to Azure (needs `az login` and Terraform):
+Deploy to Azure (needs `az login` and Terraform; no local Docker, the image is built by `az acr build`):
 
 ```powershell
-./deploy.ps1 -Build        # terraform plan/apply + zip deploy + health check
-./deploy.ps1 -SkipInfra    # code-only redeploy
+./deploy.ps1 -Build        # terraform apply (registry first, then the rest) + image build + rollout + managed cert
+./deploy.ps1 -SkipInfra    # code-only redeploy: rebuild the image and roll it out
 ```
+
+The environment scales to zero: Container Apps (consumption plan, 0..1 replicas) runs the server, an Azure Files
+share holds the SQLite database and data-protection keys, and a Basic container registry holds the image. With no
+browser or agent connected nothing runs; the first request wakes the app in a few seconds. Connected agents keep
+the single replica alive while they are online.
 
 ## How it works
 

@@ -7,6 +7,7 @@ using HashRelay.Server.Realtime;
 using HashRelay.Server.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,7 @@ builder.Services.Configure<HashRelayOptions>(config.GetSection("HashRelay"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpContextAccessor();
 
-// ---- storage: SQLite file (App Service persists /home; locally ./data) ----
+// ---- storage: SQLite file. In Azure the data directory is a mounted file share (/data); locally ./data ----
 var dbPath = config["HashRelay:DatabasePath"];
 if (string.IsNullOrWhiteSpace(dbPath))
 {
@@ -28,8 +29,18 @@ if (string.IsNullOrWhiteSpace(dbPath))
         : Path.Combine(builder.Environment.ContentRootPath, "data");
     dbPath = Path.Combine(dataDir, "hashrelay.db");
 }
-Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+var dataDirectory = Path.GetDirectoryName(Path.GetFullPath(dbPath))!;
+Directory.CreateDirectory(dataDirectory);
 builder.Services.AddDbContext<RelayDbContext>(o => o.UseSqlite($"Data Source={dbPath}"));
+
+// Cookie/antiforgery keys must survive restarts and scale-to-zero wake-ups, so persist them next to the database.
+builder.Services.AddDataProtection()
+    .SetApplicationName("HashRelay")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDirectory, "keys")));
+
+// WAL journaling is unsafe on network file systems (Azure Files / App Service share); default to it only on local disk.
+var useWal = config.GetValue<bool?>("HashRelay:UseWal")
+    ?? (Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") is null && Environment.GetEnvironmentVariable("CONTAINER_APP_NAME") is null);
 
 // ---- web (dashboard) + api ----
 builder.Services.AddRazorPages(o =>
@@ -100,8 +111,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RelayDbContext>();
     await db.Database.EnsureCreatedAsync();
-    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME")))
-        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+    if (useWal) await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
 }
 
 app.UseForwardedHeaders();
