@@ -20,9 +20,12 @@ public class RelayFactory : WebApplicationFactory<Program>
     /// <summary>Service overrides applied after the app's own registrations (e.g. a fake push sender).</summary>
     public Action<IServiceCollection>? TestServices { get; init; }
 
+    /// <summary>Hosting environment; "Production" exercises the real error handling instead of the developer exception page.</summary>
+    public string HostEnvironment { get; init; } = "Development";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment(HostEnvironment);
         builder.ConfigureTestServices(s => TestServices?.Invoke(s));
         builder.UseSetting("HashRelay:DatabasePath", _dbPath);
         builder.UseSetting("HashRelay:ImagesPath", _imagesDir); // isolated per factory: the diagram cache is keyed by content

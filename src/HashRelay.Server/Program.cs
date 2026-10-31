@@ -53,6 +53,9 @@ builder.Services.AddRazorPages(o =>
     o.Conventions.AuthorizePage("/Pair");
 });
 builder.Services.AddSignalR(o => { o.EnableDetailedErrors = builder.Environment.IsDevelopment(); o.MaximumReceiveMessageSize = 64 * 1024; });
+// Malformed or missing request bodies throw in every environment (the default only throws in Development), so the
+// API filter can answer with the JSON error envelope instead of a bare 400/415.
+builder.Services.Configure<RouteHandlerOptions>(o => o.ThrowOnBadRequest = true);
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, o =>
@@ -191,16 +194,47 @@ for (var attempt = 1; ; attempt++)
 }
 
 app.UseForwardedHeaders();
-if (!app.Environment.IsDevelopment())
+// Machine-facing paths always answer in the JSON error envelope, whatever produced the status (framework body
+// parsing, routing, an unhandled exception); the web pages get the HTML error page.
+static bool IsMachinePath(HttpContext ctx)
+    => ctx.Request.Path.StartsWithSegments("/api") || ctx.Request.Path.StartsWithSegments("/hubs") || ctx.Request.Path.StartsWithSegments("/mcp");
+app.UseWhen(IsMachinePath, api =>
 {
-    app.UseExceptionHandler("/error");
-    app.UseHsts();
-}
-else
+    api.UseExceptionHandler(h => h.Run(ctx =>
+    {
+        // Body binding runs before endpoint filters, so a malformed/missing body or a wrong Content-Type surfaces here
+        // as BadHttpRequestException (ThrowOnBadRequest is on); keep its status instead of reporting a 500.
+        var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+        return ex is BadHttpRequestException bad
+            ? ApiErrors.WriteAsync(ctx, bad.StatusCode, bad.StatusCode is 400 or 415 ? ErrorCodes.Validation : ErrorCodes.Unexpected, bad.StatusCode switch
+            {
+                400 => "The request body is not valid JSON for this operation.",
+                415 => "Send the body as JSON with 'Content-Type: application/json'.",
+                _ => bad.Message,
+            })
+            : ApiErrors.WriteAsync(ctx, StatusCodes.Status500InternalServerError, ErrorCodes.Unexpected, "An unexpected error occurred. Quote the traceId when reporting it.");
+    }));
+    api.UseStatusCodePages(ctx =>
+    {
+        var status = ctx.HttpContext.Response.StatusCode;
+        var (code, message) = status switch
+        {
+            400 => (ErrorCodes.Validation, "The request is not valid."),
+            404 => (ErrorCodes.NotFound, "No such API route."),
+            405 => (ErrorCodes.Validation, "This route does not accept that HTTP method."),
+            415 => (ErrorCodes.Validation, "Send the body as JSON with 'Content-Type: application/json'."),
+            _ => (ErrorCodes.Unexpected, "The request could not be completed."),
+        };
+        return ApiErrors.WriteAsync(ctx.HttpContext, status, code, message);
+    });
+});
+app.UseWhen(ctx => !IsMachinePath(ctx), web =>
 {
-    app.UseDeveloperExceptionPage();
-}
-app.UseStatusCodePagesWithReExecute("/error", "?code={0}");
+    if (app.Environment.IsDevelopment()) web.UseDeveloperExceptionPage();
+    else web.UseExceptionHandler("/error");
+    web.UseStatusCodePagesWithReExecute("/error", "?code={0}");
+});
+if (!app.Environment.IsDevelopment()) app.UseHsts();
 var relayOptions = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<HashRelayOptions>>().Value;
 app.UseMcpHostSplit(relayOptions.McpHost, relayOptions.McpAllowedOrigins);
 app.UseStaticFiles();

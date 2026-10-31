@@ -177,9 +177,7 @@ public sealed class ApiExceptionFilter : IEndpointFilter
         {
             return Results.Json(ApiErrors.Build(ctx.HttpContext, ex.Code, ex.Message, ex.Details), statusCode: ex.Status);
         }
-        catch (BadHttpRequestException ex) when (ex.StatusCode == 400)
-        {
-            return ApiErrors.Validation(ctx.HttpContext, "The request body is not valid JSON for this operation.");
-        }
+        // Body-binding failures (malformed JSON, missing body, wrong Content-Type) throw BadHttpRequestException before
+        // filters run; the /api exception handler in Program.cs turns those into the JSON envelope.
     }
 }
