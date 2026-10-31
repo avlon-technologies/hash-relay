@@ -117,12 +117,24 @@ builder.Services.AddScoped<DevicePairingService>();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+// Schema setup retries for a while: on a rolling deploy the previous revision may still hold the SQLite file on
+// the shared volume for a few seconds (busy / locked / can't open), and failing here would crash-loop the new one.
+for (var attempt = 1; ; attempt++)
 {
-    var db = scope.ServiceProvider.GetRequiredService<RelayDbContext>();
-    await db.Database.EnsureCreatedAsync();
-    await SchemaUpgrades.ApplyAsync(db);
-    if (useWal) await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<RelayDbContext>();
+        await db.Database.EnsureCreatedAsync();
+        await SchemaUpgrades.ApplyAsync(db);
+        if (useWal) await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+        break;
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (attempt < 15 && ex.SqliteErrorCode is 5 or 6 or 14) // SQLITE_BUSY, SQLITE_LOCKED, SQLITE_CANTOPEN
+    {
+        app.Logger.LogWarning("Database not ready ({Message}); retrying in 3s (attempt {Attempt}/15)", ex.Message, attempt);
+        await Task.Delay(TimeSpan.FromSeconds(3));
+    }
 }
 
 app.UseForwardedHeaders();
