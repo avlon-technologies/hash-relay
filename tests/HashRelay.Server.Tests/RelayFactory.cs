@@ -19,6 +19,8 @@ public class RelayFactory : WebApplicationFactory<Program>
 
     /// <summary>Service overrides applied after the app's own registrations (e.g. a fake push sender).</summary>
     public Action<IServiceCollection>? TestServices { get; init; }
+    /// <summary>Extra configuration keys for this factory (e.g. feature switches that default to off).</summary>
+    public Dictionary<string, string> Settings { get; init; } = [];
 
     /// <summary>Hosting environment; "Production" exercises the real error handling instead of the developer exception page.</summary>
     public string HostEnvironment { get; init; } = "Development";
@@ -31,6 +33,7 @@ public class RelayFactory : WebApplicationFactory<Program>
         builder.UseSetting("HashRelay:ImagesPath", _imagesDir); // isolated per factory: the diagram cache is keyed by content
         builder.UseSetting("HashRelay:PublicUrl", "http://localhost");
         builder.UseSetting("HashRelay:ReplayWindowHours", "24");
+        foreach (var (k, v) in Settings) builder.UseSetting(k, v);
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft.AspNetCore", "Warning");
         builder.UseSetting("Logging:LogLevel:HashRelay", "Warning");

@@ -188,6 +188,10 @@ resource "azurerm_container_app" "app" {
         name  = "HashRelay__AllowSignup"
         value = tostring(var.allow_signup)
       }
+      env {
+        name  = "HashRelay__AllowPasswordReset"
+        value = tostring(var.allow_password_reset)
+      }
       dynamic "env" {
         for_each = var.fcm_service_account_json != "" ? [1] : []
         content {

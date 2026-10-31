@@ -16,6 +16,8 @@ public sealed class HashRelayOptions
     public string DatabasePath { get; set; } = "";
     public string ImagesPath { get; set; } = "";
     public bool AllowSignup { get; set; } = true;
+    /// <summary>Self-service "forgot password" pages and the link on the sign-in page. Off by default; needs outbound email (HashRelay:Email) to be useful.</summary>
+    public bool AllowPasswordReset { get; set; } = false;
     public int ReplayWindowHours { get; set; } = 24;
     public int PublishRateLimitPerMinute { get; set; } = 120;
     /// <summary>Host name that serves only the MCP endpoint (e.g. mcp.hashrelay.dev.avlon.ca). Empty = /mcp is served on every host.</summary>

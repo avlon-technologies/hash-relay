@@ -97,3 +97,8 @@ variable "smtp_password" {
   sensitive   = true
   description = "SMTP password or API key. Pass with TF_VAR_smtp_password or a git-ignored tfvars file; never commit it."
 }
+variable "allow_password_reset" {
+  type        = bool
+  default     = false
+  description = "Enable the self-service forgot-password pages and the link on the sign-in page. Needs the SMTP settings above to send the links."
+}

@@ -21,7 +21,27 @@ public sealed class PasswordResetTests : IAsyncLifetime
     private readonly RelayFactory _factory;
     private RelayFactory.Workspace _ws = null!;
 
-    public PasswordResetTests() => _factory = new RelayFactory { TestServices = s => s.AddSingleton<IEmailSender>(_outbox) };
+    public PasswordResetTests() => _factory = new RelayFactory
+    {
+        TestServices = s => s.AddSingleton<IEmailSender>(_outbox),
+        Settings = { ["HashRelay:AllowPasswordReset"] = "true" },
+    };
+
+    [Fact]
+    public async Task Flow_is_off_by_default_pages_404_and_login_hides_the_link()
+    {
+        using var plain = new RelayFactory();
+        var c = plain.CreateClient();
+        Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync("/forgot-password")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await c.GetAsync("/reset-password?token=nope")).StatusCode);
+        Assert.DoesNotContain("forgot-password", await c.GetStringAsync("/login"));
+
+        // and on when the switch is set
+        var on = _factory.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await on.GetAsync("/forgot-password")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await on.GetAsync("/reset-password?token=nope")).StatusCode);
+        Assert.Contains("forgot-password", await on.GetStringAsync("/login"));
+    }
 
     public async ValueTask InitializeAsync() => _ws = await _factory.CreateWorkspaceAsync("Reset Co");
     public ValueTask DisposeAsync() { _factory.Dispose(); return ValueTask.CompletedTask; }
