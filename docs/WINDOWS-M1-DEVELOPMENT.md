@@ -40,3 +40,7 @@ ADL and BDL compile successfully; technology bindings are authored as an **unval
 ![HashRelay delivery destinations](diagrams/hashrelay-delivery.svg)
 
 This illustration shows declared routing/delivery concepts and proposals for desktop SignalR and mobile push transports. It comes from an earlier ADL snapshot (attestation `sha256:f2ce446b35e77d5a7aae1bed4715ac80f0f61e4fd6b9fd75d0cf7c78047012dd`), not the latest Windows-first ADL. **Only the Windows/SignalR path is in M1.** Neither the Windows executable nor the installer is yet implemented merely by including this diagram.
+
+## Development-authoritative contract
+
+Before coding, follow [Windows M1 contract](WINDOWS-M1-CONTRACT.md) and [ADR-0001](adr/0001-windows-first.md). They resolve the earlier unchosen endpoint authentication and installer/transport behavior. M1A is **local loopback**; the Terraform infrastructure is for **M1B only**. In a conflict with examples above, the Windows M1 contract governs implementation details; ADL/BDL govern semantic architecture. Real Windows verification remains a release gate.
