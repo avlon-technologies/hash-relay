@@ -57,6 +57,12 @@ VersionInfoVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription={#AppName} Setup
 VersionInfoProductName={#AppName}
+#ifdef Sign
+; Azure Artifact Signing for Setup.exe and the uninstaller. build.ps1 -Sign defines the "sign" tool via ISCC /Ssign=... (build/sign.ps1).
+SignTool=sign
+SignedUninstaller=yes
+SignToolRetryCount=3
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
