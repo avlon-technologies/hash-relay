@@ -33,7 +33,7 @@ public sealed class RelayListener : IAsyncDisposable
     {
         if (!config.IsLoggedIn) throw new InvalidOperationException("No API key configured.");
         _hello = new HelloRequest(config.EndpointId, config.DeviceName, platform, agentVersion);
-        var url = new Uri(config.ServerUri, "hubs/relay");
+        var url = new Uri(config.ServerUri, HubMethods.Path.TrimStart('/'));
         var builder = new HubConnectionBuilder()
             .WithUrl(url, o =>
             {

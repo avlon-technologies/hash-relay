@@ -39,7 +39,7 @@ internal static class Toasts
             .AddArgument("deliveryId", m.DeliveryId.ToString())
             .AddText(m.Title, hintMaxLines: 2)
             .AddAttributionText($"{Tags.DisplayAll(m.Tags)} · {m.TenantName}");
-        if (!string.IsNullOrWhiteSpace(m.Body)) builder.AddText(m.Body, hintMaxLines: 4);
+        if (!string.IsNullOrWhiteSpace(m.Body)) builder.AddText(m.Body, hintMaxLines: 2);
         if (!string.IsNullOrWhiteSpace(m.Url)) builder.AddArgument("url", m.Url);
         if (File.Exists(IconPath)) builder.AddAppLogoOverride(new Uri(IconPath), ToastGenericAppLogoCrop.None);
 

@@ -44,3 +44,17 @@ This illustration shows declared routing/delivery concepts and proposals for des
 ## Development-authoritative contract
 
 Before coding, follow [Windows M1 contract](WINDOWS-M1-CONTRACT.md) and [ADR-0001](adr/0001-windows-first.md). They resolve the earlier unchosen endpoint authentication and installer/transport behavior. M1A is **local loopback**; the Terraform infrastructure is for **M1B only**. In a conflict with examples above, the Windows M1 contract governs implementation details; ADL/BDL govern semantic architecture. Real Windows verification remains a release gate.
+
+## Implementation status (2026-10-31)
+
+Implemented in this repository and verified on a Windows 11 desktop session:
+
+- `src/HashRelay.Server` — ASP.NET Core 10 cloud: dashboard (sign-up, workspaces, API keys, devices, activity), HTTP API `/api/v1`, SignalR hub `/hubs/notifications`, SQLite store, device pairing.
+- `src/HashRelay.Cli` — `hash-relay` with the contract verbs (`configure`, `subscribe`, `subscriptions`, `publish`, `status`, `test`) plus `login`, `listen`, `agent`, `--json` and the contract exit codes.
+- `src/HashRelay.Agent` — per-user tray agent; native toasts via the Windows toast API (unpackaged registration, AUMID `Avlon.HashRelay`), auto-reconnect, replay, duplicate suppression, start-with-Windows.
+- `installer/HashRelay.iss` — per-user Inno Setup EXE (no elevation), self-contained win-x64 agent + CLI, PATH, autostart, Start menu, clean uninstall incl. notification registration.
+- `tests/HashRelay.Server.Tests` — 32 integration tests: matching, once-per-endpoint, idempotency/409, unauthorized publish/listen, cross-tenant isolation, SignalR delivery/replay, pairing, browser sign-up flow.
+
+Evidence captured: `hash-relay publish #builds "Build complete" "212 tests passed in 48s"` from a separate process produced a native toast titled "Build complete" attributed to "HashRelay" with the "#builds · Avlon Engineering" footer (screenshot taken during the run); the silent install placed the agent and CLI under `%LOCALAPPDATA%\Programs\HashRelay`, added the user PATH entry and the per-user Run key.
+
+Deviations from the M1A text, by product decision: the loopback dev-token mode was not built because M1B credentials (dashboard API keys and paired device tokens) are in scope from the start; agent authentication uses an OAuth-style device-authorization pairing flow approved in the dashboard rather than OIDC/PKCE, which needs no external identity provider. Hosting is Azure App Service with in-process SignalR (single instance); the Azure SignalR Service resource is provisioned by Terraform but not yet wired in.
