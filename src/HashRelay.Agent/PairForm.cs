@@ -35,49 +35,64 @@ internal sealed class PairForm : Form
     {
         _config = config;
         Text = "Pair with HashRelay";
+        // The app runs PerMonitorV2, so WinForms treats coordinates set here as being in the *current* monitor DPI
+        // (it resets AutoScaleDimensions to DeviceDpi on handle creation; auto-scaling only kicks in for later DPI
+        // changes). The layout below is designed at 96 dpi, so scale every measure by hand from DeviceDpi.
+        AutoScaleMode = AutoScaleMode.Dpi;
+        var scale = DeviceDpi / 96f;
+        int S(int v) => (int)Math.Round(v * scale);
+        Point P(int x, int y) => new(S(x), S(y));
+        Size Z(int w, int h) => new(S(w), S(h));
+
+        SuspendLayout();
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false; MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(460, 360);
+        ClientSize = Z(460, 364);
         BackColor = Bg; ForeColor = Fg;
-        Font = new Font("Segoe UI", 10f);
+        Font = new Font("Segoe UI", 10f); // point sizes already follow the DPI
         try { Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "hashrelay.ico")); } catch { }
 
-        var header = new Panel { Dock = DockStyle.Top, Height = 92, Padding = new Padding(24, 20, 24, 0) };
+        var header = new Panel { Dock = DockStyle.Top, Height = S(92) };
         header.Paint += (_, e) =>
         {
-            using var brush = new LinearGradientBrush(new Rectangle(0, 0, header.Width, header.Height), Color.FromArgb(40, Accent), Color.FromArgb(0, Bg), 0f);
+            using var brush = new LinearGradientBrush(new Rectangle(0, 0, Math.Max(1, header.Width), Math.Max(1, header.Height)), Color.FromArgb(40, Accent), Color.FromArgb(0, Bg), 0f);
             e.Graphics.FillRectangle(brush, header.ClientRectangle);
-            using var logo = new LinearGradientBrush(new Rectangle(24, 24, 40, 40), Accent, Accent2, 45f);
-            using var path = Rounded(new Rectangle(24, 24, 40, 40), 10);
+            var logoRect = new Rectangle(S(24), S(24), S(40), S(40));
+            using var logo = new LinearGradientBrush(logoRect, Accent, Accent2, 45f);
+            using var path = Rounded(logoRect, S(10));
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             e.Graphics.FillPath(logo, path);
             using var f = new Font("Consolas", 20f, FontStyle.Bold);
-            e.Graphics.DrawString("#", f, Brushes.White, new RectangleF(24, 22, 40, 44), new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+            e.Graphics.DrawString("#", f, Brushes.White, new RectangleF(logoRect.X, logoRect.Y - S(2), logoRect.Width, logoRect.Height + S(4)),
+                new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
         };
-        _title.Text = "Pair this device"; _title.Font = new Font("Segoe UI Semibold", 15f); _title.AutoSize = true; _title.Location = new Point(76, 24);
-        _subtitle.Text = _config.DeviceName; _subtitle.ForeColor = Muted; _subtitle.AutoSize = true; _subtitle.Location = new Point(78, 54);
+        _title.Text = "Pair this device"; _title.Font = new Font("Segoe UI Semibold", 15f); _title.AutoSize = true; _title.Location = P(76, 20); _title.BackColor = Color.Transparent;
+        _subtitle.Text = _config.DeviceName; _subtitle.ForeColor = Muted; _subtitle.AutoSize = true; _subtitle.Location = P(78, 56); _subtitle.BackColor = Color.Transparent;
         header.Controls.Add(_title); header.Controls.Add(_subtitle);
 
-        _serverLabel.Text = "Server"; _serverLabel.ForeColor = Muted; _serverLabel.Location = new Point(24, 104); _serverLabel.AutoSize = true;
-        _server.Text = _config.Server; _server.Location = new Point(24, 126); _server.Width = 412; _server.BackColor = Color.FromArgb(0x0D, 0x11, 0x1B); _server.ForeColor = Fg; _server.BorderStyle = BorderStyle.FixedSingle;
+        _serverLabel.Text = "Server"; _serverLabel.ForeColor = Muted; _serverLabel.Location = P(24, 104); _serverLabel.AutoSize = true;
+        _server.Text = _config.Server; _server.Location = P(24, 128); _server.Width = S(412); _server.BackColor = Color.FromArgb(0x0D, 0x11, 0x1B); _server.ForeColor = Fg; _server.BorderStyle = BorderStyle.FixedSingle;
 
         _code.Text = "— — — —"; _code.Font = new Font("Consolas", 26f, FontStyle.Bold); _code.TextAlign = ContentAlignment.MiddleCenter;
-        _code.Location = new Point(24, 168); _code.Size = new Size(412, 56); _code.BackColor = Color.FromArgb(0x0D, 0x11, 0x1B); _code.ForeColor = Fg;
+        _code.Location = P(24, 168); _code.Size = Z(412, 56); _code.BackColor = Color.FromArgb(0x0D, 0x11, 0x1B); _code.ForeColor = Fg;
 
-        _status.Text = "Click Pair to get a code, then approve it in your browser."; _status.ForeColor = Muted; _status.Location = new Point(24, 234); _status.Size = new Size(412, 40);
-        _link.Text = ""; _link.Location = new Point(24, 272); _link.Size = new Size(412, 20); _link.LinkColor = Accent2; _link.ActiveLinkColor = Accent; _link.LinkBehavior = LinkBehavior.HoverUnderline;
+        _status.Text = "Click Pair to get a code, then approve it in your browser."; _status.ForeColor = Muted; _status.Location = P(24, 234); _status.Size = Z(412, 44);
+        _link.Text = ""; _link.Location = P(24, 278); _link.Size = Z(412, 22); _link.LinkColor = Accent2; _link.ActiveLinkColor = Accent; _link.LinkBehavior = LinkBehavior.HoverUnderline;
+        _link.AutoEllipsis = true;
         _link.LinkClicked += (_, _) => { if (_link.Tag is string url) Open(url); };
 
-        _primary.Text = "Pair in browser"; _primary.Location = new Point(300, 308); _primary.Size = new Size(136, 36); _primary.FlatStyle = FlatStyle.Flat;
+        _primary.Text = "Pair in browser"; _primary.Location = P(292, 312); _primary.Size = Z(144, 36); _primary.FlatStyle = FlatStyle.Flat;
         _primary.BackColor = Accent; _primary.ForeColor = Color.White; _primary.FlatAppearance.BorderSize = 0; _primary.Font = new Font("Segoe UI Semibold", 10f);
         _primary.Click += async (_, _) => await PairAsync();
-        _cancel.Text = "Close"; _cancel.Location = new Point(196, 308); _cancel.Size = new Size(96, 36); _cancel.FlatStyle = FlatStyle.Flat; _cancel.ForeColor = Muted;
+        _cancel.Text = "Close"; _cancel.Location = P(188, 312); _cancel.Size = Z(96, 36); _cancel.FlatStyle = FlatStyle.Flat; _cancel.ForeColor = Muted;
         _cancel.FlatAppearance.BorderColor = Color.FromArgb(0x2A, 0x33, 0x4A); _cancel.Click += (_, _) => Close();
 
         Controls.AddRange([header, _serverLabel, _server, _code, _status, _link, _cancel, _primary]);
         AcceptButton = _primary;
         FormClosed += (_, _) => _cts?.Cancel();
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     private static GraphicsPath Rounded(Rectangle r, int radius)
