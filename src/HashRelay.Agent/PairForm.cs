@@ -117,7 +117,7 @@ internal sealed class PairForm : Form
             _config.Server = uri.GetLeftPart(UriPartial.Authority);
 
             using var http = new HttpClient { BaseAddress = _config.ServerUri, Timeout = TimeSpan.FromSeconds(20) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd($"hash-relay-agent/{AgentInfo.Version}");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd($"hashrelay-agent/{AgentInfo.Version}");
             _status.Text = "Requesting a pairing code…";
             var res = await http.PostAsJsonAsync("api/v1/device/code", new DeviceCodeRequest(_config.EndpointId, _config.DeviceName, "windows", AgentInfo.Version, "agent"), ct);
             if (!res.IsSuccessStatusCode) { _status.Text = $"The server refused the request ({(int)res.StatusCode})."; return; }
@@ -142,7 +142,7 @@ internal sealed class PairForm : Form
                 _status.Text = $"Paired with {r.Tenant.Name}. You're all set!";
                 _code.ForeColor = Color.FromArgb(0x34, 0xD3, 0x99);
                 Paired?.Invoke(_config);
-                Toasts.ShowInfo("HashRelay is connected", $"This device is paired with {r.Tenant.Name}. Subscribe to hashtags from the dashboard or with hash-relay subscribe.");
+                Toasts.ShowInfo("HashRelay is connected", $"This device is paired with {r.Tenant.Name}. Subscribe to hashtags from the dashboard or with hashrelay subscribe.");
                 await Task.Delay(1200, ct);
                 Close();
                 return;

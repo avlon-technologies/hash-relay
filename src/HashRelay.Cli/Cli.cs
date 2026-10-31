@@ -37,9 +37,9 @@ public static class Cli
 
     public static void PrintHelp()
     {
-        Console.WriteLine($"{Terminal.Bold("hash-relay")} {Terminal.Dim(Version)} — hashtag notifications for your desktop\n");
+        Console.WriteLine($"{Terminal.Bold("hashrelay")} {Terminal.Dim(Version)} — hashtag notifications for your desktop\n");
         Console.WriteLine(Terminal.Bold("Usage"));
-        Console.WriteLine("  hash-relay <command> [options]\n");
+        Console.WriteLine("  hashrelay <command> [options]\n");
         Console.WriteLine(Terminal.Bold("Commands"));
         foreach (var (name, (_, summary)) in Commands)
             Console.WriteLine($"  {Terminal.Cyan(name.PadRight(14))} {summary}");
@@ -50,15 +50,15 @@ public static class Cli
         Console.WriteLine("  --quiet, -q      Suppress informational output");
         Console.WriteLine("  --help, -h       Show help for a command");
         Console.WriteLine($"\n{Terminal.Bold("Examples")}");
-        Console.WriteLine($"  hash-relay subscribe {Terminal.Tag("builds")}");
-        Console.WriteLine($"  hash-relay publish {Terminal.Tag("builds")} \"Build complete\" \"212 tests passed\"");
+        Console.WriteLine($"  hashrelay subscribe {Terminal.Tag("builds")}");
+        Console.WriteLine($"  hashrelay publish {Terminal.Tag("builds")} \"Build complete\" \"212 tests passed\"");
         Console.WriteLine($"\nConfig: {Terminal.Dim(ConfigStore.FilePath)}");
     }
 
     public static void PrintCommandHelp(string command)
     {
         var (usage, summary) = Commands[command];
-        Console.WriteLine($"{Terminal.Bold("hash-relay " + usage)}\n\n  {summary}");
+        Console.WriteLine($"{Terminal.Bold("hashrelay " + usage)}\n\n  {summary}");
         if (command == "publish")
         {
             Console.WriteLine("\n  Tags may be given as positionals starting with '#' or with --tag/-t. Title and body may also be\n  given with --title and --body. --id makes retries idempotent (same id + same payload = no duplicate).\n\n  Rich content (shown on the notification's web page; the toast gets a plain summary + image):\n    --markdown TEXT / --markdown-file PATH   CommonMark with tables, task lists and ```mermaid fences\n    --diagram SRC / --diagram-file PATH      Mermaid source; rendered to PNG for the toast and live on the page\n    --image PATH|URL                         PNG/JPEG/GIF/WebP (≤ 3 MB). A local file is uploaded first.\n  Use '-' as a file path to read from stdin.");
@@ -79,7 +79,7 @@ public static class Cli
         "test" => TestAsync(a, ct),
         "agent" => AgentAsync(a, ct),
         "open" => Task.FromResult(Open(a)),
-        _ => Task.FromResult(Terminal.Fail(ExitCodes.InvalidInput, $"Unknown command '{command}'.", "Run `hash-relay --help` for the list of commands.")),
+        _ => Task.FromResult(Terminal.Fail(ExitCodes.InvalidInput, $"Unknown command '{command}'.", "Run `hashrelay --help` for the list of commands.")),
     };
 
     // ---------------------------------------------------------------- helpers
@@ -102,7 +102,7 @@ public static class Cli
         return u.GetLeftPart(UriPartial.Authority);
     }
 
-    private static HashRelayApi Api(RelayConfig cfg) => new(cfg.ServerUri, cfg.ApiKey, userAgent: $"hash-relay-cli/{Version} ({Platform})");
+    private static HashRelayApi Api(RelayConfig cfg) => new(cfg.ServerUri, cfg.ApiKey, userAgent: $"hashrelay-cli/{Version} ({Platform})");
 
     private static RelayConfig RequireLogin(Args a)
     {
@@ -117,8 +117,8 @@ public static class Cli
         var detail = ex.Error?.Details is { Count: > 0 } d ? string.Join(" ", d.SelectMany(kv => kv.Value)) : null;
         return ex.Status switch
         {
-            HttpStatusCode.Unauthorized => Terminal.Fail(ExitCodes.Authentication, ex.Message, "Run `hash-relay login` to pair this device, or pass --key.", ex.Error),
-            HttpStatusCode.Forbidden => Terminal.Fail(ExitCodes.Authentication, ex.Message, "Your device token may lack this permission. Pair again with `hash-relay login` and allow publishing, or use an API key with --key.", ex.Error),
+            HttpStatusCode.Unauthorized => Terminal.Fail(ExitCodes.Authentication, ex.Message, "Run `hashrelay login` to pair this device, or pass --key.", ex.Error),
+            HttpStatusCode.Forbidden => Terminal.Fail(ExitCodes.Authentication, ex.Message, "Your device token may lack this permission. Pair again with `hashrelay login` and allow publishing, or use an API key with --key.", ex.Error),
             HttpStatusCode.BadRequest => Terminal.Fail(ExitCodes.InvalidInput, detail ?? ex.Message, null, ex.Error),
             HttpStatusCode.NotFound or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests => Terminal.Fail(ExitCodes.Rejected, ex.Message, null, ex.Error),
             >= HttpStatusCode.InternalServerError => Terminal.Fail(ExitCodes.ServerUnavailable, $"The server failed ({(int)ex.Status}). {ex.Message}", null, ex.Error),
@@ -160,7 +160,7 @@ public static class Cli
             return ExitCodes.Ok;
         }
 
-        using var anon = new HashRelayApi(cfg.ServerUri, null, userAgent: $"hash-relay-cli/{Version}");
+        using var anon = new HashRelayApi(cfg.ServerUri, null, userAgent: $"hashrelay-cli/{Version}");
         // The device-code endpoints live on HashRelayApi's HttpClient, so use a small inline client here.
         var http = new HttpClient { BaseAddress = cfg.ServerUri, Timeout = TimeSpan.FromSeconds(20) };
         var codeRes = await http.PostAsJsonAsync("api/v1/device/code", new DeviceCodeRequest(cfg.EndpointId, cfg.DeviceName, Platform, Version, "cli"), ct);
@@ -186,17 +186,17 @@ public static class Cli
             {
                 case "pending": continue;
                 case "denied": return Terminal.Fail(ExitCodes.Authentication, "The pairing request was denied in the dashboard.");
-                case "expired": return Terminal.Fail(ExitCodes.Authentication, "The pairing code expired before it was approved.", "Run `hash-relay login` again.");
+                case "expired": return Terminal.Fail(ExitCodes.Authentication, "The pairing code expired before it was approved.", "Run `hashrelay login` again.");
                 case "approved":
                     cfg.ApiKey = poll.Token;
                     Remember(cfg, poll.Tenant!, poll.Credential!);
                     Terminal.Ok($"Paired with {Terminal.Bold(poll.Tenant!.Name)}. This device may: {string.Join(", ", poll.Credential!.Scopes)}.");
-                    Terminal.Info($"Next: {Terminal.Cyan("hash-relay subscribe #builds")} then {Terminal.Cyan("hash-relay test")}");
+                    Terminal.Info($"Next: {Terminal.Cyan("hashrelay subscribe #builds")} then {Terminal.Cyan("hashrelay test")}");
                     Terminal.Emit(new { ok = true, tenant = poll.Tenant, credential = poll.Credential, server = cfg.Server, endpointId = cfg.EndpointId });
                     return ExitCodes.Ok;
             }
         }
-        return Terminal.Fail(ExitCodes.Authentication, "The pairing code expired before it was approved.", "Run `hash-relay login` again.");
+        return Terminal.Fail(ExitCodes.Authentication, "The pairing code expired before it was approved.", "Run `hashrelay login` again.");
     }
 
     private static async Task<ApiError?> TryReadError(HttpResponseMessage res)
@@ -234,7 +234,7 @@ public static class Cli
             var server = NormalizeServer(s);
             if (!string.Equals(server, cfg.Server, StringComparison.OrdinalIgnoreCase) && cfg.IsLoggedIn)
             {
-                Terminal.Warn("Changing the server clears the stored credential; run `hash-relay login` afterwards.");
+                Terminal.Warn("Changing the server clears the stored credential; run `hashrelay login` afterwards.");
                 cfg.ApiKey = null; cfg.TenantName = null; cfg.TenantSlug = null; cfg.KeyLabel = null;
             }
             cfg.Server = server; changed = true;
@@ -263,7 +263,7 @@ public static class Cli
         try { var h = await api.HealthAsync(ct); health = h; healthText = Terminal.Green($"online · v{h.Version}"); }
         catch (Exception ex) { healthText = Terminal.Red("unreachable") + Terminal.Dim($" ({ex.Message})"); }
 
-        if (!cfg.IsLoggedIn) { loginText = Terminal.Yellow("not paired") + Terminal.Dim(" — run `hash-relay login`"); deviceText = Terminal.Dim("—"); }
+        if (!cfg.IsLoggedIn) { loginText = Terminal.Yellow("not paired") + Terminal.Dim(" — run `hashrelay login`"); deviceText = Terminal.Dim("—"); }
         else
         {
             try
@@ -278,7 +278,7 @@ public static class Cli
                     var online = info?.Online == true ? Terminal.Green("agent connected") : Terminal.Yellow("agent offline");
                     deviceText = $"{cfg.DeviceName} · {online} · {(ep.Tags.Count == 0 ? Terminal.Dim("no subscriptions") : string.Join(' ', ep.Tags.Select(Terminal.Tag)))}";
                 }
-                catch (HashRelayApiException ex) when (ex.Status == HttpStatusCode.NotFound) { deviceText = $"{cfg.DeviceName} · {Terminal.Yellow("not registered yet")} — start the agent or run `hash-relay subscribe`"; }
+                catch (HashRelayApiException ex) when (ex.Status == HttpStatusCode.NotFound) { deviceText = $"{cfg.DeviceName} · {Terminal.Yellow("not registered yet")} — start the agent or run `hashrelay subscribe`"; }
             }
             catch (HashRelayApiException ex) when (ex.IsUnauthorized) { loginText = Terminal.Red("credential rejected") + Terminal.Dim($" — {ex.Message}"); deviceText = Terminal.Dim("—"); }
         }
@@ -288,7 +288,7 @@ public static class Cli
         Terminal.KeyValue("server", $"{cfg.Server} · {healthText}");
         Terminal.KeyValue("workspace", loginText);
         Terminal.KeyValue("device", deviceText);
-        if (OperatingSystem.IsWindows()) Terminal.KeyValue("agent", agentRunning ? Terminal.Green("running") : Terminal.Yellow("not running") + Terminal.Dim(" — `hash-relay agent start`"));
+        if (OperatingSystem.IsWindows()) Terminal.KeyValue("agent", agentRunning ? Terminal.Green("running") : Terminal.Yellow("not running") + Terminal.Dim(" — `hashrelay agent start`"));
         Terminal.KeyValue("endpoint", Terminal.Dim(cfg.EndpointId));
         Terminal.KeyValue("config", Terminal.Dim(ConfigStore.FilePath));
         Terminal.Emit(new { ok = true, server = cfg.Server, health, loggedIn = cfg.IsLoggedIn, me, endpoint, agentRunning, endpointId = cfg.EndpointId, config = ConfigStore.FilePath });
@@ -309,7 +309,7 @@ public static class Cli
         {
             var tags = ParseTags(a, out var rest);
             tags.AddRange(rest); // allow bare words too: `subscribe builds`
-            if (tags.Count == 0) return Terminal.Fail(ExitCodes.InvalidInput, "Give at least one hashtag.", $"Example: hash-relay {mode switch { "add" => "subscribe", _ => "unsubscribe" }} #builds");
+            if (tags.Count == 0) return Terminal.Fail(ExitCodes.InvalidInput, "Give at least one hashtag.", $"Example: hashrelay {mode switch { "add" => "subscribe", _ => "unsubscribe" }} #builds");
             try { foreach (var t in tags) Tags.Normalize(t); }
             catch (ArgumentException ex) { return Terminal.Fail(ExitCodes.InvalidInput, ex.Message); }
             await EnsureRegisteredAsync(api, cfg, ct);
@@ -335,8 +335,8 @@ public static class Cli
         var tags = ParseTags(a, out var rest);
         var title = a.Get("title") ?? rest.ElementAtOrDefault(0);
         var body = a.Get("body", "b") ?? rest.ElementAtOrDefault(1);
-        if (tags.Count == 0) return Terminal.Fail(ExitCodes.InvalidInput, "Give at least one hashtag.", "Example: hash-relay publish #builds \"Build complete\" \"212 tests passed\"");
-        if (string.IsNullOrWhiteSpace(title)) return Terminal.Fail(ExitCodes.InvalidInput, "A title is required.", "Example: hash-relay publish #builds \"Build complete\"");
+        if (tags.Count == 0) return Terminal.Fail(ExitCodes.InvalidInput, "Give at least one hashtag.", "Example: hashrelay publish #builds \"Build complete\" \"212 tests passed\"");
+        if (string.IsNullOrWhiteSpace(title)) return Terminal.Fail(ExitCodes.InvalidInput, "A title is required.", "Example: hashrelay publish #builds \"Build complete\"");
         Guid? id = null;
         if (a.Get("id") is { } rawId)
         {
@@ -374,7 +374,7 @@ public static class Cli
             ? Terminal.Yellow("no subscribed devices")
             : $"{result.MatchedEndpoints} device{(result.MatchedEndpoints == 1 ? "" : "s")} matched · {Terminal.Green($"{result.DeliveredLive} live")}{(result.Queued > 0 ? $" · {Terminal.Yellow($"{result.Queued} queued")}" : "")}";
         Terminal.Ok($"{(result.Duplicate ? "Already accepted" : "Accepted")} {Terminal.Dim(result.NotificationId.ToString())} · {delivery} {Terminal.Dim($"({sw.ElapsedMilliseconds} ms)")}");
-        if (result.MatchedEndpoints == 0) Terminal.Info($"Subscribe a device first: {Terminal.Cyan($"hash-relay subscribe {Tags.DisplayAll(result.Tags)}")}");
+        if (result.MatchedEndpoints == 0) Terminal.Info($"Subscribe a device first: {Terminal.Cyan($"hashrelay subscribe {Tags.DisplayAll(result.Tags)}")}");
         if ((markdown is not null || diagram is not null) && result.DetailUrl is not null) Terminal.Info($"page: {Terminal.Dim(result.DetailUrl)}");
         if (result.ImageUrl is null && (diagram is not null || (markdown?.Contains("```mermaid", StringComparison.OrdinalIgnoreCase) ?? false)))
             Terminal.Warn("The diagram could not be rendered to an image (check its Mermaid syntax); the toast will show text only and the page will show the error.");
@@ -453,15 +453,15 @@ public static class Cli
             }
         }
         if (!me.Credential.Scopes.Contains(Scopes.Publish))
-            return Terminal.Fail(ExitCodes.Authentication, "This device token cannot publish.", "Pair again with `hash-relay login` and allow publishing, or pass an API key with --key.");
+            return Terminal.Fail(ExitCodes.Authentication, "This device token cannot publish.", "Pair again with `hashrelay login` and allow publishing, or pass an API key with --key.");
 
         var result = await api.PublishAsync(new PublishRequest([TestTag], "HashRelay test", $"If you can see this on {cfg.DeviceName}, notifications are working.", Priority: Priorities.High), ct);
         if (result.MatchedEndpoints == 0)
-            return Terminal.Fail(ExitCodes.Rejected, "The test notification matched no devices.", "Start the agent (`hash-relay agent start`) or run `hash-relay subscribe #test` on a paired device.", result);
+            return Terminal.Fail(ExitCodes.Rejected, "The test notification matched no devices.", "Start the agent (`hashrelay agent start`) or run `hashrelay subscribe #test` on a paired device.", result);
         if (result.DeliveredLive == 0)
         {
             Terminal.Warn($"Accepted, but no device is connected right now ({result.Queued} queued). It will be shown when the agent connects.");
-            if (OperatingSystem.IsWindows()) Terminal.Info($"Start it with {Terminal.Cyan("hash-relay agent start")}");
+            if (OperatingSystem.IsWindows()) Terminal.Info($"Start it with {Terminal.Cyan("hashrelay agent start")}");
             Terminal.Emit(new { ok = true, delivered = false, result });
             return ExitCodes.Ok;
         }
@@ -491,7 +491,7 @@ public static class Cli
 
     private static Task<int> AgentAsync(Args a, CancellationToken ct)
     {
-        if (!OperatingSystem.IsWindows()) return Task.FromResult(Terminal.Fail(ExitCodes.InvalidInput, "The tray agent is Windows-only. Use `hash-relay listen` here."));
+        if (!OperatingSystem.IsWindows()) return Task.FromResult(Terminal.Fail(ExitCodes.InvalidInput, "The tray agent is Windows-only. Use `hashrelay listen` here."));
         var sub = a.Positional(1)?.ToLowerInvariant() ?? "status";
         var proc = AgentProcess();
         switch (sub)
@@ -515,7 +515,7 @@ public static class Cli
                 Terminal.Emit(new { ok = true, stopped = true });
                 return Task.FromResult(ExitCodes.Ok);
             default:
-                return Task.FromResult(Terminal.Fail(ExitCodes.InvalidInput, $"Unknown agent command '{sub}'.", "Use: hash-relay agent start|stop|status"));
+                return Task.FromResult(Terminal.Fail(ExitCodes.InvalidInput, $"Unknown agent command '{sub}'.", "Use: hashrelay agent start|stop|status"));
         }
     }
 

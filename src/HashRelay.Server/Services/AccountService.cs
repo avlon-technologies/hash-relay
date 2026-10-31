@@ -61,6 +61,29 @@ public sealed partial class AccountService(RelayDbContext db, TimeProvider clock
         return account;
     }
 
+    public async Task ChangePasswordAsync(Guid accountId, string currentPassword, string newPassword, CancellationToken ct)
+    {
+        var account = await db.Accounts.FirstOrDefaultAsync(a => a.Id == accountId, ct) ?? throw ApiException.NotFound("Account not found.");
+        if (!Secrets.VerifyPassword(currentPassword, account.PasswordHash)) throw ApiException.Validation("The current password is incorrect.", "currentPassword");
+        if (ValidatePassword(newPassword) is { } problem) throw ApiException.Validation(problem, "newPassword");
+        account.PasswordHash = Secrets.HashPassword(newPassword);
+        await db.SaveChangesAsync(ct);
+        log.LogInformation("Account {AccountId} changed its password", account.Id);
+    }
+
+    /// <summary>Operator reset without the current password; used by <c>HashRelay.Server reset-password EMAIL</c>.</summary>
+    public async Task<bool> ResetPasswordAsync(string email, string newPassword, CancellationToken ct)
+    {
+        email = NormalizeEmail(email);
+        var account = await db.Accounts.FirstOrDefaultAsync(a => a.Email == email, ct);
+        if (account is null) return false;
+        if (ValidatePassword(newPassword) is { } problem) throw ApiException.Validation(problem, "password");
+        account.PasswordHash = Secrets.HashPassword(newPassword);
+        await db.SaveChangesAsync(ct);
+        log.LogWarning("Password for account {AccountId} was reset by an operator", account.Id);
+        return true;
+    }
+
     public async Task<Tenant> CreateTenantAsync(Guid accountId, string name, CancellationToken ct)
     {
         var tenant = await CreateTenantCoreAsync(accountId, name, clock.GetUtcNow(), ct);

@@ -20,7 +20,7 @@ internal static class ImageCache
 
     static ImageCache()
     {
-        Http.DefaultRequestHeaders.UserAgent.ParseAdd($"hash-relay-agent/{AgentInfo.Version}");
+        Http.DefaultRequestHeaders.UserAgent.ParseAdd($"hashrelay-agent/{AgentInfo.Version}");
     }
 
     /// <summary>Returns a local file path for the image, or null when it could not be fetched or is not an image.</summary>

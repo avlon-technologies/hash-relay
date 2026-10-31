@@ -36,7 +36,7 @@ public static class ConfigStore
                 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HashRelay");
             var xdg = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
             var baseDir = string.IsNullOrWhiteSpace(xdg) ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config") : xdg;
-            return Path.Combine(baseDir, "hash-relay");
+            return Path.Combine(baseDir, "hashrelay");
         }
     }
 

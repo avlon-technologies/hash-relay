@@ -109,13 +109,28 @@ builder.Services.Configure<DiagramOptions>(config.GetSection("HashRelay:Diagrams
 builder.Services.AddHttpClient(HttpDiagramRenderer.HttpClientName, c =>
 {
     c.Timeout = TimeSpan.FromSeconds(30);
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("hash-relay-server/" + HashRelay.Server.Api.ApiEndpoints.Version);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("hashrelay-server/" + HashRelay.Server.Api.ApiEndpoints.Version);
     c.MaxResponseContentBufferSize = Limits.ImageMaxBytes;
 });
 builder.Services.AddSingleton<IDiagramRenderer, HttpDiagramRenderer>();
 builder.Services.AddScoped<DevicePairingService>();
 
 var app = builder.Build();
+
+// Operator maintenance: `HashRelay.Server reset-password EMAIL [PASSWORD]` sets a new password and exits without serving.
+if (args is ["reset-password", var resetEmail, ..])
+{
+    using var scope = app.Services.CreateScope();
+    var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
+    var newPassword = args.Length > 2 ? args[2] : Secrets.TemporaryPassword();
+    if (!await accounts.ResetPasswordAsync(resetEmail, newPassword, CancellationToken.None))
+    {
+        Console.Error.WriteLine($"No account with email {resetEmail}.");
+        return 2;
+    }
+    Console.WriteLine($"Password for {AccountService.NormalizeEmail(resetEmail)} reset to: {newPassword}");
+    return 0;
+}
 
 // Schema setup retries for a while: on a rolling deploy the previous revision may still hold the SQLite file on
 // the shared volume for a few seconds (busy / locked / can't open), and failing here would crash-loop the new one.
@@ -161,5 +176,6 @@ app.MapRazorPages();
 
 app.Logger.LogInformation("HashRelay {Version} starting; database at {DbPath}", ApiEndpoints.Version, dbPath);
 app.Run();
+return 0;
 
 public partial class Program;

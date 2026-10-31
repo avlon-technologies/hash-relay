@@ -57,6 +57,23 @@
             <div><div class="code-title">Email</div><div>@Model.AccountEmail</div></div>
         </div>
         <hr />
+        <form method="post" asp-page-handler="Password" class="grid grid-3" style="align-items:end;max-width:900px" autocomplete="off">
+            <div class="field mb-0">
+                <label for="currentPassword">Current password</label>
+                <input class="input" id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="field mb-0">
+                <label for="newPassword">New password</label>
+                <input class="input" id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="@AccountService.MinPasswordLength" required />
+            </div>
+            <div class="field mb-0">
+                <label for="confirmPassword">Confirm new password</label>
+                <input class="input" id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="@AccountService.MinPasswordLength" required />
+            </div>
+            <div><button class="btn" type="submit">Change password</button></div>
+        </form>
+        <p class="small muted" style="margin-top:8px">At least @AccountService.MinPasswordLength characters. Changing it does not sign out other sessions.</p>
+        <hr />
         <form method="post" asp-page="/Logout"><button class="btn" type="submit">Sign out</button></form>
     </div>
 </div>

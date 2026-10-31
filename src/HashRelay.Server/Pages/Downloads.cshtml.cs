@@ -22,7 +22,7 @@ public sealed class DownloadsModel(IWebHostEnvironment env, IOptions<HashRelayOp
     public void OnGet()
     {
         Installer = Find("HashRelay-Setup.exe");
-        CliZip = Find("hash-relay-cli-win-x64.zip");
+        CliZip = Find("hashrelay-cli-win-x64.zip");
     }
 
     private Artifact? Find(string name)

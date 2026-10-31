@@ -42,6 +42,9 @@ public static class Secrets
     public static bool LooksLikeSecret(string? value)
         => value is not null && (value.StartsWith(ApiKeyPrefix) || value.StartsWith(DeviceTokenPrefix)) && value.Length >= 20;
 
+    /// <summary>A random temporary password for operator resets: 16 unambiguous letters and digits.</summary>
+    public static string TemporaryPassword() => RandomNumberGenerator.GetString("abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", 16);
+
     // ---- passwords: PBKDF2-SHA256, format "pbkdf2$<iterations>$<salt-b64>$<hash-b64>" ----
     private const int Iterations = 210_000;
 

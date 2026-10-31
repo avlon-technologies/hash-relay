@@ -5,8 +5,8 @@ pops up in Windows Notification Center on every device you subscribed. Hashtags,
 tenant workspace; nothing crosses the boundary.
 
 ```
-hash-relay subscribe #builds
-hash-relay publish #builds "Build complete" "212 tests passed in 48s"
+hashrelay subscribe #builds
+hashrelay publish #builds "Build complete" "212 tests passed in 48s"
 ```
 
 | Component | Path | What it is |
@@ -14,7 +14,7 @@ hash-relay publish #builds "Build complete" "212 tests passed in 48s"
 | Cloud | `src/HashRelay.Server` | ASP.NET Core 10: dashboard (sign up, API keys, devices, activity), HTTP API `/api/v1`, SignalR hub `/hubs/notifications`, SQLite store |
 | Contracts | `src/HashRelay.Contracts` | Wire models and hashtag normalisation shared by everything |
 | Client | `src/HashRelay.Client` | .NET client: config store, typed HTTP API, realtime listener with infinite reconnect |
-| CLI | `src/HashRelay.Cli` | `hash-relay` — pair, subscribe, publish, listen, test, status |
+| CLI | `src/HashRelay.Cli` | `hashrelay` — pair, subscribe, publish, listen, test, status |
 | Agent | `src/HashRelay.Agent` | Windows tray agent: native toasts, pairing window, start with Windows |
 | Installer | `installer/HashRelay.iss` | Per-user Inno Setup EXE (no admin), agent + CLI, PATH, autostart, clean uninstall |
 | Tests | `tests/HashRelay.Server.Tests` | xunit v3 integration tests over the real server |
@@ -24,9 +24,9 @@ hash-relay publish #builds "Build complete" "212 tests passed in 48s"
 ## Quick start (hosted)
 
 1. Create a workspace at **https://hashrelay.dev.avlon.ca/signup**.
-2. Download and run **HashRelay-Setup.exe** from `/downloads`. It installs per user, puts `hash-relay` on your PATH and
+2. Download and run **HashRelay-Setup.exe** from `/downloads`. It installs per user, puts `hashrelay` on your PATH and
    opens a pairing window. Approve the code in your browser.
-3. In a new terminal: `hash-relay subscribe #builds`, then `hash-relay test`. A toast appears.
+3. In a new terminal: `hashrelay subscribe #builds`, then `hashrelay test`. A toast appears.
 4. From CI or a server, create an API key in the dashboard and `POST /api/v1/notifications` with
    `Authorization: Bearer hr_live_…`. Full reference at `/docs`.
 

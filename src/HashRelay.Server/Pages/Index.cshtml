@@ -28,10 +28,10 @@
         <div class="demo">
             <div class="terminal">
                 <div class="terminal-bar"><span></span><span></span><span></span></div>
-<pre><span class="prompt">$</span> <span class="cmd">hash-relay</span> subscribe <span class="tag-tok">#builds</span>
+<pre><span class="prompt">$</span> <span class="cmd">hashrelay</span> subscribe <span class="tag-tok">#builds</span>
 Subscribed @Model.MachineName to <span class="tag-tok">#builds</span>
 
-<span class="prompt">$</span> <span class="cmd">hash-relay</span> publish <span class="tag-tok">#builds</span> <span class="str">"Build complete"</span> <span class="str">"212 tests passed in 48s"</span>
+<span class="prompt">$</span> <span class="cmd">hashrelay</span> publish <span class="tag-tok">#builds</span> <span class="str">"Build complete"</span> <span class="str">"212 tests passed in 48s"</span>
 ✓ Accepted · 1 device matched · delivered live</pre>
             </div>
             <div class="toast-demo" role="img" aria-label="Windows notification preview">
@@ -54,7 +54,7 @@ Subscribed @Model.MachineName to <span class="tag-tok">#builds</span>
         </div>
         <div class="grid grid-3">
             <div class="card feature">
-                <div class="step"><div class="n">1</div><div><h3>Install the agent</h3><p>A per-user Windows installer sets up the tray agent and the <code>hash-relay</code> CLI, and pairs the device with your workspace in the browser.</p></div></div>
+                <div class="step"><div class="n">1</div><div><h3>Install the agent</h3><p>A per-user Windows installer sets up the tray agent and the <code>hashrelay</code> CLI, and pairs the device with your workspace in the browser.</p></div></div>
             </div>
             <div class="card feature">
                 <div class="step"><div class="n">2</div><div><h3>Subscribe to hashtags</h3><p>Pick the topics each device cares about: <code>#builds</code>, <code>#deploys</code>, <code>#alerts</code>. Subscriptions live in your workspace, not on the socket.</p></div></div>
@@ -89,7 +89,7 @@ Subscribed @Model.MachineName to <span class="tag-tok">#builds</span>
             <div class="code-title mt-2">PowerShell</div>
             <div class="code">
                 <button class="copy" data-copy>Copy</button>
-<pre><code>hash-relay publish #builds "Build complete" "212 tests passed"</code></pre>
+<pre><code>hashrelay publish #builds "Build complete" "212 tests passed"</code></pre>
             </div>
         </div>
     </div>

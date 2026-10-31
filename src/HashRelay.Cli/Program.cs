@@ -8,7 +8,7 @@ Terminal.Quiet = args_.Has("quiet", "q");
 
 if (args_.Has("version", "v") && args_.Positionals.Count == 0)
 {
-    Console.WriteLine($"hash-relay {Cli.Version}");
+    Console.WriteLine($"hashrelay {Cli.Version}");
     return ExitCodes.Ok;
 }
 
@@ -37,7 +37,7 @@ catch (HashRelayApiException ex)
 }
 catch (HttpRequestException ex)
 {
-    return Terminal.Fail(ExitCodes.ServerUnavailable, $"Could not reach the HashRelay server: {ex.Message}", "Check `hash-relay status` and your network connection.");
+    return Terminal.Fail(ExitCodes.ServerUnavailable, $"Could not reach the HashRelay server: {ex.Message}", "Check `hashrelay status` and your network connection.");
 }
 catch (Exception ex)
 {
