@@ -3,12 +3,13 @@ using HashRelay.Server.Auth;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace HashRelay.Server.Pages;
 
 /// <summary>Step two of the self-service reset: the emailed link lands here; a valid token unlocks a new-password form.</summary>
 [EnableRateLimiting("auth")]
-public sealed class ResetPasswordModel(PasswordResetService resets) : PageModel
+public sealed class ResetPasswordModel(PasswordResetService resets, IOptions<HashRelayOptions> options) : PageModel
 {
     public sealed class InputModel
     {
@@ -24,15 +25,18 @@ public sealed class ResetPasswordModel(PasswordResetService resets) : PageModel
     public string Email { get; private set; } = "";
     public int LifetimeHours => (int)PasswordResetService.Lifetime.TotalHours;
 
-    public async Task OnGetAsync(CancellationToken ct)
+    public async Task<IActionResult> OnGetAsync(CancellationToken ct)
     {
+        if (!options.Value.AllowPasswordReset) return NotFound();
         var account = await resets.PeekAsync(Token, ct);
         TokenValid = account is not null;
         Email = account?.Email ?? "";
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync(CancellationToken ct)
     {
+        if (!options.Value.AllowPasswordReset) return NotFound();
         var account = await resets.PeekAsync(Token, ct);
         TokenValid = account is not null;
         Email = account?.Email ?? "";

@@ -76,8 +76,6 @@ public sealed class PairingAndWebTests : IAsyncLifetime
     [InlineData("/")]
     [InlineData("/signup")]
     [InlineData("/login")]
-    [InlineData("/forgot-password")]
-    [InlineData("/reset-password?token=nope")]
     [InlineData("/docs")]
     [InlineData("/downloads")]
     public async Task Public_pages_render(string path)
