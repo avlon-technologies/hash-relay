@@ -21,3 +21,6 @@ src/HashRelay.Client/
 *.ps1
 *.db
 *.db-*
+src/HashRelay.Mobile/
+**/node_modules/
+src/HashRelay.Server/Data/keys/
