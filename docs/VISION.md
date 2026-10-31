@@ -23,3 +23,6 @@ One Windows user installs the agent, subscribes to #builds, and receives a nativ
 
 ## Deliberate exclusions from first milestone
 Mobile push, marketplace-ready packaging, extensive multi-tenant administration, web dashboard, MCP tooling, rich notification actions, and scale-out are later increments.
+
+## Multi-tenant developer experience
+Users sign up, select or create a tenant workspace, and access a developer dashboard to issue tenant-scoped API credentials. Tags are meaningful only inside the authenticated tenant. Trusted integrations publish using tenant-bound credentials; users and devices subscribe through individually authorized identities.
