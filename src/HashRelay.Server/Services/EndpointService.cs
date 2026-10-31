@@ -85,7 +85,7 @@ public sealed class EndpointService(RelayDbContext db, TimeProvider clock, Conne
         var now = clock.GetUtcNow();
         var existing = ep.Subscriptions.Select(s => s.Tag).ToHashSet();
         foreach (var t in tags.Where(t => !existing.Contains(t)))
-            ep.Subscriptions.Add(new Subscription { Id = Guid.NewGuid(), TenantId = ep.TenantId, EndpointRef = ep.Id, Tag = t, CreatedAt = now });
+            AddSubscription(ep, t, now);
         return await CommitAsync(ep, ct);
     }
 
@@ -111,8 +111,15 @@ public sealed class EndpointService(RelayDbContext db, TimeProvider clock, Conne
         }
         var have = ep.Subscriptions.Select(s => s.Tag).ToHashSet();
         foreach (var t in tags.Where(t => !have.Contains(t)))
-            ep.Subscriptions.Add(new Subscription { Id = Guid.NewGuid(), TenantId = ep.TenantId, EndpointRef = ep.Id, Tag = t, CreatedAt = now });
+            AddSubscription(ep, t, now);
         return await CommitAsync(ep, ct);
+    }
+
+    /// <summary>New rows must go through the DbSet: entities discovered via navigation with a pre-set key are treated as existing (UPDATE).</summary>
+    private void AddSubscription(Data.Endpoint ep, string tag, DateTimeOffset now)
+    {
+        var sub = new Subscription { Id = Guid.NewGuid(), TenantId = ep.TenantId, EndpointRef = ep.Id, Tag = tag, CreatedAt = now };
+        db.Subscriptions.Add(sub); // relationship fix-up also adds it to ep.Subscriptions
     }
 
     private static IReadOnlyList<string> NormalizeTags(IEnumerable<string> raw)

@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "architecture/**", "*.md"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Server tests (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet run --project tests/HashRelay.Server.Tests/HashRelay.Server.Tests.csproj -c Release
+
+  windows:
+    name: Agent, CLI and installer (Windows)
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Inno Setup
+        run: winget install --id JRSoftware.InnoSetup --scope user --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+        shell: pwsh
+      - name: Build
+        run: ./build.ps1 -SkipTests
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hashrelay-windows
+          path: |
+            artifacts/HashRelay-Setup.exe
+            artifacts/hash-relay-cli-win-x64.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hashrelay-server
+          path: artifacts/server
