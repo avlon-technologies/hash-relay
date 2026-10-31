@@ -1,0 +1,35 @@
+model {
+  bdl 1.0
+  types adl-type/1.0
+  expressions adl-expr/1.0
+  definition "2026-10-31.windows-m1"
+}
+business HashRelayBusiness #b-hr {
+  description "Windows-first tenant-scoped hashtag notification service."
+  purpose { "Enable developers to manage tenant API keys and publish notifications to subscribed Windows users." }
+  modality { epistemic stated }
+  provenance { source domain-expert, assertedBy "Product owner", assertedOn 2026-10-31 }
+  domain Notifications #d-hr {
+    capability DeveloperOnboarding #c-onboard { purpose { "Create tenant workspaces and issue API keys through a dashboard." } }
+    capability HashtagNotifications #c-notify { purpose { "Deliver authorized publications to matching Windows desktop subscribers." } }
+    entity Tenant #e-tenant { identity tenantId tenantId: text name: text }
+    entity ApiKey #e-key { identity keyId keyId: text tenantId: text }
+    entity Subscription #e-sub { identity subscriptionId subscriptionId: text tag: text tenantId: text subscriberId: text }
+    entity Notification #e-notif { identity notificationId notificationId: text title: text body: text tenantId: text }
+    action CreateTenant [permitted] #ac-tenant { mayPerform Developer exercises DeveloperOnboarding creates Tenant }
+    action IssueApiKey [permitted] #ac-key { mayPerform Developer exercises DeveloperOnboarding creates ApiKey }
+    action SubscribeHashtag [permitted] #ac-sub { mayPerform Subscriber exercises HashtagNotifications creates Subscription }
+    action PublishNotification [permitted] #ac-notif { mayPerform Developer exercises HashtagNotifications creates Notification }
+    unspecified ClientEnrollment #u-client {
+      modality { epistemic underspecified }
+      question "How should a Windows user agent authenticate without embedding a shared tenant publishing key?"
+      reason "Local loopback proof of concept can use development credentials, but remote client identity is not finalized."
+      accountable "Architecture"
+      alternatives
+        "OAuth authorization code with PKCE for desktop sign-in"
+        "Short-lived endpoint enrollment token issued by the trusted tenant backend"
+    }
+  }
+  actor Developer [external-party] #a-dev { }
+  actor Subscriber [external-party] #a-sub { }
+}
