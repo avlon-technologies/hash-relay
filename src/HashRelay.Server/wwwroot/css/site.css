@@ -492,3 +492,10 @@ a.card:hover { text-decoration: none; border-color: var(--border-strong); }
 .table td.nowrap { white-space: nowrap; }
 .table td .desc { white-space: normal; max-width: 32ch; }
 .checks .check span .muted { font-weight: 400; }
+
+/* OAuth consent: permissions as a tidy column, scope id under its description */
+.checks.checks-col { flex-direction: column; gap: 10px; }
+.checks.checks-col .check { align-items: flex-start; }
+.checks.checks-col .check input { flex: none; margin-top: 2px; }
+.checks.checks-col .check span .muted { display: block; margin-top: 2px; }
+.consent-hint { margin: 8px 0 18px; }

@@ -49,10 +49,10 @@
                     </div>
                     <div class="field">
                         <label>Allow @c.Name to</label>
-                        <div class="checks">
+                        <div class="checks checks-col">
                             @foreach (var s in ServiceScopes.All)
                             {
-                                <label class="check"><input type="checkbox" name="scopes" value="@s" checked="@(Model.RequestedScopes.Contains(s))" /> <span>@AuthorizeModel.Describe(s) <span class="muted mono small">@s</span></span></label>
+                                <label class="check"><input type="checkbox" name="scopes" value="@s" checked="@(Model.RequestedScopes.Contains(s))" /> <span>@AuthorizeModel.Describe(s)<span class="muted mono small">@s</span></span></label>
                             }
                         </div>
                     </div>
@@ -69,8 +69,8 @@
                                 <option value="200">200</option>
                             </select>
                         </div>
-                    <p class="hint" style="margin-top:-.5rem"><code>*</code> allows every hashtag; <code>agent-*</code> keeps the app in its own lane. You can tighten this later on the service account.</p>
                     </div>
+                    <p class="hint consent-hint"><code>*</code> allows every hashtag; <code>agent-*</code> keeps the app in its own lane. You can tighten this later on the service account.</p>
                     <div class="modal-actions" style="justify-content:flex-end">
                         <button type="submit" class="btn btn-ghost" asp-page-handler="Deny" formnovalidate>Cancel</button>
                         <button type="submit" class="btn btn-primary" asp-page-handler="Approve" disabled="@(Model.Memberships.Count == 0)">Connect</button>
