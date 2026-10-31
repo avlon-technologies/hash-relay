@@ -76,7 +76,10 @@ if (-not $SkipImage) {
     Write-Warning "wwwroot/downloads has no installer; run ./build.ps1 first so /downloads is populated in the image."
   }
   Write-Host "`n== Build image $loginServer/${repository}:$tag (az acr build)" -ForegroundColor Cyan
-  az acr build --registry $registry --image "${repository}:$tag" --image "${repository}:latest" --file (Join-Path $root "Dockerfile") $root
+  # az writes progress warnings to stderr; keep them from becoming terminating errors when stderr is redirected.
+  $eap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+  az acr build --registry $registry --image "${repository}:$tag" --image "${repository}:latest" --file (Join-Path $root "Dockerfile") $root 2>&1 | ForEach-Object { "$_" }
+  $ErrorActionPreference = $eap
   if ($LASTEXITCODE -ne 0) { throw "az acr build failed" }
 }
 

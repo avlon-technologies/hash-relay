@@ -202,6 +202,9 @@ public static class AuditActions
     public const string Published = "notification.published";
     public const string PublishRefused = "notification.refused";
     public const string SubscriptionsChanged = "subscriptions.changed";
+    public const string OAuthGranted = "oauth.granted";
+    public const string OAuthRefreshed = "oauth.refreshed";
+    public const string OAuthRevoked = "oauth.revoked";
 }
 
 /// <summary>An audit row for service-account activity and credential management. Never contains a secret.</summary>
@@ -218,4 +221,64 @@ public sealed class AuditEvent
     public string? Source { get; set; }                  // "mcp" | "api" | "dashboard"
     public string? Ip { get; set; }
     public DateTimeOffset At { get; set; }
+}
+
+// ---- OAuth 2.1 authorization server (phase 2: hosted assistants such as claude.ai connect through consent) ----
+
+/// <summary>A dynamically registered OAuth client (RFC 7591). Public clients use PKCE only; confidential ones add a secret.</summary>
+public sealed class OAuthClient
+{
+    public required string Id { get; set; }               // "hrc_…"
+    public required string Name { get; set; }
+    public required string RedirectUris { get; set; }     // newline separated, exact-match
+    public required string AuthMethod { get; set; }       // "none" | "client_secret_post"
+    public string? SecretHash { get; set; }
+    public string? ClientUri { get; set; }
+    public string? LogoUri { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? LastUsedAt { get; set; }
+
+    public IReadOnlyList<string> RedirectUriList => RedirectUris.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+/// <summary>A person's consent for one client in one workspace. Backed by a service account that carries the policy.</summary>
+public sealed class OAuthGrant
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid AccountId { get; set; }
+    public required string ClientId { get; set; }
+    public Guid ServiceAccountId { get; set; }
+    public required string Scopes { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}
+
+/// <summary>A one-time authorization code bound to the client, redirect URI and PKCE challenge.</summary>
+public sealed class OAuthCode
+{
+    public Guid Id { get; set; }
+    public required string CodeHash { get; set; }
+    public Guid GrantId { get; set; }
+    public required string ClientId { get; set; }
+    public required string RedirectUri { get; set; }
+    public required string CodeChallenge { get; set; }
+    public string? Resource { get; set; }
+    public required string Scopes { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? ConsumedAt { get; set; }
+}
+
+/// <summary>A rotating refresh token; each use revokes it and its access credential and issues a new pair.</summary>
+public sealed class OAuthRefreshToken
+{
+    public Guid Id { get; set; }
+    public required string Hash { get; set; }
+    public Guid GrantId { get; set; }
+    public Guid AccessCredentialId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public Guid? ReplacedById { get; set; }
 }
