@@ -1,0 +1,8 @@
+@{
+    var kind = TempData["flash.kind"] as string;
+    var message = TempData["flash.message"] as string;
+}
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-@kind fade-in" role="status">@message</div>
+}

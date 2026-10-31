@@ -1,0 +1,47 @@
+@page
+@model HashRelay.Server.Pages.SignupModel
+@{
+    ViewData["Title"] = "Create your workspace";
+}
+<div class="auth">
+    <div class="card">
+        <div class="card-body">
+            <h1>Create your workspace</h1>
+            <p class="sub">Free while in preview. You'll get a tenant-scoped API key and a Windows agent download.</p>
+            @if (!Model.AllowSignup)
+            {
+                <div class="alert alert-warn">Sign-ups are currently closed on this server.</div>
+            }
+            else
+            {
+                <form method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <div class="field">
+                        <label asp-for="Input.Name">Your name</label>
+                        <input asp-for="Input.Name" class="input" placeholder="Ada Lovelace" autocomplete="name" autofocus />
+                        <span asp-validation-for="Input.Name" class="error-text"></span>
+                    </div>
+                    <div class="field">
+                        <label asp-for="Input.Email">Email</label>
+                        <input asp-for="Input.Email" class="input" type="email" placeholder="you@company.com" autocomplete="email" />
+                        <span asp-validation-for="Input.Email" class="error-text"></span>
+                    </div>
+                    <div class="field">
+                        <label asp-for="Input.Password">Password</label>
+                        <input asp-for="Input.Password" class="input" type="password" autocomplete="new-password" />
+                        <p class="hint">At least @AccountService.MinPasswordLength characters.</p>
+                        <span asp-validation-for="Input.Password" class="error-text"></span>
+                    </div>
+                    <div class="field">
+                        <label asp-for="Input.Workspace">Workspace name</label>
+                        <input asp-for="Input.Workspace" class="input" placeholder="Acme Engineering" autocomplete="organization" />
+                        <p class="hint">Hashtags and API keys are scoped to this workspace. You can create more later.</p>
+                        <span asp-validation-for="Input.Workspace" class="error-text"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg">Create workspace</button>
+                </form>
+            }
+            <p class="alt">Already have an account? <a href="/login">Sign in</a></p>
+        </div>
+    </div>
+</div>

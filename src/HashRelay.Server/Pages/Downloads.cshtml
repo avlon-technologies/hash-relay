@@ -1,0 +1,69 @@
+@page "/downloads"
+@model HashRelay.Server.Pages.DownloadsModel
+@{
+    ViewData["Title"] = "Downloads";
+}
+<div class="container container-narrow" style="padding-top:48px;padding-bottom:64px">
+    <div class="section-title" style="text-align:left;margin-left:0">
+        <h1 style="font-size:2.2rem">Downloads</h1>
+        <p>The Windows agent shows native notifications and includes the <code>hash-relay</code> command line. It installs per user, needs no admin rights, and starts with Windows.</p>
+    </div>
+
+    <div class="card dl">
+        <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5 11 4.4v7.1H3zM13 4.1 21 3v8.5h-8zM3 12.5h8v7.1l-8-1.1zM13 12.5h8V21l-8-1.1z"/></svg>
+        </div>
+        <div>
+            <h3>HashRelay for Windows</h3>
+            @if (Model.Installer is not null)
+            {
+                <p>Agent + CLI installer · v@(Model.Version) · @Model.Installer.SizeLabel · Windows 10 1809+ / Windows 11 · x64</p>
+                <p class="small muted mt-1">SHA-256 <span class="mono">@Model.Installer.Sha256</span></p>
+            }
+            else
+            {
+                <p>Installer not published on this server yet. Build it from source with <code>./build.ps1</code> to produce <code>HashRelay-Setup.exe</code>.</p>
+            }
+        </div>
+        <div>
+            @if (Model.Installer is not null)
+            {
+                <a class="btn btn-primary btn-lg" href="@Model.Installer.Href" download>Download installer</a>
+            }
+            else
+            {
+                <a class="btn btn-lg" href="https://github.com/avlon-technologies/hash-relay" rel="noopener">View source</a>
+            }
+        </div>
+    </div>
+
+    @if (Model.CliZip is not null)
+    {
+        <div class="card dl mt-2">
+            <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6M12 19h8"/></svg>
+            </div>
+            <div>
+                <h3>CLI only (portable zip)</h3>
+                <p>Just the <code>hash-relay.exe</code> command for CI runners and servers that publish but never display notifications · @Model.CliZip.SizeLabel</p>
+                <p class="small muted mt-1">SHA-256 <span class="mono">@Model.CliZip.Sha256</span></p>
+            </div>
+            <div><a class="btn btn-lg" href="@Model.CliZip.Href" download>Download zip</a></div>
+        </div>
+    }
+
+    <h2 class="mt-4">After installing</h2>
+    <div class="card"><div class="card-body stack">
+        <div class="step"><div class="n">1</div><div><strong>Pair the device.</strong> The agent opens your browser with a short code. Sign in, choose a workspace and approve. The agent appears in the tray and in <a href="/dashboard/devices">Devices</a>.</div></div>
+        <div class="step"><div class="n">2</div><div><strong>Subscribe.</strong> In a new terminal run <code>hash-relay subscribe #builds</code>, or add tags from the Devices page.</div></div>
+        <div class="step"><div class="n">3</div><div><strong>Test it.</strong> Run <code>hash-relay test</code>. A notification should appear in Windows Notification Center within a second.</div></div>
+    </div></div>
+
+    <h2 class="mt-4">Requirements</h2>
+    <ul class="muted">
+        <li>Windows 10 version 1809 or later, or Windows 11, 64-bit.</li>
+        <li>No .NET install needed: the agent and CLI are self-contained.</li>
+        <li>Outbound HTTPS to <span class="mono">@Model.Host</span> (WebSockets preferred, long-polling fallback).</li>
+    </ul>
+    <p class="small muted">The installer is not yet code-signed; Windows SmartScreen may ask you to confirm the first run.</p>
+</div>

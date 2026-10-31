@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>HashRelay.Server</RootNamespace>
+    <UserSecretsId>hashrelay-server</UserSecretsId>
+    <Description>HashRelay cloud: web dashboard, HTTP publish API and SignalR delivery hub.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HashRelay.Contracts\HashRelay.Contracts.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="HashRelay.Server.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,15 @@
+@page
+@model HashRelay.Server.Pages.ErrorModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+<div class="auth">
+    <div class="card">
+        <div class="card-body" style="text-align:center">
+            <div class="mono muted" style="font-size:3rem;font-weight:800;letter-spacing:-.04em">@Model.Code</div>
+            <h1>@Model.Title</h1>
+            <p class="sub">@Model.Message</p>
+            <a class="btn btn-primary" href="/">Back home</a>
+        </div>
+    </div>
+</div>

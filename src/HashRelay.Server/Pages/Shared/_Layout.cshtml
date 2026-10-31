@@ -1,0 +1,62 @@
+@inject Microsoft.Extensions.Options.IOptions<HashRelayOptions> Options
+@{
+    var title = ViewData["Title"] as string;
+    var fullTitle = string.IsNullOrEmpty(title) ? "HashRelay — hashtag notifications for your desktop" : $"{title} · HashRelay";
+    var path = Context.Request.Path.Value ?? "/";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    string Active(string prefix) => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@fullTitle</title>
+    <meta name="description" content="@(ViewData["Description"] ?? "Publish a message to a hashtag from any CLI, script or agent and it pops up in Windows Notification Center on every subscribed device.")" />
+    <meta name="theme-color" content="#090c13" />
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body>
+    <header class="nav">
+        <div class="container">
+            <a class="brand" href="/"><span class="logo">#</span>HashRelay</a>
+            <nav class="nav-links">
+                <a href="/docs" class="@Active("/docs")">Docs</a>
+                <a href="/downloads" class="@Active("/downloads")">Downloads</a>
+                @if (signedIn)
+                {
+                    <a href="/dashboard" class="@Active("/dashboard")">Dashboard</a>
+                    <form method="post" asp-page="/Logout" class="flex" style="margin:0">
+                        <button type="submit" class="linklike">Sign out</button>
+                    </form>
+                }
+                else
+                {
+                    <a href="/login" class="@Active("/login")">Sign in</a>
+                    <a href="/signup" class="btn btn-primary btn-sm" style="margin-left:6px">Get started</a>
+                }
+            </nav>
+        </div>
+    </header>
+    <main>
+        @RenderBody()
+    </main>
+    <footer>
+        <div class="container">
+            <div>© @DateTime.UtcNow.Year Avlon Technologies · HashRelay</div>
+            <div class="flex">
+                <a href="/docs">Documentation</a>
+                <a href="/downloads">Downloads</a>
+                <a href="https://github.com/avlon-technologies/hash-relay" rel="noopener">GitHub</a>
+            </div>
+        </div>
+    </footer>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

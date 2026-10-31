@@ -1,0 +1,36 @@
+@page "/dashboard/activity"
+@model HashRelay.Server.Pages.Dashboard.ActivityModel
+@{
+    Layout = "_DashboardLayout";
+    ViewData["Title"] = "Activity";
+}
+<div class="page-head">
+    <div>
+        <h1>Activity</h1>
+        <p>Every notification published to <strong>@Model.TenantName</strong>, with delivery counts. Updates live.</p>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body">
+        <ul class="timeline" data-feed>
+            @if (Model.Recent.Count == 0)
+            {
+                <li class="empty">No notifications yet.</li>
+            }
+            @foreach (var n in Model.Recent)
+            {
+                <li>
+                    <div>
+                        <div class="t">@n.Title</div>
+                        @if (!string.IsNullOrEmpty(n.Body)) { <div class="b">@n.Body</div> }
+                        <div class="tags mt-1">@foreach (var t in n.Tags) { <span class="tag">#@t</span> }</div>
+                    </div>
+                    <div class="text-right">
+                        <time data-rel datetime="@n.PublishedAtUtc.ToString("o")">@n.PublishedAtUtc.ToString("g")</time>
+                        <div class="small muted">@n.Delivered/@n.MatchedEndpoints delivered</div>
+                    </div>
+                </li>
+            }
+        </ul>
+    </div>
+</div>

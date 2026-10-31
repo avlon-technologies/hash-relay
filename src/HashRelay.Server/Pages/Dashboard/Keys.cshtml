@@ -1,0 +1,105 @@
+@page "/dashboard/keys"
+@model HashRelay.Server.Pages.Dashboard.KeysModel
+@{
+    Layout = "_DashboardLayout";
+    ViewData["Title"] = "API keys";
+}
+<div class="page-head">
+    <div>
+        <h1>API keys</h1>
+        <p>Tenant-scoped credentials for CI jobs, servers and scripts that publish to <strong>@Model.TenantName</strong>.</p>
+    </div>
+    <div class="spacer"></div>
+    @if (Model.CanManage)
+    {
+        <button class="btn btn-primary" data-open="#create-key">Create API key</button>
+    }
+</div>
+<partial name="_Flash" />
+
+@if (Model.NewSecret is not null)
+{
+    <div class="card mb-3" style="border-color: color-mix(in srgb, var(--success) 45%, transparent)">
+        <div class="card-body">
+            <div class="flex mb-1"><span class="badge badge-success">New key</span><strong>@Model.NewLabel</strong></div>
+            <p class="small">Copy this key now. For your security it is shown once and only a hash is stored.</p>
+            <div class="secret-box"><code id="new-secret">@Model.NewSecret</code><button class="btn btn-sm" data-copy="#new-secret">Copy</button></div>
+            <div class="code-title mt-2">Try it</div>
+            <div class="code"><button class="copy" data-copy>Copy</button><pre><code>curl -X POST @Model.PublicUrl/api/v1/notifications \
+  -H "Authorization: Bearer @Model.NewSecret" \
+  -H "Content-Type: application/json" \
+  -d '{"tags":["builds"],"title":"Hello from the API","body":"Your first HashRelay notification"}'</code></pre></div>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="table-wrap">
+        <table class="table">
+            <thead><tr><th>Label</th><th>Key</th><th>Permissions</th><th>Created</th><th>Last used</th><th>Status</th><th class="actions"></th></tr></thead>
+            <tbody>
+                @if (Model.Keys.Count == 0)
+                {
+                    <tr><td colspan="7"><div class="empty">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4"/><path d="m18 5 2 2"/><path d="m15 8 2 2"/></svg>
+                        <h3>No API keys yet</h3><p>Create a key to publish notifications from CI, scripts or your own services.</p>
+                        @if (Model.CanManage) { <button class="btn btn-primary" data-open="#create-key">Create your first key</button> }
+                    </div></td></tr>
+                }
+                @foreach (var k in Model.Keys)
+                {
+                    var active = k.RevokedAt is null && (k.ExpiresAt is null || k.ExpiresAt > DateTimeOffset.UtcNow);
+                    <tr>
+                        <td><strong>@k.Label</strong></td>
+                        <td class="mono small">@k.Hint</td>
+                        <td><div class="tags">@foreach (var s in k.ScopeList) { <span class="badge badge-accent">@s</span> }</div></td>
+                        <td><time data-rel datetime="@k.CreatedAt.ToString("o")">@k.CreatedAt.ToString("d")</time></td>
+                        <td>@if (k.LastUsedAt is null) { <span class="muted">never</span> } else { <time data-rel datetime="@k.LastUsedAt.Value.ToString("o")">@k.LastUsedAt.Value.ToString("g")</time> }</td>
+                        <td>@if (active) { <span class="badge badge-success"><span class="dot"></span>Active</span> } else { <span class="badge badge-danger">Revoked</span> }</td>
+                        <td class="actions">
+                            @if (active && Model.CanManage)
+                            {
+                                <form method="post" asp-page-handler="Revoke" onsubmit="return confirm('Revoke this key? Anything using it will stop working immediately.')">
+                                    <input type="hidden" name="id" value="@k.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Revoke</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<dialog class="modal" id="create-key" @(Model.OpenCreate ? "data-auto-open" : "")>
+    <form method="post" asp-page-handler="Create" class="card-body">
+        <h3>Create API key</h3>
+        <p class="small">Keys belong to <strong>@Model.TenantName</strong>. Prefer one key per integration so you can revoke them independently.</p>
+        <div class="field">
+            <label for="label">Label</label>
+            <input class="input" id="label" name="label" placeholder="GitHub Actions · main" maxlength="80" required />
+        </div>
+        <div class="field">
+            <label>Permissions</label>
+            <div class="checks">
+                <label class="check"><input type="checkbox" name="scopes" value="publish" checked /> publish</label>
+                <label class="check"><input type="checkbox" name="scopes" value="subscribe" /> subscribe</label>
+            </div>
+            <p class="hint">Most integrations only need <strong>publish</strong>. Add <strong>subscribe</strong> only for headless listeners using <code>hash-relay listen --key</code>.</p>
+        </div>
+        <div class="field">
+            <label for="expires">Expires</label>
+            <select class="input" id="expires" name="expiresDays">
+                <option value="0">Never</option>
+                <option value="30">In 30 days</option>
+                <option value="90">In 90 days</option>
+                <option value="365">In 1 year</option>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+            <button type="submit" class="btn btn-primary">Create key</button>
+        </div>
+    </form>
+</dialog>

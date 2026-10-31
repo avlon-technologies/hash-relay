@@ -1,0 +1,132 @@
+@page
+@model HashRelay.Server.Pages.IndexModel
+@{
+    ViewData["Title"] = null;
+}
+<section class="hero">
+    <div class="container hero-grid">
+        <div>
+            <span class="eyebrow"><span class="dot pulse"></span> Windows agent, CLI and HTTP API</span>
+            <h1>Notifications, <span class="gradient-text">addressed by hashtag.</span></h1>
+            <p class="lead">Publish a message to <code>#builds</code> from any script, CI job or AI agent. It pops up in Windows Notification Center on every device you subscribed. No webhooks to wire, no inbox to drown.</p>
+            <div class="hero-actions">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a class="btn btn-primary btn-lg" href="/dashboard">Open dashboard</a>
+                }
+                else
+                {
+                    <a class="btn btn-primary btn-lg" href="/signup">Create a free workspace</a>
+                }
+                <a class="btn btn-lg" href="/downloads">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                    Download for Windows
+                </a>
+            </div>
+            <div class="hero-meta">Per-user install · no admin rights · reconnects and replays missed messages</div>
+        </div>
+        <div class="demo">
+            <div class="terminal">
+                <div class="terminal-bar"><span></span><span></span><span></span></div>
+<pre><span class="prompt">$</span> <span class="cmd">hash-relay</span> subscribe <span class="tag-tok">#builds</span>
+Subscribed @Model.MachineName to <span class="tag-tok">#builds</span>
+
+<span class="prompt">$</span> <span class="cmd">hash-relay</span> publish <span class="tag-tok">#builds</span> <span class="str">"Build complete"</span> <span class="str">"212 tests passed in 48s"</span>
+✓ Accepted · 1 device matched · delivered live</pre>
+            </div>
+            <div class="toast-demo" role="img" aria-label="Windows notification preview">
+                <div class="app">#</div>
+                <div>
+                    <div class="t">Build complete</div>
+                    <div class="b">212 tests passed in 48s</div>
+                    <div class="a">#builds · HashRelay</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-title">
+            <h2>Three steps from zero to toast</h2>
+            <p>HashRelay is a tiny relay between the things that know something happened and the person who should hear about it.</p>
+        </div>
+        <div class="grid grid-3">
+            <div class="card feature">
+                <div class="step"><div class="n">1</div><div><h3>Install the agent</h3><p>A per-user Windows installer sets up the tray agent and the <code>hash-relay</code> CLI, and pairs the device with your workspace in the browser.</p></div></div>
+            </div>
+            <div class="card feature">
+                <div class="step"><div class="n">2</div><div><h3>Subscribe to hashtags</h3><p>Pick the topics each device cares about: <code>#builds</code>, <code>#deploys</code>, <code>#alerts</code>. Subscriptions live in your workspace, not on the socket.</p></div></div>
+            </div>
+            <div class="card feature">
+                <div class="step"><div class="n">3</div><div><h3>Publish from anywhere</h3><p>Use the CLI, a one-line <code>curl</code>, or the .NET client with a tenant-scoped API key. Matching devices get exactly one native notification.</p></div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container grid grid-2" style="align-items:center">
+        <div>
+            <h2>Publish with one request</h2>
+            <p>Every workspace gets revocable API keys with explicit <code>publish</code> and <code>subscribe</code> permissions. Keys resolve to exactly one tenant; a key from another workspace can never reach your devices.</p>
+            <ul class="stack" style="padding-left:0;list-style:none;margin:0">
+                <li class="flex"><span class="badge badge-success">once</span><span>Multiple matching tags still yield a single notification per device.</span></li>
+                <li class="flex"><span class="badge badge-accent">replay</span><span>Offline devices receive queued notifications on reconnect, within the replay window.</span></li>
+                <li class="flex"><span class="badge badge-warn">idempotent</span><span>Send your own <code>notificationId</code> and retries are safe.</span></li>
+            </ul>
+        </div>
+        <div>
+            <div class="code-title">curl</div>
+            <div class="code">
+                <button class="copy" data-copy>Copy</button>
+<pre><code>curl -X POST @Model.PublicUrl/api/v1/notifications \
+  -H "Authorization: Bearer hr_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"tags":["builds"],"title":"Build complete","body":"212 tests passed"}'</code></pre>
+            </div>
+            <div class="code-title mt-2">PowerShell</div>
+            <div class="code">
+                <button class="copy" data-copy>Copy</button>
+<pre><code>hash-relay publish #builds "Build complete" "212 tests passed"</code></pre>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="grid grid-4">
+            <div class="card feature">
+                <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                <h3>Tenant isolated</h3><p>Every record, key and connection is scoped to one workspace. Cross-tenant publication is rejected, not filtered.</p>
+            </div>
+            <div class="card feature">
+                <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div>
+                <h3>Realtime</h3><p>Agents hold an authenticated SignalR connection and reconnect automatically with backoff.</p>
+            </div>
+            <div class="card feature">
+                <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></div>
+                <h3>Device pairing</h3><p>Devices pair with a short code you approve in the dashboard. Installed clients never embed publisher keys.</p>
+            </div>
+            <div class="card feature">
+                <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 20V9"/></svg></div>
+                <h3>Native toasts</h3><p>Real Windows notifications with your workspace name and tag, kept in Notification Center until you clear them.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="cta">
+            <h2>Ready when your build is.</h2>
+            <p>Create a workspace, download the agent, and get your first toast in under two minutes.</p>
+            <div class="hero-actions" style="justify-content:center">
+                <a class="btn btn-primary btn-lg" href="/signup">Get started</a>
+                <a class="btn btn-lg" href="/docs">Read the docs</a>
+            </div>
+        </div>
+    </div>
+</section>

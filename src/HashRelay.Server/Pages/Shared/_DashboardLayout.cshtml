@@ -1,0 +1,58 @@
+@inject CurrentTenant Current
+@{
+    Layout = "_Layout";
+    await Current.LoadAsync();
+    var path = Context.Request.Path.Value ?? "/dashboard";
+    string Active(string p) => string.Equals(path.TrimEnd('/'), p, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<div class="container dash" data-live>
+    <aside class="sidebar">
+        <div class="ws">
+            <div class="label">Workspace</div>
+            @if (Current.Memberships.Count > 1)
+            {
+                <form method="post" asp-page="/Dashboard/Index" asp-page-handler="Switch">
+                    <select id="ws-switch" name="tenantId" aria-label="Switch workspace">
+                        @foreach (var m in Current.Memberships)
+                        {
+                            <option value="@m.TenantId" selected="@(m.TenantId == Current.TenantId)">@m.Tenant.Name</option>
+                        }
+                    </select>
+                </form>
+            }
+            else
+            {
+                <div style="font-weight:600">@Current.Tenant?.Name</div>
+                <div class="small muted mono">@Current.Tenant?.Slug</div>
+            }
+        </div>
+        <nav class="side-nav">
+            <a href="/dashboard" class="@Active("/dashboard")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                Overview
+            </a>
+            <a href="/dashboard/keys" class="@Active("/dashboard/keys")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4"/><path d="m18 5 2 2"/><path d="m15 8 2 2"/></svg>
+                API keys
+            </a>
+            <a href="/dashboard/devices" class="@Active("/dashboard/devices")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                Devices
+            </a>
+            <a href="/dashboard/activity" class="@Active("/dashboard/activity")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Activity
+            </a>
+            <a href="/dashboard/settings" class="@Active("/dashboard/settings")">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Settings
+            </a>
+        </nav>
+        <div class="mt-3 small muted" style="padding:0 12px">
+            Signed in as<br /><span style="color:var(--text-2)">@Current.Account?.Email</span>
+        </div>
+    </aside>
+    <section>
+        @RenderBody()
+    </section>
+</div>

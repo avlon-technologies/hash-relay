@@ -1,0 +1,135 @@
+@page "/docs"
+@model HashRelay.Server.Pages.DocsModel
+@{
+    ViewData["Title"] = "Documentation";
+    var url = Model.PublicUrl;
+}
+<div class="container docs">
+    <nav class="docs-nav">
+        <a href="#quickstart">Quick start</a>
+        <a href="#concepts">Concepts</a>
+        <a href="#cli">CLI reference</a>
+        <a href="#auth">Authentication</a>
+        <a href="#publish">Publish API</a>
+        <a href="#endpoints">Endpoints &amp; subscriptions</a>
+        <a href="#pairing">Device pairing</a>
+        <a href="#realtime">Realtime hub</a>
+        <a href="#errors">Errors &amp; limits</a>
+        <a href="#dotnet">.NET client</a>
+    </nav>
+    <article class="docs-body">
+        <h2 id="quickstart">Quick start</h2>
+        <p>Install the Windows agent from <a href="/downloads">Downloads</a>. It pairs itself with your workspace in the browser and puts <code>hash-relay</code> on your PATH. Then, in a new terminal:</p>
+        <div class="code"><button class="copy" data-copy>Copy</button><pre><code>hash-relay subscribe #builds
+hash-relay publish #builds "Build complete" "212 tests passed in 48s"</code></pre></div>
+        <p>The notification appears in Windows Notification Center on every device in the workspace subscribed to <code>#builds</code>. From CI or a server, create an API key in the dashboard and publish over HTTP:</p>
+        <div class="code"><button class="copy" data-copy>Copy</button><pre><code>curl -X POST @url/api/v1/notifications \
+  -H "Authorization: Bearer hr_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"tags":["builds"],"title":"Build complete","body":"212 tests passed in 48s"}'</code></pre></div>
+
+        <h2 id="concepts">Concepts</h2>
+        <table class="table">
+            <tr><th>Workspace</th><td>A tenant. Hashtags, keys, devices and notifications are isolated per workspace; nothing crosses the boundary.</td></tr>
+            <tr><th>Hashtag</th><td>A subscription topic inside a workspace. Normalised to lowercase <span class="mono">[a-z0-9][a-z0-9_-]{0,63}</span>; <code>#Builds</code> and <code>builds</code> are the same tag.</td></tr>
+            <tr><th>Endpoint</th><td>A device (or headless listener) with a stable id. It holds a set of subscriptions and receives at most one notification per publication, however many of its tags match.</td></tr>
+            <tr><th>API key</th><td>A tenant-bound publisher credential for trusted integrations. Shown once, stored hashed, revocable, with explicit <code>publish</code>/<code>subscribe</code> permissions.</td></tr>
+            <tr><th>Device token</th><td>A credential issued to one endpoint through pairing. Installed clients never carry your publisher API key.</td></tr>
+        </table>
+
+        <h2 id="cli">CLI reference</h2>
+        <p>The CLI stores its configuration per user in <span class="mono">%APPDATA%\HashRelay\config.json</span>. Exit codes: <code>0</code> success, <code>2</code> invalid input, <code>3</code> authentication, <code>4</code> server unavailable, <code>5</code> request rejected, <code>10</code> unexpected. Add <code>--json</code> to any command for machine-readable output.</p>
+        <table class="table">
+            <tr><td class="mono">hash-relay login</td><td>Pair this device with a workspace in the browser. Use <code>--key hr_live_…</code> for headless machines.</td></tr>
+            <tr><td class="mono">hash-relay configure --server URL</td><td>Point the CLI and agent at another HashRelay server.</td></tr>
+            <tr><td class="mono">hash-relay subscribe #tag…</td><td>Subscribe this device to one or more hashtags.</td></tr>
+            <tr><td class="mono">hash-relay unsubscribe #tag…</td><td>Remove subscriptions.</td></tr>
+            <tr><td class="mono">hash-relay subscriptions</td><td>List this device's subscriptions.</td></tr>
+            <tr><td class="mono">hash-relay publish #tag… "Title" ["Body"]</td><td>Publish. Also accepts <code>--tag</code>, <code>--title</code>, <code>--body</code>, <code>--url</code>, <code>--priority</code>, <code>--id</code>.</td></tr>
+            <tr><td class="mono">hash-relay listen [#tag…]</td><td>Stream notifications for this device to the console.</td></tr>
+            <tr><td class="mono">hash-relay test</td><td>Publish a test notification to this device and verify delivery.</td></tr>
+            <tr><td class="mono">hash-relay status</td><td>Show server, workspace, device and agent status.</td></tr>
+            <tr><td class="mono">hash-relay agent start|stop|status</td><td>Control the Windows tray agent.</td></tr>
+            <tr><td class="mono">hash-relay logout</td><td>Forget the stored credential.</td></tr>
+        </table>
+
+        <h2 id="auth">Authentication</h2>
+        <p>Send your credential as a bearer token. Tenant identity is resolved from the credential; the API never trusts a client-supplied tenant id.</p>
+        <div class="code"><pre><code>Authorization: Bearer hr_live_…        # API key (dashboard → API keys)
+Authorization: Bearer hr_dev_…         # device token (issued by pairing)</code></pre></div>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/v1/me</code></div>
+        <p>Returns the tenant and credential the token resolves to.</p>
+
+        <h2 id="publish">Publish API</h2>
+        <div class="endpoint"><span class="method">POST</span><code>/api/v1/notifications</code> <span class="badge">publish</span></div>
+        <div class="code"><pre><code>{
+  "tags": ["builds", "ci"],          // 1–10 hashtags, '#' optional
+  "title": "Build complete",         // 1–120 chars
+  "body": "212 tests passed",        // optional, ≤ 1000 chars
+  "url": "https://ci.example/run/42", // optional; opened when the toast is clicked
+  "priority": "normal",              // low | normal | high
+  "notificationId": "uuid"           // optional; makes retries idempotent
+}</code></pre></div>
+        <p>Returns <code>202 Accepted</code>:</p>
+        <div class="code"><pre><code>{
+  "notificationId": "7a2c…", "acceptedAtUtc": "2026-10-31T12:00:00Z",
+  "tags": ["builds","ci"], "title": "Build complete",
+  "matchedEndpoints": 3, "deliveredLive": 2, "queued": 1, "duplicate": false
+}</code></pre></div>
+        <p>Re-sending the same <code>notificationId</code> with an identical payload returns <code>200</code> with <code>duplicate: true</code>; a different payload is rejected with <code>409</code>. The union of subscribers across all tags is matched and each endpoint receives exactly one notification. Endpoints that are offline keep a queued delivery that is replayed when they reconnect within @Model.ReplayWindowHours hours.</p>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/v1/notifications?limit=20</code></div>
+        <p>Recent publications in the workspace with delivery counts.</p>
+
+        <h2 id="endpoints">Endpoints &amp; subscriptions</h2>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/v1/endpoints</code></div>
+        <div class="endpoint"><span class="method">POST</span><code>/api/v1/endpoints</code> <span class="badge">subscribe</span></div>
+        <div class="code"><pre><code>{ "endpointId": "my-ci-runner", "platform": "linux", "name": "CI runner 1" }   → 201 (or 200 if it existed)</code></pre></div>
+        <div class="endpoint"><span class="method get">GET</span><code>/api/v1/endpoints/{endpointId}/subscriptions</code></div>
+        <div class="endpoint"><span class="method">PUT</span><code>/api/v1/endpoints/{endpointId}/subscriptions</code> <span class="badge">subscribe</span></div>
+        <div class="endpoint"><span class="method">POST</span><code>/api/v1/endpoints/{endpointId}/subscriptions</code> <span class="badge">subscribe</span></div>
+        <div class="endpoint"><span class="method del">DELETE</span><code>/api/v1/endpoints/{endpointId}/subscriptions?tags=a&amp;tags=b</code> <span class="badge">subscribe</span></div>
+        <p>PUT replaces, POST adds, DELETE removes; each takes or returns <code>{"endpointId":"…","tags":["…"]}</code>. Single-tag forms <code>PUT/DELETE …/subscriptions/{tag}</code> return <code>204</code> idempotently.</p>
+
+        <h2 id="pairing">Device pairing</h2>
+        <p>Installed clients obtain a device token with an OAuth-style device flow, so they never hold a publisher key:</p>
+        <div class="code"><pre><code>POST /api/v1/device/code   { "endpointId", "deviceName", "platform", "client": "agent" | "cli" }
+  → { "deviceCode", "userCode": "KQ7M-3PXD", "verificationUrlComplete": "@url/pair?code=KQ7M-3PXD", "expiresInSeconds": 900, "intervalSeconds": 3 }
+
+POST /api/v1/device/token  { "deviceCode" }
+  → { "status": "pending" | "approved" | "denied" | "expired", "token": "hr_dev_…", "tenant": {…}, "credential": {…} }</code></pre></div>
+        <p>The person approves the code at <a href="/pair">/pair</a>, choosing the workspace and whether the device may also publish. Approving again for the same endpoint replaces its previous token.</p>
+
+        <h2 id="realtime">Realtime hub</h2>
+        <p>Agents connect to the SignalR hub at <code>@HubMethods.Path</code> with their token (<code>Authorization</code> header or <code>?access_token=</code>). The server binds the endpoint identity in <code>Hello</code>, replays queued deliveries, and pushes:</p>
+        <div class="code"><pre><code>// client → server
+Hello({ endpointId, name, platform, agentVersion }) → { tenant, endpointId, subscriptions[], pendingReplay }
+Subscribe(tags[]) / Unsubscribe(tags[]) → tags[]
+Ack(deliveryId)
+
+// server → client
+NotificationReceived({ notificationId, tenantId, tags, title, body, publishedAtUtc, deliveryId, url, priority, tenantName, replayed })
+SubscriptionsChanged(tags[])
+CredentialRevoked(reason)</code></pre></div>
+        <p>Groups are per-endpoint routing addresses only. Subscriptions are persisted and are the sole authority for matching.</p>
+
+        <h2 id="errors">Errors &amp; limits</h2>
+        <div class="code"><pre><code>{ "code": "validation_failed", "message": "The publication is not valid.", "traceId": "00-…", "details": { "title": ["Title must be 1–120 characters."] } }</code></pre></div>
+        <table class="table">
+            <tr><td class="mono">400 validation_failed</td><td>Malformed input; see <code>details</code>.</td></tr>
+            <tr><td class="mono">401 unauthenticated</td><td>Missing, unknown, revoked or expired credential.</td></tr>
+            <tr><td class="mono">403 forbidden</td><td>Credential lacks the permission, or a device token acted outside its endpoint.</td></tr>
+            <tr><td class="mono">404 not_found</td><td>Unknown endpoint in this workspace.</td></tr>
+            <tr><td class="mono">409 conflict</td><td>notificationId reused with a different payload.</td></tr>
+            <tr><td class="mono">429 throttled</td><td>Over @Model.RateLimit publications per minute per credential. Honour <code>Retry-After</code>.</td></tr>
+        </table>
+
+        <h2 id="dotnet">.NET client</h2>
+        <p>The <code>HashRelay.Client</code> library (in the repository) wraps the API and hub used by the CLI and agent:</p>
+        <div class="code"><button class="copy" data-copy>Copy</button><pre><code>using HashRelay.Client;
+using HashRelay.Contracts;
+
+using var api = new HashRelayApi(new Uri("@url/"), Environment.GetEnvironmentVariable("HASHRELAY_KEY"));
+var result = await api.PublishAsync(new PublishRequest(["builds"], "Build complete", "212 tests passed"));
+Console.WriteLine($"matched {result.MatchedEndpoints}, live {result.DeliveredLive}");</code></pre></div>
+    </article>
+</div>

@@ -1,0 +1,66 @@
+@page "/dashboard"
+@model HashRelay.Server.Pages.Dashboard.IndexModel
+@{
+    Layout = "_DashboardLayout";
+    ViewData["Title"] = "Overview";
+}
+<div class="page-head">
+    <div>
+        <h1>@Model.TenantName</h1>
+        <p>Workspace overview</p>
+    </div>
+    <div class="spacer"></div>
+    <a class="btn" href="/downloads">Download agent</a>
+    <a class="btn btn-primary" href="/dashboard/keys?create=1">Create API key</a>
+</div>
+<partial name="_Flash" />
+@if (Model.Welcome)
+{
+    <div class="alert alert-success">Welcome to HashRelay! Your workspace <strong>@Model.TenantName</strong> is ready. Follow the quick start below to get your first notification.</div>
+}
+
+<div class="grid grid-4">
+    <div class="card stat"><div class="k">Devices online</div><div class="v" data-stat="online">@Model.Online</div><div class="s">of @Model.Devices registered</div></div>
+    <div class="card stat"><div class="k">Notifications · 24h</div><div class="v" data-stat="last24h">@Model.Last24h</div><div class="s">@Model.Total all time</div></div>
+    <div class="card stat"><div class="k">Active API keys</div><div class="v" data-stat="keys">@Model.ActiveKeys</div><div class="s"><a href="/dashboard/keys">Manage keys</a></div></div>
+    <div class="card stat"><div class="k">Subscriptions</div><div class="v" data-stat="subscriptions">@Model.Subscriptions</div><div class="s">across @Model.DistinctTags distinct tags</div></div>
+</div>
+
+<div class="grid grid-2 mt-3" style="grid-template-columns: 1.2fr .8fr">
+    <div class="card">
+        <div class="card-header"><h3>Recent activity</h3><div class="spacer"></div><a class="small" href="/dashboard/activity">View all</a></div>
+        <div class="card-body">
+            <ul class="timeline" data-feed>
+                @if (Model.Recent.Count == 0)
+                {
+                    <li class="empty">No notifications yet. Publish one with the CLI or the API to see it here.</li>
+                }
+                @foreach (var n in Model.Recent)
+                {
+                    <li>
+                        <div>
+                            <div class="t">@n.Title</div>
+                            @if (!string.IsNullOrEmpty(n.Body)) { <div class="b">@n.Body</div> }
+                            <div class="tags mt-1">@foreach (var t in n.Tags) { <span class="tag">#@t</span> }</div>
+                        </div>
+                        <div class="text-right">
+                            <time data-rel datetime="@n.PublishedAtUtc.ToString("o")">@n.PublishedAtUtc.ToString("g")</time>
+                            <div class="small muted">@n.Delivered/@n.MatchedEndpoints delivered</div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><h3>Quick start</h3></div>
+        <div class="card-body stack">
+            <div class="step"><div class="n">1</div><div><strong>Install the Windows agent</strong><p class="small mb-0">Run the <a href="/downloads">installer</a>. It adds the tray agent and the <code>hash-relay</code> CLI, then opens this site to pair the device.</p></div></div>
+            <div class="step"><div class="n">2</div><div><strong>Subscribe the device to a hashtag</strong>
+                <div class="code mt-1"><button class="copy" data-copy>Copy</button><pre><code>hash-relay subscribe #builds</code></pre></div></div></div>
+            <div class="step"><div class="n">3</div><div><strong>Publish from anywhere</strong>
+                <div class="code mt-1"><button class="copy" data-copy>Copy</button><pre><code>hash-relay publish #builds "Build complete" "212 tests passed"</code></pre></div>
+                <p class="small mb-0 mt-1">From CI or a server, <a href="/dashboard/keys">create an API key</a> and call the <a href="/docs#publish">HTTP API</a>.</p></div></div>
+        </div>
+    </div>
+</div>

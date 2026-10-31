@@ -1,0 +1,93 @@
+@page "/pair"
+@model HashRelay.Server.Pages.PairModel
+@{
+    ViewData["Title"] = "Pair a device";
+}
+<div class="auth">
+    <div class="card" style="max-width:520px">
+        <div class="card-body">
+            @if (Model.Approved)
+            {
+                <div data-pair-done style="text-align:center">
+                    <div style="width:64px;height:64px;border-radius:50%;background:var(--success-soft);color:var(--success);display:grid;place-items:center;margin:0 auto 14px">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    </div>
+                    <h1>Device paired</h1>
+                    <p><strong>@Model.DeviceName</strong> is now connected to <strong>@Model.WorkspaceName</strong>. You can close this tab; the device will finish connecting on its own.</p>
+                    <div class="flex" style="justify-content:center">
+                        <a class="btn" href="/dashboard/devices">Manage devices</a>
+                        <a class="btn btn-primary" href="/dashboard">Go to dashboard</a>
+                    </div>
+                </div>
+            }
+            else if (Model.Denied)
+            {
+                <h1>Request denied</h1>
+                <p>The device was told it may not join. Nothing was issued.</p>
+                <a class="btn" href="/dashboard">Back to dashboard</a>
+            }
+            else if (Model.Pairing is null)
+            {
+                <h1>Pair a device</h1>
+                <p class="sub">Enter the code shown by the HashRelay agent or by <code>hash-relay login</code>.</p>
+                @if (Model.CodeNotFound)
+                {
+                    <div class="alert alert-danger">That code wasn't found or has expired. Codes last 15 minutes; ask the device for a new one.</div>
+                }
+                <form method="get">
+                    <div class="field">
+                        <label for="code">Pairing code</label>
+                        <input class="input mono" id="code" name="code" placeholder="KQ7M-3PXD" autocomplete="off" autofocus style="text-transform:uppercase;letter-spacing:.1em;font-size:1.2rem;height:52px;text-align:center" value="@Model.Code" />
+                    </div>
+                    <button class="btn btn-primary btn-block" type="submit">Continue</button>
+                </form>
+            }
+            else
+            {
+                <h1>Approve this device?</h1>
+                <p class="sub">A device is asking to join one of your workspaces with code <span class="mono"><strong>@Model.Pairing.UserCode</strong></span>.</p>
+                <div class="device-card mb-2">
+                    <div class="icon">
+                        @if (Model.Pairing.Client == "cli")
+                        {
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6M12 19h8"/></svg>
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                        }
+                    </div>
+                    <div>
+                        <div><strong>@Model.Pairing.DeviceName</strong> <span class="badge">@(Model.Pairing.Client == "cli" ? "CLI" : "Agent")</span></div>
+                        <div class="small muted">@Model.Pairing.Platform · requested <time data-rel datetime="@Model.Pairing.CreatedAt.ToString("o")">just now</time></div>
+                    </div>
+                </div>
+                <form method="post">
+                    <input type="hidden" name="pairingId" value="@Model.Pairing.Id" />
+                    <input type="hidden" name="code" value="@Model.Pairing.UserCode" />
+                    <div class="field">
+                        <label for="tenantId">Workspace</label>
+                        <select class="input" id="tenantId" name="tenantId">
+                            @foreach (var m in Model.Memberships)
+                            {
+                                <option value="@m.TenantId" selected="@(m.TenantId == Model.CurrentTenantId)">@m.Tenant.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>This device may</label>
+                        <div class="checks">
+                            <label class="check"><input type="checkbox" name="scopes" value="subscribe" checked /> receive notifications</label>
+                            <label class="check"><input type="checkbox" name="scopes" value="publish" checked /> publish with the CLI</label>
+                        </div>
+                        <p class="hint">A device token is issued, bound to this device only. You can revoke it any time from Devices.</p>
+                    </div>
+                    <div class="flex" style="justify-content:flex-end">
+                        <button class="btn btn-ghost" type="submit" asp-page-handler="Deny">Deny</button>
+                        <button class="btn btn-primary" type="submit" asp-page-handler="Approve">Approve</button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>

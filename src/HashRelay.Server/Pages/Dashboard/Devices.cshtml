@@ -1,0 +1,98 @@
+@page "/dashboard/devices"
+@model HashRelay.Server.Pages.Dashboard.DevicesModel
+@{
+    Layout = "_DashboardLayout";
+    ViewData["Title"] = "Devices";
+}
+<div class="page-head">
+    <div>
+        <h1>Devices</h1>
+        <p>Endpoints paired with <strong>@Model.TenantName</strong> and the hashtags each one receives.</p>
+    </div>
+    <div class="spacer"></div>
+    <a class="btn" href="/pair">Pair a device</a>
+    <a class="btn btn-primary" href="/downloads">Download agent</a>
+</div>
+<partial name="_Flash" />
+
+@if (Model.Devices.Count == 0)
+{
+    <div class="card"><div class="card-body empty">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <h3>No devices yet</h3>
+        <p>Install the Windows agent and approve its pairing code here. The device will appear with its subscriptions.</p>
+        <a class="btn btn-primary" href="/downloads">Download for Windows</a>
+    </div></div>
+}
+
+@foreach (var d in Model.Devices)
+{
+    var online = d.Online;
+    <div class="card mb-2">
+        <div class="card-header">
+            <div class="device-card" style="padding:0;background:none;border:0;grid-template-columns:40px 1fr">
+                <div class="icon" style="width:40px;height:40px">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                </div>
+                <div>
+                    <div class="flex"><strong>@d.Endpoint.Name</strong>
+                        <span class="badge @(online ? "badge-success" : "")" data-endpoint-status="@d.Endpoint.EndpointId"><span class="dot @(online ? "pulse" : "")"></span>@(online ? "Online" : "Offline")</span>
+                    </div>
+                    <div class="small muted">@d.Endpoint.Platform · agent @(d.Endpoint.AgentVersion ?? "—") · last seen <time data-rel data-endpoint-seen="@d.Endpoint.EndpointId" datetime="@d.Endpoint.LastSeenAt.ToString("o")">@d.Endpoint.LastSeenAt.ToString("g")</time></div>
+                </div>
+            </div>
+            <div class="spacer"></div>
+            @if (Model.CanManage)
+            {
+                <form method="post" asp-page-handler="Remove" onsubmit="return confirm('Remove this device? Its token is revoked and subscriptions are deleted.')">
+                    <input type="hidden" name="id" value="@d.Endpoint.Id" />
+                    <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+                </form>
+            }
+        </div>
+        <div class="card-body">
+            <div class="grid grid-2">
+                <div>
+                    <div class="code-title">Subscriptions</div>
+                    <div class="tags mb-2">
+                        @if (d.Tags.Count == 0) { <span class="muted small">Not subscribed to any hashtag yet.</span> }
+                        @foreach (var t in d.Tags)
+                        {
+                            <span class="tag">#@t
+                                @if (Model.CanManage)
+                                {
+                                    <form method="post" asp-page-handler="RemoveTag" style="display:inline">
+                                        <input type="hidden" name="id" value="@d.Endpoint.Id" /><input type="hidden" name="tag" value="@t" />
+                                        <button class="x" type="submit" title="Unsubscribe">×</button>
+                                    </form>
+                                }
+                            </span>
+                        }
+                    </div>
+                    @if (Model.CanManage)
+                    {
+                        <form method="post" asp-page-handler="AddTag" class="input-group">
+                            <input type="hidden" name="id" value="@d.Endpoint.Id" />
+                            <input class="input" name="tag" placeholder="#builds" maxlength="65" style="height:36px" />
+                            <button class="btn btn-sm" type="submit" style="height:36px">Subscribe</button>
+                        </form>
+                    }
+                </div>
+                <div>
+                    <div class="code-title">Device token</div>
+                    @if (d.Token is null)
+                    {
+                        <p class="small muted">No active device token. Pair the device again from the agent.</p>
+                    }
+                    else
+                    {
+                        <div class="small"><span class="mono">@d.Token.Hint</span> · <div class="tags" style="display:inline-flex">@foreach (var s in d.Token.ScopeList) { <span class="badge badge-accent">@s</span> }</div></div>
+                        <div class="small muted mt-1">Issued <time data-rel datetime="@d.Token.CreatedAt.ToString("o")">@d.Token.CreatedAt.ToString("g")</time>@(d.Token.LastUsedAt is null ? "" : " · last used ")@if (d.Token.LastUsedAt is not null) { <time data-rel datetime="@d.Token.LastUsedAt.Value.ToString("o")">@d.Token.LastUsedAt.Value.ToString("g")</time> }</div>
+                    }
+                    <div class="code-title mt-2">Endpoint id</div>
+                    <div class="small mono muted">@d.Endpoint.EndpointId</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
