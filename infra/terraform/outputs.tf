@@ -1,15 +1,27 @@
 output "resource_group_name" {
   value = azurerm_resource_group.app.name
 }
-output "web_app_url" {
-  value = "https://${azurerm_linux_web_app.app.default_hostname}"
+output "container_app_name" {
+  value = azurerm_container_app.app.name
 }
-output "signalr_host" {
-  value = azurerm_signalr_service.realtime.hostname
+output "container_app_environment_name" {
+  value = azurerm_container_app_environment.env.name
 }
-output "web_app_name" {
-  value = azurerm_linux_web_app.app.name
+output "registry_name" {
+  value = azurerm_container_registry.acr.name
+}
+output "registry_login_server" {
+  value = azurerm_container_registry.acr.login_server
+}
+output "image_repository" {
+  value = var.image_repository
+}
+output "default_url" {
+  value = "https://${azurerm_container_app.app.ingress[0].fqdn}"
+}
+output "custom_domain" {
+  value = local.custom_domain
 }
 output "public_url" {
-  value = local.custom_domain != "" ? "https://${local.custom_domain}" : "https://${azurerm_linux_web_app.app.default_hostname}"
+  value = local.public_url
 }
