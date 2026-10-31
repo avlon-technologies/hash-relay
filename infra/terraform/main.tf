@@ -136,6 +136,13 @@ resource "azurerm_container_app" "app" {
       value = var.fcm_service_account_json
     }
   }
+  dynamic "secret" {
+    for_each = var.smtp_password != "" ? [1] : []
+    content {
+      name  = "smtp-password"
+      value = var.smtp_password
+    }
+  }
 
   ingress {
     external_enabled = true
@@ -186,6 +193,29 @@ resource "azurerm_container_app" "app" {
         content {
           name        = "HashRelay__Push__Fcm__ServiceAccountJson"
           secret_name = "fcm-service-account"
+        }
+      }
+      env {
+        name  = "HashRelay__Email__From"
+        value = var.email_from
+      }
+      env {
+        name  = "HashRelay__Email__Smtp__Host"
+        value = var.smtp_host
+      }
+      env {
+        name  = "HashRelay__Email__Smtp__Port"
+        value = tostring(var.smtp_port)
+      }
+      env {
+        name  = "HashRelay__Email__Smtp__Username"
+        value = var.smtp_username
+      }
+      dynamic "env" {
+        for_each = var.smtp_password != "" ? [1] : []
+        content {
+          name        = "HashRelay__Email__Smtp__Password"
+          secret_name = "smtp-password"
         }
       }
 

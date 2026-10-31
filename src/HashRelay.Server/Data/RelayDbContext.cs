@@ -19,6 +19,7 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
     public DbSet<OAuthGrant> OAuthGrants => Set<OAuthGrant>();
     public DbSet<OAuthCode> OAuthCodes => Set<OAuthCode>();
     public DbSet<OAuthRefreshToken> OAuthRefreshTokens => Set<OAuthRefreshToken>();
+    public DbSet<PasswordReset> PasswordResets => Set<PasswordReset>();
 
     /// <summary>SQLite cannot compare DateTimeOffset text; store every timestamp as UTC ticks (INTEGER) instead.</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
@@ -112,6 +113,14 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.HasIndex(x => x.Hash).IsUnique();
             e.HasIndex(x => x.GrantId);
             e.Property(x => x.Hash).HasMaxLength(64);
+        });
+
+        b.Entity<PasswordReset>(e =>
+        {
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => new { x.AccountId, x.CreatedAt });
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.Property(x => x.RequestIp).HasMaxLength(64);
         });
 
         b.Entity<AuditEvent>(e =>

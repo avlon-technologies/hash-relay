@@ -41,3 +41,7 @@ Official references:
 ## Mobile push (optional)
 
 Set `fcm_service_account_json` to the contents of a Firebase service-account key to let the server send push notifications to paired phones through Firebase Cloud Messaging (both Android and iOS). It becomes the Container App secret `fcm-service-account`, exposed to the server as `HashRelay__Push__Fcm__ServiceAccountJson`. Pass it as `TF_VAR_fcm_service_account_json` or via a git-ignored tfvars file; leave it empty to run without push (devices receive on their next foreground connection). See `src/HashRelay.Mobile/README.md` for the Firebase project setup.
+
+## Outbound email (password reset links)
+
+Set `email_from` and `smtp_host` (plus `smtp_username` / `smtp_password` when the provider needs them; port defaults to 587 with STARTTLS) so the server can email self-service password-reset links. They become `HashRelay__Email__*` on the container, with the password held as the Container App secret `smtp-password`. Pass the password as `TF_VAR_smtp_password` or via a git-ignored tfvars file. With `smtp_host` empty the forgot-password page still works, but the link is only written to the server log (`az containerapp logs show`), which is fine for dev and useless for real users.
