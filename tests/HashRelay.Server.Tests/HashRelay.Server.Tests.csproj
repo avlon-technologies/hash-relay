@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <PackageReference Include="ModelContextProtocol" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\HashRelay.Server\HashRelay.Server.csproj" />

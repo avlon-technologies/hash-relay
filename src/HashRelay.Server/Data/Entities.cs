@@ -54,6 +54,7 @@ public sealed class Credential
     public required string Hint { get; set; }           // prefix + last 4 for display, e.g. "hr_live_…9f3a"
     public required string Scopes { get; set; }         // comma separated
     public Guid? EndpointRef { get; set; }              // device tokens are bound to one endpoint
+    public Guid? ServiceAccountId { get; set; }         // service keys belong to one service account
     public Guid? CreatedByAccountId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastUsedAt { get; set; }
@@ -162,4 +163,59 @@ public sealed class DevicePairing
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? LastPolledAt { get; set; }
+}
+
+/// <summary>
+/// A non-human principal (AI agent, automation) in a workspace. Holds the policy its keys inherit: fine-grained
+/// scopes, a hashtag allowlist, a URL policy and an hourly publish quota. Keys are <see cref="Credential"/> rows of
+/// kind "service" pointing back here; disabling the account suspends them all at once.
+/// </summary>
+public sealed class ServiceAccount
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public required string Name { get; set; }
+    public string? Description { get; set; }
+    public required string Scopes { get; set; }         // comma separated ServiceScopes
+    public required string AllowedTags { get; set; }    // comma separated glob patterns, normalised like tags ("agent-*")
+    public string? AllowedUrlHosts { get; set; }        // comma separated host names; null = any https host
+    public int HourlyPublishLimit { get; set; } = 60;
+    public bool Enabled { get; set; } = true;
+    public Guid? CreatedByAccountId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? LastUsedAt { get; set; }
+
+    public IReadOnlyList<string> ScopeList => Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    public IReadOnlyList<string> AllowedTagList => AllowedTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    public IReadOnlyList<string> AllowedUrlHostList => (AllowedUrlHosts ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+public static class AuditActions
+{
+    public const string ServiceAccountCreated = "service_account.created";
+    public const string ServiceAccountUpdated = "service_account.updated";
+    public const string ServiceAccountEnabled = "service_account.enabled";
+    public const string ServiceAccountDisabled = "service_account.disabled";
+    public const string KeyIssued = "key.issued";
+    public const string KeyRevoked = "key.revoked";
+    public const string Published = "notification.published";
+    public const string PublishRefused = "notification.refused";
+    public const string SubscriptionsChanged = "subscriptions.changed";
+}
+
+/// <summary>An audit row for service-account activity and credential management. Never contains a secret.</summary>
+public sealed class AuditEvent
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid? ServiceAccountId { get; set; }
+    public Guid? CredentialId { get; set; }
+    public Guid? AccountId { get; set; }                 // the signed-in person, for dashboard actions
+    public required string Action { get; set; }
+    public string? Target { get; set; }                  // e.g. notification id, key hint, tag list
+    public string? Detail { get; set; }                  // short human-readable detail
+    public string? Source { get; set; }                  // "mcp" | "api" | "dashboard"
+    public string? Ip { get; set; }
+    public DateTimeOffset At { get; set; }
 }

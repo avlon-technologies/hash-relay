@@ -25,3 +25,9 @@ output "custom_domain" {
 output "public_url" {
   value = local.public_url
 }
+output "mcp_domain" {
+  value = local.mcp_domain
+}
+output "mcp_url" {
+  value = local.mcp_domain != "" ? "https://${local.mcp_domain}/mcp" : "${local.public_url}/mcp"
+}

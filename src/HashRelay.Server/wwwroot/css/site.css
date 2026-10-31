@@ -486,3 +486,9 @@ a.card:hover { text-decoration: none; border-color: var(--border-strong); }
 .overview .code pre, .dl .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 /* Phones: the top bar keeps the essentials; Downloads stays reachable from the footer and the dashboard. */
 @media (max-width: 520px) { .nav-links a[href="/downloads"] { display: none; } }
+
+/* Service accounts */
+.code.wrap pre { white-space: pre-wrap; word-break: break-word; }
+.table td.nowrap { white-space: nowrap; }
+.table td .desc { white-space: normal; max-width: 32ch; }
+.checks .check span .muted { font-weight: 400; }

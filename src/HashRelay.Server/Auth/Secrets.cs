@@ -9,9 +9,12 @@ public static class Secrets
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     public const string ApiKeyPrefix = "hr_live_";
     public const string DeviceTokenPrefix = "hr_dev_";
+    public const string ServiceKeyPrefix = "hr_svc_";
+    private static readonly string[] Prefixes = [ApiKeyPrefix, DeviceTokenPrefix, ServiceKeyPrefix];
 
     public static string NewApiKey() => ApiKeyPrefix + RandomString(40);
     public static string NewDeviceToken() => DeviceTokenPrefix + RandomString(40);
+    public static string NewServiceKey() => ServiceKeyPrefix + RandomString(40);
     public static string NewDeviceCode() => RandomString(48);
 
     /// <summary>Human-friendly pairing code, e.g. "KQ7M-3PXD" (no ambiguous characters).</summary>
@@ -35,12 +38,12 @@ public static class Secrets
 
     public static string Hint(string secret)
     {
-        var prefix = secret.StartsWith(ApiKeyPrefix) ? ApiKeyPrefix : secret.StartsWith(DeviceTokenPrefix) ? DeviceTokenPrefix : "";
+        var prefix = Prefixes.FirstOrDefault(secret.StartsWith) ?? "";
         return prefix + "…" + secret[^4..];
     }
 
     public static bool LooksLikeSecret(string? value)
-        => value is not null && (value.StartsWith(ApiKeyPrefix) || value.StartsWith(DeviceTokenPrefix)) && value.Length >= 20;
+        => value is not null && Prefixes.Any(value.StartsWith) && value.Length >= 20;
 
     /// <summary>A random temporary password for operator resets: 16 unambiguous letters and digits.</summary>
     public static string TemporaryPassword() => RandomNumberGenerator.GetString("abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", 16);

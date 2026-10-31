@@ -13,6 +13,8 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<DevicePairing> DevicePairings => Set<DevicePairing>();
+    public DbSet<ServiceAccount> ServiceAccounts => Set<ServiceAccount>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     /// <summary>SQLite cannot compare DateTimeOffset text; store every timestamp as UTC ticks (INTEGER) instead.</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
@@ -52,8 +54,33 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Property(x => x.Label).HasMaxLength(80);
             e.Property(x => x.Hash).HasMaxLength(64);
             e.Property(x => x.Hint).HasMaxLength(32);
-            e.Property(x => x.Scopes).HasMaxLength(64);
+            e.Property(x => x.Scopes).HasMaxLength(200);
+            e.HasIndex(x => x.ServiceAccountId);
             e.Ignore(x => x.ScopeList);
+        });
+
+        b.Entity<ServiceAccount>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.Property(x => x.Description).HasMaxLength(300);
+            e.Property(x => x.Scopes).HasMaxLength(200);
+            e.Property(x => x.AllowedTags).HasMaxLength(700);
+            e.Property(x => x.AllowedUrlHosts).HasMaxLength(700);
+            e.Ignore(x => x.ScopeList);
+            e.Ignore(x => x.AllowedTagList);
+            e.Ignore(x => x.AllowedUrlHostList);
+        });
+
+        b.Entity<AuditEvent>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.At });
+            e.HasIndex(x => new { x.ServiceAccountId, x.At });
+            e.Property(x => x.Action).HasMaxLength(40);
+            e.Property(x => x.Target).HasMaxLength(200);
+            e.Property(x => x.Detail).HasMaxLength(500);
+            e.Property(x => x.Source).HasMaxLength(16);
+            e.Property(x => x.Ip).HasMaxLength(64);
         });
 
         b.Entity<Endpoint>(e =>

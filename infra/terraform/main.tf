@@ -17,6 +17,7 @@ locals {
     managed-by  = "terraform"
   }
   custom_domain = var.dns_zone_name != "" ? "${var.dns_record_name}.${var.dns_zone_name}" : ""
+  mcp_domain    = var.dns_zone_name != "" && var.mcp_record_name != "" ? "${var.mcp_record_name}.${var.dns_zone_name}" : ""
   image         = "${azurerm_container_registry.acr.login_server}/${var.image_repository}:${var.image_tag}"
   public_url    = local.custom_domain != "" ? "https://${local.custom_domain}" : "https://${azurerm_container_app.app.ingress[0].fqdn}"
 }
@@ -156,6 +157,10 @@ resource "azurerm_container_app" "app" {
         value = local.custom_domain != "" ? "https://${local.custom_domain}" : ""
       }
       env {
+        name  = "HashRelay__McpHost"
+        value = local.mcp_domain
+      }
+      env {
         name  = "HashRelay__DatabasePath"
         value = "/data/hashrelay.db"
       }
@@ -240,4 +245,40 @@ resource "azurerm_container_app_custom_domain" "app" {
   }
 
   depends_on = [azurerm_dns_cname_record.app, azurerm_dns_txt_record.asuid]
+}
+
+# ---- MCP host: a second hostname on the same Container App, served by the same process (host-filtered to /mcp) ----
+
+resource "azurerm_dns_cname_record" "mcp" {
+  count               = local.mcp_domain != "" ? 1 : 0
+  name                = var.mcp_record_name
+  zone_name           = data.azurerm_dns_zone.zone[0].name
+  resource_group_name = data.azurerm_dns_zone.zone[0].resource_group_name
+  ttl                 = 300
+  record              = azurerm_container_app.app.ingress[0].fqdn
+  tags                = local.tags
+}
+
+resource "azurerm_dns_txt_record" "mcp_asuid" {
+  count               = local.mcp_domain != "" ? 1 : 0
+  name                = "asuid.${var.mcp_record_name}"
+  zone_name           = data.azurerm_dns_zone.zone[0].name
+  resource_group_name = data.azurerm_dns_zone.zone[0].resource_group_name
+  ttl                 = 300
+  record {
+    value = azurerm_container_app_environment.env.custom_domain_verification_id
+  }
+  tags = local.tags
+}
+
+resource "azurerm_container_app_custom_domain" "mcp" {
+  count            = local.mcp_domain != "" ? 1 : 0
+  name             = local.mcp_domain
+  container_app_id = azurerm_container_app.app.id
+
+  lifecycle {
+    ignore_changes = [certificate_binding_type, container_app_environment_certificate_id]
+  }
+
+  depends_on = [azurerm_dns_cname_record.mcp, azurerm_dns_txt_record.mcp_asuid, azurerm_container_app_custom_domain.app]
 }

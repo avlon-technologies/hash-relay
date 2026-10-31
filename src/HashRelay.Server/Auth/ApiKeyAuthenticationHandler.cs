@@ -21,6 +21,16 @@ public static class ApiAuth
     public const string PolicyAny = "api:any";
     public const string PolicyPublish = "api:publish";
     public const string PolicySubscribe = "api:subscribe";
+    /// <summary>Reading notifications: any API key or device token; a service account needs notifications:read.</summary>
+    public const string PolicyRead = "api:read";
+    /// <summary>Reading endpoints: any API key or device token; a service account needs endpoints:read.</summary>
+    public const string PolicyEndpoints = "api:endpoints";
+    /// <summary>Uploading images: publish scope; a service account additionally needs images:write.</summary>
+    public const string PolicyImages = "api:images";
+
+    /// <summary>True when the caller is a service account that lacks the given fine-grained scope. Other credential kinds are never restricted by this.</summary>
+    public static bool ServiceAccountLacks(this ClaimsPrincipal p, string serviceScope)
+        => ServicePolicy.Of(p) is not null && !p.HasClaim(ClaimScope, serviceScope);
 
     public static Guid TenantId(this ClaimsPrincipal p) => Guid.Parse(p.FindFirstValue(ClaimTenantId)!);
     public static Guid CredentialId(this ClaimsPrincipal p) => Guid.Parse(p.FindFirstValue(ClaimCredentialId)!);
@@ -54,12 +64,28 @@ public sealed class ApiKeyAuthenticationHandler(
         var now = clock.GetUtcNow();
         var cred = await db.Credentials.AsNoTracking()
             .Where(c => c.Hash == hash)
-            .Select(c => new { c.Id, c.TenantId, c.Kind, c.Scopes, c.EndpointRef, c.RevokedAt, c.ExpiresAt, c.LastUsedAt, Tenant = db.Tenants.First(t => t.Id == c.TenantId) })
+            .Select(c => new { c.Id, c.TenantId, c.Kind, c.Scopes, c.EndpointRef, c.ServiceAccountId, c.RevokedAt, c.ExpiresAt, c.LastUsedAt, Tenant = db.Tenants.First(t => t.Id == c.TenantId) })
             .FirstOrDefaultAsync(Context.RequestAborted);
 
         if (cred is null) return AuthenticateResult.Fail("Unknown credential.");
         if (cred.RevokedAt is not null) return AuthenticateResult.Fail("Credential revoked.");
         if (cred.ExpiresAt is not null && cred.ExpiresAt <= now) return AuthenticateResult.Fail("Credential expired.");
+
+        // Service keys inherit their account's live policy: scopes, hashtag allowlist, URL policy, quota, enabled flag.
+        ServiceAccount? account = null;
+        var scopes = cred.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).AsEnumerable();
+        if (cred.Kind == Contracts.CredentialKinds.Service)
+        {
+            account = await db.ServiceAccounts.AsNoTracking().FirstOrDefaultAsync(s => s.Id == cred.ServiceAccountId && s.TenantId == cred.TenantId, Context.RequestAborted);
+            if (account is null) return AuthenticateResult.Fail("Service account not found.");
+            if (!account.Enabled) return AuthenticateResult.Fail("Service account disabled.");
+            scopes = account.ScopeList.Concat(Contracts.ServiceScopes.Implied(account.ScopeList));
+            if (account.LastUsedAt is null || now - account.LastUsedAt > TimeSpan.FromMinutes(1))
+            {
+                try { await db.ServiceAccounts.Where(s => s.Id == account.Id).ExecuteUpdateAsync(s => s.SetProperty(a => a.LastUsedAt, now), Context.RequestAborted); }
+                catch (DbUpdateException) { /* non-critical */ }
+            }
+        }
 
         // Touch LastUsedAt at most once a minute to avoid write amplification.
         if (cred.LastUsedAt is null || now - cred.LastUsedAt > TimeSpan.FromMinutes(1))
@@ -83,7 +109,8 @@ public sealed class ApiKeyAuthenticationHandler(
             new(ApiAuth.ClaimTenantName, cred.Tenant.Name),
         };
         if (cred.EndpointRef is not null) claims.Add(new Claim(ApiAuth.ClaimEndpointRef, cred.EndpointRef.Value.ToString()));
-        foreach (var s in cred.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        if (account is not null) claims.AddRange(ServicePolicy.From(account).ToClaims());
+        foreach (var s in scopes.Distinct(StringComparer.OrdinalIgnoreCase))
             claims.Add(new Claim(ApiAuth.ClaimScope, s));
 
         var identity = new ClaimsIdentity(claims, Scheme.Name);
@@ -108,7 +135,7 @@ public sealed class ApiKeyAuthenticationHandler(
         Response.StatusCode = StatusCodes.Status401Unauthorized;
         Response.Headers.WWWAuthenticate = "Bearer realm=\"HashRelay\"";
         return ApiErrors.WriteAsync(Context, StatusCodes.Status401Unauthorized, Contracts.ErrorCodes.Unauthenticated,
-            "A valid API key or device token is required. Send it as 'Authorization: Bearer hr_…'.");
+            "A valid API key, service-account key or device token is required. Send it as 'Authorization: Bearer hr_…'.");
     }
 
     protected override Task HandleForbiddenAsync(AuthenticationProperties properties)

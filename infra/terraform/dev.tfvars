@@ -8,3 +8,4 @@ allow_signup            = true
 dns_zone_name           = "dev.avlon.ca"
 dns_zone_resource_group = "rg-platform-dns-dev-cc"
 dns_record_name         = "hashrelay"
+mcp_record_name         = "mcp.hashrelay"

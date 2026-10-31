@@ -15,6 +15,7 @@
         <a href="#pairing">Device pairing</a>
         <a href="#realtime">Realtime hub</a>
         <a href="#errors">Errors &amp; limits</a>
+        <a href="#mcp">MCP for AI agents</a>
         <a href="#dotnet">.NET client</a>
     </nav>
     <article class="docs-body">
@@ -129,6 +130,42 @@ CredentialRevoked(reason)</code></pre></div>
             <tr><td class="mono">409 conflict</td><td>notificationId reused with a different payload.</td></tr>
             <tr><td class="mono">429 throttled</td><td>Over @Model.RateLimit publications per minute per credential. Honour <code>Retry-After</code>.</td></tr>
         </table>
+
+        <h2 id="mcp">MCP for AI agents</h2>
+        <p>HashRelay is an <a href="https://modelcontextprotocol.io" rel="noopener">MCP</a> server, so Claude Code, Cursor, VS Code and your own agents can publish notifications as a tool call. The endpoint speaks Streamable HTTP and is authenticated with a <strong>service account</strong> key.</p>
+        <div class="endpoint"><span class="method">POST</span><code>@Model.McpUrl</code> <span class="badge">Bearer hr_svc_…</span></div>
+        <p>Create the account under <a href="/dashboard/service-accounts">Dashboard → Service accounts</a>. Unlike an API key, a service account carries a policy that every request is checked against:</p>
+        <table class="table">
+            <tr><td class="mono">permissions</td><td><code>notifications:publish</code>, <code>notifications:read</code>, <code>endpoints:read</code>, <code>subscriptions:write</code>, <code>images:write</code>. New accounts get publish only.</td></tr>
+            <tr><td class="mono">allowed hashtags</td><td>Glob patterns such as <code>agent-*</code> or <code>ci/*</code>. A publish to any other hashtag is refused with <code>403</code> and logged.</td></tr>
+            <tr><td class="mono">link policy</td><td><code>url</code> and <code>imageUrl</code> must be https, optionally restricted to listed hosts.</td></tr>
+            <tr><td class="mono">quota</td><td>Publishes per hour across all of the account's keys; over it, <code>429 throttled</code>.</td></tr>
+            <tr><td class="mono">audit</td><td>Every publish, refusal, key issue and revocation is listed on the account's page. Disabling the account suspends all keys at once.</td></tr>
+        </table>
+        <p>The same key also works for the REST API above, with the same policy applied.</p>
+        <div class="code-title">Claude Code</div>
+        <div class="code"><button class="copy" data-copy>Copy</button><pre><code>claude mcp add --transport http hashrelay @Model.McpUrl \
+  --header "Authorization: Bearer hr_svc_…"</code></pre></div>
+        <div class="code-title mt-2">Cursor, VS Code, Windsurf (mcp.json)</div>
+        <div class="code"><button class="copy" data-copy>Copy</button><pre><code>{
+  "mcpServers": {
+    "hashrelay": {
+      "url": "@Model.McpUrl",
+      "headers": { "Authorization": "Bearer hr_svc_…" }
+    }
+  }
+}</code></pre></div>
+        <h3>Tools</h3>
+        <table class="table">
+            <tr><td class="mono">publish_notification</td><td>tags, title, body, url, priority, markdown, diagram, imageUrl, notificationId. Returns matched, live and queued device counts plus the detail page URL.</td></tr>
+            <tr><td class="mono">list_tags</td><td>Hashtags that currently have subscribers, with counts and whether this credential may publish to each.</td></tr>
+            <tr><td class="mono">list_notifications</td><td>Recent notifications, optionally for one hashtag. Needs <code>notifications:read</code>.</td></tr>
+            <tr><td class="mono">get_notification</td><td>One notification with its markdown, diagram and delivery counts. Needs <code>notifications:read</code>.</td></tr>
+            <tr><td class="mono">list_endpoints</td><td>Devices, online state and subscriptions. Needs <code>endpoints:read</code>.</td></tr>
+            <tr><td class="mono">set_subscriptions</td><td>Add, remove or replace a device's hashtags. Needs <code>subscriptions:write</code>.</td></tr>
+        </table>
+        <p>The resource <code>hashrelay://workspace</code> tells the agent its workspace, permissions, allowed hashtags and remaining quota. Read-tool results are marked as untrusted content written by other publishers, and a publish-only account cannot read them at all, which keeps a misled agent from being fed instructions through notifications.</p>
+        <p>Browser-based clients need their origin listed in <code>HashRelay:McpAllowedOrigins</code>; requests with any other <code>Origin</code> header are refused. Hosted assistants that require OAuth (claude.ai, ChatGPT connectors) are not supported yet.</p>
 
         <h2 id="dotnet">.NET client</h2>
         <p>The <code>HashRelay.Client</code> library (in the repository) wraps the API and hub used by the CLI and agent:</p>
