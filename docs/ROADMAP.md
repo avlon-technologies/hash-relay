@@ -20,3 +20,7 @@ Android SDK + FCM, then iOS SDK + APNs; per-application provider credentials; to
 Scale-out, durable dispatch/retry/outbox, rate limits, quotas, observability, dashboard, privacy controls, rotation, threat model and operational SLOs.
 
 No infrastructure provider, database product or message broker is selected by the ADL draft. Validate the vertical slice before committing to a distributed deployment.
+
+## Release execution rule
+
+M1A must pass the [Windows development contract](WINDOWS-M1-CONTRACT.md) including a real interactive Windows toast and installer smoke test before M1B (hosted Azure App Service/SignalR, developer web app, tenant credentials). The Azure Terraform is scoped to M1B; no Azure resource is needed for M1A.
