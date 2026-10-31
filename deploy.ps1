@@ -37,7 +37,7 @@ if (-not $terraform) { throw "terraform not found (winget install Hashicorp.Terr
 $terraform = "$terraform"
 
 function Invoke-Plan([string[]]$ExtraArgs, [string]$PlanFile) {
-  & $terraform -chdir="$tf" plan -input=false -var-file="$Environment.tfvars" -out=$PlanFile @ExtraArgs | Out-Host
+  & $terraform -chdir="$tf" plan -input=false -var-file="$Environment.tfvars" "-out=$PlanFile" @ExtraArgs | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "terraform plan failed" }
   if (-not $AutoApprove) {
     $answer = Read-Host "Apply this plan? (yes/no)"
@@ -62,7 +62,10 @@ if (-not $SkipInfra) {
 
 $registry = Out-TF registry_name
 $loginServer = Out-TF registry_login_server
-$repository = Out-TF image_repository
+# Not read from Terraform outputs: after the targeted stage-1 apply only the targeted outputs exist in state.
+# Must match var.image_repository (default) in infra/terraform/variables.tf.
+$repository = "hashrelay-server"
+if (-not $registry -or -not $loginServer) { throw "Terraform outputs registry_name / registry_login_server are missing; did stage 1 apply?" }
 
 $tag = $null
 if (-not $SkipImage) {
