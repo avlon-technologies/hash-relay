@@ -58,3 +58,7 @@ The ADL now contains an Access domain, TenantIdentity bounded context, AccountHo
 - [Notification destinations](diagrams/hashrelay-delivery.svg) — desktop and future mobile endpoints, with proposed transport links distinguished.
 
 These SVGs were rendered with Continuum Diagram from an **earlier** ADL revision, attestation `sha256:f2ce446b35e77d5a7aae1bed4715ac80f0f61e4fd6b9fd75d0cf7c78047012dd`. The current Windows-first model attestation is `sha256:15001b83acfbb18c92baf0a9a945592ef66015ec5205b6cb2168589419254714`. Regenerate before using the figures as a current-model architecture baseline. They are illustrative vision material, not an implementation verification.
+
+## Windows-first implementation decisions (2026-10-31)
+
+[Windows M1 implementation contract](WINDOWS-M1-CONTRACT.md) and [ADR-0001](adr/0001-windows-first.md) specify exact CLI/HTTP/SignalR contracts, user-session Windows agent, installer lifecycle, dev-only loopback credentials, and separation between M1A local transport and M1B hosted SaaS. Terraform provisions M1B resources; it is **not** needed for the initial loopback demonstration. The ADL and BDL remain valid as semantic source; technology bindings are a proposal, not claimed machine-verified.
