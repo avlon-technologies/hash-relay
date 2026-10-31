@@ -24,6 +24,7 @@ internal sealed class AgentContext : ApplicationContext
     private CancellationTokenSource _cts = new();
     private PairForm? _pairForm;
     private readonly bool _silent;
+    private bool _announced;
     private Icon? _iconIdle, _iconOn;
 
     public AgentContext(bool silent)
@@ -141,6 +142,12 @@ internal sealed class AgentContext : ApplicationContext
             _config.TenantSlug = hello.Tenant.Slug;
             SetStatus($"Connected · {hello.Tenant.Name}", $"HashRelay — {hello.Tenant.Name} · {(hello.Subscriptions.Count == 0 ? "no subscriptions" : Tags.DisplayAll(hello.Subscriptions))}");
             Log.Info($"Registered as {hello.Name} in {hello.Tenant.Name}; subscriptions: {Tags.DisplayAll(hello.Subscriptions)}; replayed {hello.PendingReplay}");
+            if (!_silent && !_announced)
+            {
+                // Launched by hand or by the installer while already paired: say so, otherwise a reinstall looks like it did nothing.
+                _announced = true;
+                Toasts.ShowInfo("HashRelay is running", $"Connected to {hello.Tenant.Name} as {hello.Name}. Right-click the tray icon to pair with a different workspace.");
+            }
         });
         _listener.NotificationReceived += OnNotification;
         _listener.SubscriptionsChanged += tags => Invoke(() =>
