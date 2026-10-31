@@ -58,6 +58,9 @@ the single replica alive while they are online.
 
 - **Workspaces & credentials.** An account owns one or more tenants. Publisher **API keys** (`hr_live_…`) are issued
   in the dashboard, shown once, stored as SHA-256 verifiers, and carry explicit `publish` / `subscribe` scopes.
+  Sign-in is email + password (PBKDF2). **Forgot password** at `/forgot-password` emails a single-use link that
+  expires in an hour (`HashRelay:Email:Smtp` configures delivery; unconfigured servers only log the link). Operators
+  can also run `HashRelay.Server reset-password EMAIL` inside the container.
   Installed clients never hold them: the agent and CLI pair with a **device token** (`hr_dev_…`) through an
   OAuth-style device flow approved at `/pair`, bound to one endpoint, revocable from *Devices*.
 - **Routing.** `POST /api/v1/notifications` normalises tags, matches the *union* of subscribers in the caller's

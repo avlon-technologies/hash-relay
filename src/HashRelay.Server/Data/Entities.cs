@@ -292,3 +292,15 @@ public sealed class OAuthRefreshToken
     public DateTimeOffset? RevokedAt { get; set; }
     public Guid? ReplacedById { get; set; }
 }
+
+/// <summary>A self-service password-reset link. Only the SHA-256 verifier of the emailed token is stored; single use, short lived.</summary>
+public sealed class PasswordReset
+{
+    public Guid Id { get; set; }
+    public Guid AccountId { get; set; }
+    public required string TokenHash { get; set; }      // hex SHA-256 of the token in the link, unique
+    public string? RequestIp { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? ConsumedAt { get; set; }     // set on use, or when a newer link supersedes this one
+}

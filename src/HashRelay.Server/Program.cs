@@ -6,6 +6,7 @@ using HashRelay.Server.Data;
 using HashRelay.Server.Mcp;
 using HashRelay.Server.Realtime;
 using HashRelay.Server.Services;
+using HashRelay.Server.Services.Email;
 using HashRelay.Server.Services.Push;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -105,6 +106,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
 
 builder.Services.AddSingleton<ConnectionRegistry>();
 builder.Services.AddScoped<AccountService>();
+// Self-service password reset: links go out by SMTP when HashRelay:Email is configured; otherwise they are only logged.
+builder.Services.Configure<EmailOptions>(config.GetSection("HashRelay:Email"));
+if (!string.IsNullOrWhiteSpace(config["HashRelay:Email:Smtp:Host"])) builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+else builder.Services.AddSingleton<IEmailSender, LoggingEmailSender>();
+builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddScoped<CurrentTenant>();
 builder.Services.AddScoped<CredentialService>();
 builder.Services.AddScoped<EndpointService>();

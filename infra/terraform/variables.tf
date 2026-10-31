@@ -73,3 +73,27 @@ variable "fcm_service_account_json" {
   sensitive   = true
   description = "Firebase service-account key (JSON contents) used to send mobile push through FCM HTTP v1. Empty disables push; devices then receive on their next foreground connection. Pass with -var-file or TF_VAR_fcm_service_account_json; never commit it."
 }
+variable "email_from" {
+  type        = string
+  default     = ""
+  description = "Sender for transactional email such as password-reset links, e.g. \"HashRelay <no-reply@example.com>\". Empty disables email: reset links are then only written to the server log."
+}
+variable "smtp_host" {
+  type        = string
+  default     = ""
+  description = "SMTP submission host (STARTTLS on smtp_port). Empty disables outbound email."
+}
+variable "smtp_port" {
+  type    = number
+  default = 587
+}
+variable "smtp_username" {
+  type    = string
+  default = ""
+}
+variable "smtp_password" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "SMTP password or API key. Pass with TF_VAR_smtp_password or a git-ignored tfvars file; never commit it."
+}
