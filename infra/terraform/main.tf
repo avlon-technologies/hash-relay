@@ -174,9 +174,10 @@ resource "azurerm_container_app" "app" {
     }
 
     volume {
-      name         = "data"
-      storage_name = azurerm_container_app_environment_storage.data.name
-      storage_type = "AzureFile"
+      name          = "data"
+      storage_name  = azurerm_container_app_environment_storage.data.name
+      storage_type  = "AzureFile"
+      mount_options = "nobrl" # SQLite locking does not work with SMB byte-range locks; single replica makes this safe
     }
   }
 

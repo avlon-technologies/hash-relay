@@ -46,6 +46,24 @@ public sealed class HashRelayApi : IDisposable
         return await ReadAsync<PublishResult>(res, ct);
     }
 
+    /// <summary>Uploads an image (png/jpeg/gif/webp, ≤ 3 MB) and returns its public URL for <see cref="PublishRequest.ImageUrl"/>.</summary>
+    public async Task<ImageUploadResult> UploadImageAsync(ReadOnlyMemory<byte> bytes, string contentType, CancellationToken ct = default)
+    {
+        using var content = new ReadOnlyMemoryContent(bytes);
+        content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        using var res = await _http.PostAsync("api/v1/images", content, ct);
+        return await ReadAsync<ImageUploadResult>(res, ct);
+    }
+
+    public static string? ImageContentTypeFor(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        _ => null,
+    };
+
     public Task<IReadOnlyList<NotificationSummary>> RecentNotificationsAsync(int limit = 20, CancellationToken ct = default)
         => GetAsync<IReadOnlyList<NotificationSummary>>($"api/v1/notifications?limit={limit}", ct);
 

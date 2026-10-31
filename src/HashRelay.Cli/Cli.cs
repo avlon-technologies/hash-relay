@@ -28,7 +28,7 @@ public static class Cli
         ["subscribe"] = ("subscribe #tag [#tag...]", "Subscribe this device to one or more hashtags."),
         ["unsubscribe"] = ("unsubscribe #tag [#tag...]", "Remove hashtag subscriptions from this device."),
         ["subscriptions"] = ("subscriptions", "List this device's subscriptions."),
-        ["publish"] = ("publish #tag [#tag...] \"Title\" [\"Body\"] [--url URL] [--priority low|normal|high] [--id UUID]", "Publish a notification to hashtags in your workspace."),
+        ["publish"] = ("publish #tag [#tag...] \"Title\" [\"Body\"] [--url URL] [--priority low|normal|high] [--id UUID]\n                 [--markdown TEXT | --markdown-file PATH] [--diagram MERMAID | --diagram-file PATH] [--image PATH|URL]", "Publish a notification to hashtags in your workspace."),
         ["listen"] = ("listen [#tag...]", "Stream this device's notifications to the console."),
         ["test"] = ("test", "Send a test notification to this device and verify delivery."),
         ["agent"] = ("agent start|stop|status", "Control the Windows tray agent."),
@@ -61,7 +61,7 @@ public static class Cli
         Console.WriteLine($"{Terminal.Bold("hash-relay " + usage)}\n\n  {summary}");
         if (command == "publish")
         {
-            Console.WriteLine("\n  Tags may be given as positionals starting with '#' or with --tag/-t. Title and body may also be\n  given with --title and --body. --id makes retries idempotent (same id + same payload = no duplicate).");
+            Console.WriteLine("\n  Tags may be given as positionals starting with '#' or with --tag/-t. Title and body may also be\n  given with --title and --body. --id makes retries idempotent (same id + same payload = no duplicate).\n\n  Rich content (shown on the notification's web page; the toast gets a plain summary + image):\n    --markdown TEXT / --markdown-file PATH   CommonMark with tables, task lists and ```mermaid fences\n    --diagram SRC / --diagram-file PATH      Mermaid source; rendered to PNG for the toast and live on the page\n    --image PATH|URL                         PNG/JPEG/GIF/WebP (≤ 3 MB). A local file is uploaded first.\n  Use '-' as a file path to read from stdin.");
         }
     }
 
@@ -343,17 +343,52 @@ public static class Cli
             if (!Guid.TryParse(rawId, out var g)) return Terminal.Fail(ExitCodes.InvalidInput, "--id must be a UUID.");
             id = g;
         }
+        string? markdown, diagram;
+        try
+        {
+            markdown = a.Get("markdown", "m") ?? ReadFileOption(a.Get("markdown-file"));
+            diagram = a.Get("diagram", "d") ?? ReadFileOption(a.Get("diagram-file"));
+        }
+        catch (IOException ex) { return Terminal.Fail(ExitCodes.InvalidInput, ex.Message); }
+        if (markdown is not null && markdown.Length > Limits.MarkdownMax) return Terminal.Fail(ExitCodes.InvalidInput, $"Markdown is longer than {Limits.MarkdownMax} characters.");
+        if (diagram is not null && diagram.Length > Limits.DiagramMax) return Terminal.Fail(ExitCodes.InvalidInput, $"Diagram is longer than {Limits.DiagramMax} characters.");
+
         using var api = Api(cfg);
         var sw = Stopwatch.StartNew();
-        var result = await api.PublishAsync(new PublishRequest(tags, title, body, a.Get("url"), a.Get("priority", "p"), id), ct);
+        var imageUrl = a.Get("image");
+        if (imageUrl is not null && !imageUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !imageUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var path = imageUrl;
+            if (!File.Exists(path)) return Terminal.Fail(ExitCodes.InvalidInput, $"Image file not found: {path}");
+            var contentType = HashRelayApi.ImageContentTypeFor(path);
+            if (contentType is null) return Terminal.Fail(ExitCodes.InvalidInput, "Image must be a .png, .jpg, .gif or .webp file.");
+            var bytes = await File.ReadAllBytesAsync(path, ct);
+            if (bytes.Length > Limits.ImageMaxBytes) return Terminal.Fail(ExitCodes.InvalidInput, $"Image is larger than {Limits.ImageMaxBytes / 1024 / 1024} MB.");
+            var upload = await api.UploadImageAsync(bytes, contentType, ct);
+            imageUrl = upload.Url;
+            Terminal.Info($"uploaded {Path.GetFileName(path)} ({bytes.Length / 1024} KB) → {Terminal.Dim(upload.Url)}");
+        }
+        var result = await api.PublishAsync(new PublishRequest(tags, title, body, a.Get("url"), a.Get("priority", "p"), id, markdown, imageUrl, diagram), ct);
         sw.Stop();
         var delivery = result.MatchedEndpoints == 0
             ? Terminal.Yellow("no subscribed devices")
             : $"{result.MatchedEndpoints} device{(result.MatchedEndpoints == 1 ? "" : "s")} matched · {Terminal.Green($"{result.DeliveredLive} live")}{(result.Queued > 0 ? $" · {Terminal.Yellow($"{result.Queued} queued")}" : "")}";
         Terminal.Ok($"{(result.Duplicate ? "Already accepted" : "Accepted")} {Terminal.Dim(result.NotificationId.ToString())} · {delivery} {Terminal.Dim($"({sw.ElapsedMilliseconds} ms)")}");
         if (result.MatchedEndpoints == 0) Terminal.Info($"Subscribe a device first: {Terminal.Cyan($"hash-relay subscribe {Tags.DisplayAll(result.Tags)}")}");
+        if ((markdown is not null || diagram is not null) && result.DetailUrl is not null) Terminal.Info($"page: {Terminal.Dim(result.DetailUrl)}");
+        if (result.ImageUrl is null && (diagram is not null || (markdown?.Contains("```mermaid", StringComparison.OrdinalIgnoreCase) ?? false)))
+            Terminal.Warn("The diagram could not be rendered to an image (check its Mermaid syntax); the toast will show text only and the page will show the error.");
         Terminal.Emit(new { ok = true, result });
         return ExitCodes.Ok;
+    }
+
+    /// <summary>Reads a --*-file option: a path, or '-' for stdin. Returns null when the option is absent.</summary>
+    private static string? ReadFileOption(string? path)
+    {
+        if (path is null) return null;
+        if (path == "-") return Console.In.ReadToEnd();
+        if (!File.Exists(path)) throw new FileNotFoundException($"File not found: {path}");
+        return File.ReadAllText(path);
     }
 
     private static async Task<int> ListenAsync(Args a, CancellationToken ct)
@@ -391,6 +426,7 @@ public static class Cli
                 Console.WriteLine($"{Terminal.Dim(m.PublishedAtUtc.ToLocalTime().ToString("HH:mm:ss"))} {string.Join(' ', m.Tags.Select(Terminal.Tag))} {Terminal.Bold(m.Title)}{(m.Replayed ? Terminal.Dim(" (replayed)") : "")}");
                 if (!string.IsNullOrEmpty(m.Body)) Console.WriteLine($"         {m.Body}");
                 if (!string.IsNullOrEmpty(m.Url)) Console.WriteLine($"         {Terminal.Dim(m.Url)}");
+                if (m.Rich && !string.IsNullOrEmpty(m.DetailUrl)) Console.WriteLine($"         {Terminal.Dim("page: " + m.DetailUrl)}");
             }
             _ = listener.AckAsync(m.DeliveryId);
         };

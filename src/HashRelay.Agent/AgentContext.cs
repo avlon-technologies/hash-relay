@@ -53,6 +53,7 @@ internal sealed class AgentContext : ApplicationContext
         _tray.DoubleClick += (_, _) => OpenUrl("dashboard");
 
         Toasts.EnsureRegistered();
+        ImageCache.Prune();
         ToastNotificationManagerCompat.OnActivated += e => ToastActivation.Handle(e.Argument);
 
         _debounce = new System.Windows.Forms.Timer { Interval = 600 };
@@ -188,12 +189,15 @@ internal sealed class AgentContext : ApplicationContext
             _recentOrder.Enqueue(m.NotificationId);
             while (_recentOrder.Count > 200) _recent.Remove(_recentOrder.Dequeue());
         }
-        try
+        _ = Task.Run(async () =>
         {
-            Toasts.Show(m);
-            Log.Info($"Shown: {Tags.DisplayAll(m.Tags)} \"{m.Title}\"{(m.Replayed ? " (replayed)" : "")}");
-        }
-        catch (Exception ex) { Log.Error("Toast failed", ex); }
+            try
+            {
+                await Toasts.ShowAsync(m);
+                Log.Info($"Shown: {Tags.DisplayAll(m.Tags)} \"{m.Title}\"{(m.Replayed ? " (replayed)" : "")}{(m.ImageUrl is null ? "" : " +image")}");
+            }
+            catch (Exception ex) { Log.Error("Toast failed", ex); }
+        });
         _ = _listener?.AckAsync(m.DeliveryId);
     }
 

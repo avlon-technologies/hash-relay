@@ -91,9 +91,9 @@
               feed.innerHTML = data.recent.map((n) => `
                 <li class="fade-in">
                   <div>
-                    <div class="t">${esc(n.title)}</div>
+                    <div class="t"><a class="plain" href="/n/${esc(n.notificationId)}">${esc(n.title)}</a></div>
                     ${n.body ? `<div class="b">${esc(n.body)}</div>` : ""}
-                    <div class="tags mt-1">${n.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}</div>
+                    <div class="tags mt-1">${n.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}${n.hasMarkdown ? `<span class="badge">markdown</span>` : ""}${n.hasDiagram ? `<span class="badge">diagram</span>` : (n.imageUrl ? `<span class="badge">image</span>` : "")}</div>
                   </div>
                   <div class="text-right">
                     <time data-rel datetime="${esc(n.publishedAtUtc)}"></time>

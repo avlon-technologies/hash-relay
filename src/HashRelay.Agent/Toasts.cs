@@ -32,16 +32,28 @@ internal static class Toasts
         }
     }
 
-    public static void Show(NotificationMessage m)
+    /// <summary>Builds and shows the toast. Fetches the image first (bounded), then shows; never throws for image trouble.</summary>
+    public static async Task ShowAsync(NotificationMessage m, CancellationToken ct = default)
     {
+        var image = m.ImageUrl is null ? null : await ImageCache.GetAsync(m.ImageUrl, ct);
+        Show(m, image);
+    }
+
+    public static void Show(NotificationMessage m, string? imagePath = null)
+    {
+        // Click target: the web page when there is more to see than the toast can show, else the publisher's link.
+        var open = m.Rich && !string.IsNullOrWhiteSpace(m.DetailUrl) ? m.DetailUrl : (m.Url ?? m.DetailUrl);
         var builder = new ToastContentBuilder()
             .AddArgument("action", "open")
             .AddArgument("deliveryId", m.DeliveryId.ToString())
             .AddText(m.Title, hintMaxLines: 2)
             .AddAttributionText($"{Tags.DisplayAll(m.Tags)} · {m.TenantName}");
         if (!string.IsNullOrWhiteSpace(m.Body)) builder.AddText(m.Body, hintMaxLines: 2);
-        if (!string.IsNullOrWhiteSpace(m.Url)) builder.AddArgument("url", m.Url);
+        if (!string.IsNullOrWhiteSpace(open)) builder.AddArgument("url", open);
         if (File.Exists(IconPath)) builder.AddAppLogoOverride(new Uri(IconPath), ToastGenericAppLogoCrop.None);
+        if (imagePath is not null && File.Exists(imagePath)) builder.AddInlineImage(new Uri(imagePath));
+        if (m.Rich && !string.IsNullOrWhiteSpace(m.Url) && open != m.Url)
+            builder.AddButton(new ToastButton().SetContent("Open link").AddArgument("action", "url").AddArgument("url", m.Url));
 
         if (m.Priority == Priorities.High) builder.SetToastScenario(ToastScenario.Reminder);
         else if (m.Priority == Priorities.Low) builder.AddAudio(new ToastAudio { Silent = true });

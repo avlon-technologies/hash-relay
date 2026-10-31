@@ -21,9 +21,14 @@
             {
                 <li>
                     <div>
-                        <div class="t">@n.Title</div>
+                        <div class="t"><a class="plain" href="/n/@n.NotificationId">@n.Title</a></div>
                         @if (!string.IsNullOrEmpty(n.Body)) { <div class="b">@n.Body</div> }
-                        <div class="tags mt-1">@foreach (var t in n.Tags) { <span class="tag">#@t</span> }</div>
+                        <div class="tags mt-1">
+                            @foreach (var t in n.Tags) { <span class="tag">#@t</span> }
+                            @if (n.HasMarkdown) { <span class="badge">markdown</span> }
+                            @if (n.HasDiagram) { <span class="badge">diagram</span> }
+                            else if (n.ImageUrl is not null) { <span class="badge">image</span> }
+                        </div>
                     </div>
                     <div class="text-right">
                         <time data-rel datetime="@n.PublishedAtUtc.ToString("o")">@n.PublishedAtUtc.ToString("g")</time>

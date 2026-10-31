@@ -4,13 +4,19 @@ namespace HashRelay.Contracts;
 
 /// <summary>Publish a notification to one or more hashtags in the caller's tenant.</summary>
 /// <param name="NotificationId">Optional client-supplied UUID. Re-sending the same id with an identical payload is idempotent; a different payload is rejected with 409.</param>
+/// <param name="Markdown">Optional rich body (CommonMark + tables, task lists, ```mermaid fences). Rendered on the notification's web page; the toast shows <paramref name="Body"/> (derived from the first paragraph when omitted).</param>
+/// <param name="ImageUrl">Optional absolute http(s) image URL shown inside the toast and on the page. Upload a file with <c>POST /api/v1/images</c> to get one.</param>
+/// <param name="Diagram">Optional Mermaid diagram source. Rendered live on the page and to PNG for the toast. When omitted, the first ```mermaid fence in <paramref name="Markdown"/> is used.</param>
 public sealed record PublishRequest(
     IReadOnlyList<string> Tags,
     string Title,
     string? Body = null,
     string? Url = null,
     string? Priority = null,
-    Guid? NotificationId = null);
+    Guid? NotificationId = null,
+    string? Markdown = null,
+    string? ImageUrl = null,
+    string? Diagram = null);
 
 public sealed record PublishResult(
     Guid NotificationId,
@@ -20,7 +26,12 @@ public sealed record PublishResult(
     int MatchedEndpoints,
     int DeliveredLive,
     int Queued,
-    bool Duplicate);
+    bool Duplicate,
+    string? DetailUrl = null,
+    string? ImageUrl = null);
+
+/// <summary>Result of <c>POST /api/v1/images</c>: a public, unguessable image URL usable as <see cref="PublishRequest.ImageUrl"/>.</summary>
+public sealed record ImageUploadResult(string Id, string Url, long Bytes, string ContentType);
 
 public sealed record MeResponse(
     TenantInfo Tenant,
@@ -56,7 +67,11 @@ public sealed record NotificationSummary(
     string Priority,
     DateTimeOffset PublishedAtUtc,
     int MatchedEndpoints,
-    int Delivered);
+    int Delivered,
+    bool HasMarkdown = false,
+    bool HasDiagram = false,
+    string? ImageUrl = null,
+    string? DetailUrl = null);
 
 /// <summary>Error envelope: <c>{code,message,traceId}</c> plus optional field-level details.</summary>
 public sealed record ApiError(string Code, string Message, string? TraceId = null, IReadOnlyDictionary<string, string[]>? Details = null);
@@ -87,6 +102,9 @@ public sealed record HelloResponse(
     int PendingReplay);
 
 /// <summary>Server → client callback payload for <see cref="HubMethods.NotificationReceived"/>.</summary>
+/// <param name="ImageUrl">Image to show inside the toast: the publisher's image, or the server-rendered diagram.</param>
+/// <param name="DetailUrl">Web page with the full notification (rendered markdown, live diagram). Opened on click when <paramref name="Rich"/>.</param>
+/// <param name="Rich">True when the notification carries markdown or a diagram beyond what the toast can show.</param>
 public sealed record NotificationMessage(
     Guid NotificationId,
     Guid TenantId,
@@ -98,7 +116,10 @@ public sealed record NotificationMessage(
     string? Url,
     string Priority,
     string TenantName,
-    bool Replayed);
+    bool Replayed,
+    string? ImageUrl = null,
+    string? DetailUrl = null,
+    bool Rich = false);
 
 public static class Limits
 {
@@ -108,6 +129,10 @@ public static class Limits
     public const int LabelMax = 80;
     public const int EndpointIdMax = 64;
     public const int DeviceNameMax = 80;
+    public const int MarkdownMax = 20_000;
+    public const int DiagramMax = 10_000;
+    public const int ImageMaxBytes = 3 * 1024 * 1024;
+    public static readonly string[] ImageContentTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 }
 
 public static class Priorities

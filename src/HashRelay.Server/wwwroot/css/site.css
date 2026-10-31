@@ -326,3 +326,36 @@ dialog.modal h3 { margin-bottom: 4px; }
 .toasted { position: fixed; bottom: 20px; right: 20px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: 12px; padding: 12px 16px; box-shadow: var(--shadow); z-index: 100; animation: float-in .3s ease both; }
 .fade-in { animation: fade .4s ease both; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Notification detail (/n/{id}) ---------- */
+.container.narrow { max-width: 860px; }
+.crumbs { color: var(--muted); font-size: .85rem; margin-bottom: 14px; display: flex; gap: 8px; }
+.crumbs a { color: var(--text-2); }
+a.plain { color: inherit; text-decoration: none; }
+a.plain:hover { color: var(--accent); }
+.notification .card-body { padding: 28px 32px; }
+.notification-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.notification-title { font-size: 1.7rem; line-height: 1.2; margin: 0 0 12px; }
+.notification .lead { color: var(--text-2); font-size: 1.05rem; }
+.notification-image img { max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #fff; }
+.tags .badge { margin-left: 4px; }
+.diagram { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin: 16px 0; overflow: auto; text-align: center; }
+.diagram pre.mermaid { font-family: var(--mono); font-size: .85rem; white-space: pre-wrap; text-align: left; color: var(--muted); }
+.diagram pre.mermaid svg { max-width: 100%; height: auto; }
+.md { line-height: 1.65; color: var(--text); }
+.md > :first-child { margin-top: 0; }
+.md h1, .md h2, .md h3, .md h4 { margin: 1.4em 0 .5em; line-height: 1.25; }
+.md h1 { font-size: 1.4rem; } .md h2 { font-size: 1.2rem; } .md h3 { font-size: 1.05rem; }
+.md p, .md ul, .md ol, .md blockquote, .md table { margin: 0 0 1em; }
+.md ul, .md ol { padding-left: 1.4em; }
+.md li + li { margin-top: .25em; }
+.md li.task-list-item { list-style: none; margin-left: -1.4em; }
+.md blockquote { border-left: 3px solid var(--accent); padding: .2em 1em; color: var(--text-2); }
+.md pre { background: var(--code-bg); color: #e6edf3; border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius-sm); padding: 14px 16px; margin: 0 0 1em; overflow: auto; }
+.md pre code { font-size: 13px; }
+.md table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+.md th, .md td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; }
+.md th { background: var(--surface-2); }
+.md img { max-width: 100%; border-radius: var(--radius-xs); }
+.md a { color: var(--accent); }
+.md hr { border: 0; border-top: 1px solid var(--border); margin: 1.5em 0; }
