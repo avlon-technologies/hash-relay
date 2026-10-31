@@ -9,16 +9,22 @@
 .PARAMETER SkipInstaller
   Skip the Inno Setup step (e.g. on a machine without ISCC).
 
+.PARAMETER Sign
+  Sign the agent, CLI, installer and uninstaller with Azure Artifact Signing (see build/sign.ps1 and infra/signing).
+  Requires `az login` as an identity with the Certificate Profile Signer role.
+
 .EXAMPLE
   ./build.ps1
   ./build.ps1 -Server http://127.0.0.1:5075 -Configuration Debug
+  ./build.ps1 -Sign
 #>
 [CmdletBinding()]
 param(
   [string]$Server = "https://hashrelay.dev.avlon.ca",
   [string]$Configuration = "Release",
   [switch]$SkipInstaller,
-  [switch]$SkipTests
+  [switch]$SkipTests,
+  [switch]$Sign
 )
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
@@ -60,6 +66,13 @@ dotnet publish (Join-Path $root "src\HashRelay.Agent\HashRelay.Agent.csproj") -c
 if ($LASTEXITCODE -ne 0) { throw "Agent publish failed." }
 Remove-Item (Join-Path $artifacts "agent\*.pdb"), (Join-Path $artifacts "cli\*.pdb") -ErrorAction SilentlyContinue
 
+$signScript = Join-Path $root "build\sign.ps1"
+if ($Sign) {
+  # Only our own binaries; the Microsoft runtime files in the agent folder carry Microsoft's signatures already.
+  & $signScript (Join-Path $artifacts "cli\hashrelay.exe") (Join-Path $artifacts "agent\HashRelay.Agent.exe") `
+    (Join-Path $artifacts "agent\HashRelay.Agent.dll") (Join-Path $artifacts "agent\HashRelay.Client.dll") (Join-Path $artifacts "agent\HashRelay.Contracts.dll")
+}
+
 Write-Host "`n== CLI zip" -ForegroundColor Cyan
 $cliZip = Join-Path $artifacts "hashrelay-cli-win-x64.zip"
 Remove-Item $cliZip -ErrorAction SilentlyContinue
@@ -74,8 +87,18 @@ if (-not $SkipInstaller) {
     "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
   ) | Where-Object { Test-Path $_ } | Select-Object -First 1
   if (-not $iscc) { throw "Inno Setup 6 not found. Install with: winget install JRSoftware.InnoSetup --scope user  (or pass -SkipInstaller)" }
-  & $iscc /Q "/DAppVersion=$version" "/DAgentDir=$artifacts\agent" "/DCliDir=$artifacts\cli" "/DOutputDir=$artifacts" (Join-Path $root "installer\HashRelay.iss")
+  $isccArgs = @("/Q", "/DAppVersion=$version", "/DAgentDir=$artifacts\agent", "/DCliDir=$artifacts\cli", "/DOutputDir=$artifacts")
+  if ($Sign) {
+    # Inno runs this for Setup.exe and the uninstaller stub; $q and $f are Inno placeholders (quote, quoted file name).
+    $isccArgs += "/DSign", "/Ssign=powershell.exe -NoProfile -ExecutionPolicy Bypass -File `$q$signScript`$q `$f"
+  }
+  & $iscc @isccArgs (Join-Path $root "installer\HashRelay.iss")
   if ($LASTEXITCODE -ne 0) { throw "Installer build failed." }
+  if ($Sign) {
+    $sig = Get-AuthenticodeSignature $setup
+    if ($sig.Status -ne "Valid") { throw "HashRelay-Setup.exe signature status: $($sig.Status)" }
+    Write-Host "  HashRelay-Setup.exe signed by $($sig.SignerCertificate.Subject)"
+  }
 }
 
 Write-Host "`n== Publish downloads into the server" -ForegroundColor Cyan
