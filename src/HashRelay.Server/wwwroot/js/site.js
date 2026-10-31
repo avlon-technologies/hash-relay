@@ -110,6 +110,23 @@
     setInterval(tick, 4000);
   }
 
+  // ---- docs: highlight the section in view ----
+  const docsNav = document.querySelector(".docs-nav");
+  if (docsNav && "IntersectionObserver" in window) {
+    const links = [...docsNav.querySelectorAll("a[href^=\"#\"]")];
+    const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
+    const headings = [...byId.keys()].map((id) => document.getElementById(id)).filter(Boolean);
+    let current = null;
+    const setActive = (id) => { if (id === current) return; current = id; links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + id)); };
+    const pick = () => {
+      const line = 120; let best = headings[0];
+      for (const h of headings) { if (h.getBoundingClientRect().top <= line) best = h; else break; }
+      if (best) setActive(best.id);
+    };
+    window.addEventListener("scroll", pick, { passive: true });
+    pick();
+  }
+
   // ---- pairing page: poll for completion message ----
   const pairDone = document.querySelector("[data-pair-done]");
   if (pairDone) setTimeout(() => { pairDone.classList.add("fade-in"); }, 50);

@@ -371,3 +371,118 @@ a.plain:hover { color: var(--accent); }
   .nav-links a.btn-primary { padding: 0 10px; }
   .brand span:not(.logo) { display: none; }
 }
+
+/* =====================================================================
+   Polish pass: layout fixes and refinements layered over the base system
+   ===================================================================== */
+
+/* Grids: children never widen a column (code blocks scroll instead), and sibling cards in a grid are not staggered. */
+.grid > * { min-width: 0; }
+.grid > .card + .card { margin-top: 0; }
+
+/* Accessible focus rings everywhere except inputs (they use the box-shadow ring). */
+a:focus-visible, button:focus-visible, .btn:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.input:focus-visible { outline: none; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } html { scroll-behavior: auto; } }
+
+/* Top navigation: clearer current page. */
+.nav-links a.active:not(.btn-primary) { background: var(--surface-2); }
+
+/* Code blocks: the copy button never sits on top of the code. */
+.code:has(> .copy) { padding-right: 76px; } /* the pre scrolls inside; the button lives in the padding */
+.code .copy { opacity: .75; transition: opacity .15s, background .15s; }
+.code:hover .copy, .code .copy:focus-visible, .code .copy.done { opacity: 1; }
+
+/* Page headers: title block takes the room it needs, actions stay together on the right and wrap as a group. */
+.page-head { align-items: center; gap: 14px 24px; margin-bottom: 22px; }
+.page-head > div:first-child { flex: 1 1 360px; min-width: 0; }
+.page-head .spacer { display: none; }
+.page-head p { color: var(--text-2); }
+.page-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; }
+@media (max-width: 600px) { .page-actions { margin-left: 0; width: 100%; } .page-actions .btn { flex: 1; } }
+
+/* Stat tiles: equal heights, labels on one line, a quiet accent bar that ties them to the brand. */
+.stat { position: relative; overflow: hidden; }
+.stat::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); opacity: .8; }
+.stat .k { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .v { line-height: 1.1; }
+.stats { display: grid; gap: 18px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .stats { grid-template-columns: 1fr; } }
+
+/* Overview: activity gets the wider column; stacks on narrow screens. */
+.overview { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); margin-top: 24px; align-items: start; }
+@media (max-width: 1000px) { .overview { grid-template-columns: 1fr; } }
+
+/* Tables: dates, keys and headers stay on one line; rows respond to hover. */
+.table th { white-space: nowrap; }
+.table td time, .table td.mono { white-space: nowrap; }
+.table tbody tr { transition: background .12s; }
+.table tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.table td > strong { font-weight: 600; }
+
+/* Timeline: title and body get the width, meta stays compact on the right. */
+.timeline li { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 0; align-items: start; }
+.timeline .t { font-size: .98rem; }
+.timeline .t a.plain:hover { color: var(--accent); text-decoration: none; }
+.timeline .b { margin-top: 2px; }
+.timeline .tags { margin-top: 8px; gap: 6px; }
+.timeline .tags .badge { height: 22px; font-size: .72rem; }
+.timeline time { display: block; }
+
+/* Sidebar: active item carries a brand bar; the signed-in block reads as a footer. */
+.side-nav a { position: relative; }
+.side-nav a.active { box-shadow: inset 3px 0 0 var(--accent); }
+.sidebar .signed-in { margin-top: 24px; padding: 12px; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
+.sidebar .signed-in .who { color: var(--text-2); word-break: break-all; }
+
+/* Cards: slightly calmer headers and a hover lift only where they are links. */
+.card-header h3 { font-size: 1.02rem; }
+a.card:hover { text-decoration: none; border-color: var(--border-strong); }
+
+/* Forms laid out in a row: button aligns with the inputs. */
+.form-row { display: grid; gap: 14px; align-items: end; }
+.form-row > .field { margin-bottom: 0; }
+.form-row.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.form-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+@media (max-width: 800px) { .form-row.two, .form-row.three { grid-template-columns: 1fr; } }
+
+/* Auth cards: brand bar on top, roomier body. */
+.auth .card { position: relative; overflow: hidden; }
+.auth .card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.auth .card-body { padding: 30px 30px 26px; }
+.auth .brand-mark { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: grid; place-items: center;
+  color: #fff; font-weight: 800; font-family: var(--mono); font-size: 1.3rem; box-shadow: 0 8px 22px -8px var(--glow); margin-bottom: 18px; }
+
+/* Hero: the terminal leaves room so the floating toast never covers a line of output. */
+.terminal pre { padding: 18px 20px 52px; font-size: 13px; }
+.hero-grid > * { min-width: 0; }
+.step { grid-template-columns: 40px minmax(0, 1fr); }
+.step > div { min-width: 0; }
+.stack > * { min-width: 0; }
+.toast-demo { bottom: -24px; right: -12px; }
+.hero h1 { margin-bottom: 18px; }
+.feature { padding: 24px; }
+.feature .step { grid-template-columns: 36px 1fr; }
+.feature .step .n { width: 36px; height: 36px; font-size: .9rem; }
+
+/* Docs: section rules, anchor offsets under the sticky bar, scroll-spy highlighting, compact command column. */
+.docs-body h2 { border-bottom: 1px solid var(--border); padding-bottom: 10px; scroll-margin-top: calc(var(--nav-h) + 20px); }
+.docs-body h3 { scroll-margin-top: calc(var(--nav-h) + 20px); }
+.docs-nav a.active { background: var(--accent-soft); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+.docs-body .table td.mono { white-space: nowrap; font-size: .85rem; }
+.docs-body .table th { white-space: normal; width: 1%; }
+.docs-body .table td { vertical-align: top; }
+.docs-body p code { white-space: nowrap; }
+
+/* Downloads: hash lines shouldn't push the layout. */
+.dl .mono { word-break: break-all; font-size: .78rem; }
+
+/* Notification page: breathing room around the title and image. */
+.notification-title { margin-top: 4px; }
+.notification-image { margin: 18px 0 0; }
+
+/* Short commands in narrow columns wrap instead of clipping. */
+.overview .code pre, .dl .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Phones: the top bar keeps the essentials; Downloads stays reachable from the footer and the dashboard. */
+@media (max-width: 520px) { .nav-links a[href="/downloads"] { display: none; } }
