@@ -26,3 +26,9 @@ Mobile push, marketplace-ready packaging, extensive multi-tenant administration,
 
 ## Multi-tenant developer experience
 Users sign up, select or create a tenant workspace, and access a developer dashboard to issue tenant-scoped API credentials. Tags are meaningful only inside the authenticated tenant. Trusted integrations publish using tenant-bound credentials; users and devices subscribe through individually authorized identities.
+
+## Continuum Diagram — product vision
+
+![HashRelay product vision](diagrams/hashrelay-vision.svg)
+
+This is a checked Continuum Diagram rendering of the earlier pinned ADL architecture (attestation `sha256:f2ce446b35e77d5a7aae1bed4715ac80f0f61e4fd6b9fd75d0cf7c78047012dd`). It illustrates the product ambition, including future mobile endpoints; dotted paths are planned rather than established ADL relationships. The current Windows-first ADL has since evolved; the image must not be treated as the current model's canonical projection.
