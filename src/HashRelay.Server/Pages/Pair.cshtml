@@ -29,7 +29,7 @@
             else if (Model.Pairing is null)
             {
                 <h1>Pair a device</h1>
-                <p class="sub">Enter the code shown by the HashRelay agent or by <code>hash-relay login</code>.</p>
+                <p class="sub">Enter the code shown by the HashRelay agent or by <code>hashrelay login</code>.</p>
                 @if (Model.CodeNotFound)
                 {
                     <div class="alert alert-danger">That code wasn't found or has expired. Codes last 15 minutes; ask the device for a new one.</div>

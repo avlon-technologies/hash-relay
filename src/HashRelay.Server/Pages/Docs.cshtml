@@ -19,9 +19,9 @@
     </nav>
     <article class="docs-body">
         <h2 id="quickstart">Quick start</h2>
-        <p>Install the Windows agent from <a href="/downloads">Downloads</a>. It pairs itself with your workspace in the browser and puts <code>hash-relay</code> on your PATH. Then, in a new terminal:</p>
-        <div class="code"><button class="copy" data-copy>Copy</button><pre><code>hash-relay subscribe #builds
-hash-relay publish #builds "Build complete" "212 tests passed in 48s"</code></pre></div>
+        <p>Install the Windows agent from <a href="/downloads">Downloads</a>. It pairs itself with your workspace in the browser and puts <code>hashrelay</code> on your PATH. Then, in a new terminal:</p>
+        <div class="code"><button class="copy" data-copy>Copy</button><pre><code>hashrelay subscribe #builds
+hashrelay publish #builds "Build complete" "212 tests passed in 48s"</code></pre></div>
         <p>The notification appears in Windows Notification Center on every device in the workspace subscribed to <code>#builds</code>. From CI or a server, create an API key in the dashboard and publish over HTTP:</p>
         <div class="code"><button class="copy" data-copy>Copy</button><pre><code>curl -X POST @url/api/v1/notifications \
   -H "Authorization: Bearer hr_live_…" \
@@ -40,17 +40,17 @@ hash-relay publish #builds "Build complete" "212 tests passed in 48s"</code></pr
         <h2 id="cli">CLI reference</h2>
         <p>The CLI stores its configuration per user in <span class="mono">%APPDATA%\HashRelay\config.json</span>. Exit codes: <code>0</code> success, <code>2</code> invalid input, <code>3</code> authentication, <code>4</code> server unavailable, <code>5</code> request rejected, <code>10</code> unexpected. Add <code>--json</code> to any command for machine-readable output.</p>
         <table class="table">
-            <tr><td class="mono">hash-relay login</td><td>Pair this device with a workspace in the browser. Use <code>--key hr_live_…</code> for headless machines.</td></tr>
-            <tr><td class="mono">hash-relay configure --server URL</td><td>Point the CLI and agent at another HashRelay server.</td></tr>
-            <tr><td class="mono">hash-relay subscribe #tag…</td><td>Subscribe this device to one or more hashtags.</td></tr>
-            <tr><td class="mono">hash-relay unsubscribe #tag…</td><td>Remove subscriptions.</td></tr>
-            <tr><td class="mono">hash-relay subscriptions</td><td>List this device's subscriptions.</td></tr>
-            <tr><td class="mono">hash-relay publish #tag… "Title" ["Body"]</td><td>Publish. Also accepts <code>--tag</code>, <code>--title</code>, <code>--body</code>, <code>--url</code>, <code>--priority</code>, <code>--id</code>, and for rich content <code>--markdown</code>/<code>--markdown-file</code>, <code>--diagram</code>/<code>--diagram-file</code> (Mermaid) and <code>--image</code> (file or URL). Use <code>-</code> as a file to read stdin.</td></tr>
-            <tr><td class="mono">hash-relay listen [#tag…]</td><td>Stream notifications for this device to the console.</td></tr>
-            <tr><td class="mono">hash-relay test</td><td>Publish a test notification to this device and verify delivery.</td></tr>
-            <tr><td class="mono">hash-relay status</td><td>Show server, workspace, device and agent status.</td></tr>
-            <tr><td class="mono">hash-relay agent start|stop|status</td><td>Control the Windows tray agent.</td></tr>
-            <tr><td class="mono">hash-relay logout</td><td>Forget the stored credential.</td></tr>
+            <tr><td class="mono">hashrelay login</td><td>Pair this device with a workspace in the browser. Use <code>--key hr_live_…</code> for headless machines.</td></tr>
+            <tr><td class="mono">hashrelay configure --server URL</td><td>Point the CLI and agent at another HashRelay server.</td></tr>
+            <tr><td class="mono">hashrelay subscribe #tag…</td><td>Subscribe this device to one or more hashtags.</td></tr>
+            <tr><td class="mono">hashrelay unsubscribe #tag…</td><td>Remove subscriptions.</td></tr>
+            <tr><td class="mono">hashrelay subscriptions</td><td>List this device's subscriptions.</td></tr>
+            <tr><td class="mono">hashrelay publish #tag… "Title" ["Body"]</td><td>Publish. Also accepts <code>--tag</code>, <code>--title</code>, <code>--body</code>, <code>--url</code>, <code>--priority</code>, <code>--id</code>, and for rich content <code>--markdown</code>/<code>--markdown-file</code>, <code>--diagram</code>/<code>--diagram-file</code> (Mermaid) and <code>--image</code> (file or URL). Use <code>-</code> as a file to read stdin.</td></tr>
+            <tr><td class="mono">hashrelay listen [#tag…]</td><td>Stream notifications for this device to the console.</td></tr>
+            <tr><td class="mono">hashrelay test</td><td>Publish a test notification to this device and verify delivery.</td></tr>
+            <tr><td class="mono">hashrelay status</td><td>Show server, workspace, device and agent status.</td></tr>
+            <tr><td class="mono">hashrelay agent start|stop|status</td><td>Control the Windows tray agent.</td></tr>
+            <tr><td class="mono">hashrelay logout</td><td>Forget the stored credential.</td></tr>
         </table>
 
         <h2 id="auth">Authentication</h2>

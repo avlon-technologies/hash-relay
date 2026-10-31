@@ -61,9 +61,9 @@ if ($LASTEXITCODE -ne 0) { throw "Agent publish failed." }
 Remove-Item (Join-Path $artifacts "agent\*.pdb"), (Join-Path $artifacts "cli\*.pdb") -ErrorAction SilentlyContinue
 
 Write-Host "`n== CLI zip" -ForegroundColor Cyan
-$cliZip = Join-Path $artifacts "hash-relay-cli-win-x64.zip"
+$cliZip = Join-Path $artifacts "hashrelay-cli-win-x64.zip"
 Remove-Item $cliZip -ErrorAction SilentlyContinue
-Compress-Archive -Path (Join-Path $artifacts "cli\hash-relay.exe") -DestinationPath $cliZip
+Compress-Archive -Path (Join-Path $artifacts "cli\hashrelay.exe") -DestinationPath $cliZip
 
 $setup = Join-Path $artifacts "HashRelay-Setup.exe"
 if (-not $SkipInstaller) {

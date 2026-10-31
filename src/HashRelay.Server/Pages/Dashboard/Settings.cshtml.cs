@@ -23,6 +23,13 @@ public sealed class SettingsModel(CurrentTenant current, IOptions<HashRelayOptio
         catch (ApiException ex) { return Flash("danger", ex.Message); }
     }
 
+    public async Task<IActionResult> OnPostPasswordAsync(string currentPassword, string newPassword, string confirmPassword, CancellationToken ct)
+    {
+        if (newPassword != confirmPassword) return Flash("danger", "The new passwords do not match.");
+        try { await accounts.ChangePasswordAsync(Current.Account!.Id, currentPassword ?? "", newPassword ?? "", ct); return Flash("success", "Password changed."); }
+        catch (ApiException ex) { return Flash("danger", ex.Message); }
+    }
+
     public async Task<IActionResult> OnPostCreateAsync(string name, CancellationToken ct)
     {
         try

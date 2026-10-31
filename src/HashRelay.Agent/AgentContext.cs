@@ -7,7 +7,7 @@ namespace HashRelay.Agent;
 
 /// <summary>
 /// Tray application: owns the realtime listener, shows toasts, and offers pairing when the device has no credential.
-/// Reconnects forever; re-reads config when the CLI changes it (e.g. after <c>hash-relay login</c>).
+/// Reconnects forever; re-reads config when the CLI changes it (e.g. after <c>hashrelay login</c>).
 /// </summary>
 internal sealed class AgentContext : ApplicationContext
 {
@@ -253,7 +253,7 @@ internal sealed class AgentContext : ApplicationContext
         if (!_config.IsLoggedIn) { ShowPairing(); return; }
         try
         {
-            using var api = new HashRelayApi(_config.ServerUri, _config.ApiKey, userAgent: $"hash-relay-agent/{AgentInfo.Version}");
+            using var api = new HashRelayApi(_config.ServerUri, _config.ApiKey, userAgent: $"hashrelay-agent/{AgentInfo.Version}");
             var me = await api.MeAsync();
             if (me.Credential.Scopes.Contains(Scopes.Subscribe))
             {
@@ -262,7 +262,7 @@ internal sealed class AgentContext : ApplicationContext
             }
             if (!me.Credential.Scopes.Contains(Scopes.Publish))
             {
-                Toasts.ShowInfo("This device can't publish", "Pair again and allow publishing, or run `hash-relay test --key <api key>`.");
+                Toasts.ShowInfo("This device can't publish", "Pair again and allow publishing, or run `hashrelay test --key <api key>`.");
                 return;
             }
             await api.PublishAsync(new PublishRequest(["test"], "HashRelay test", $"Notifications are working on {_config.DeviceName}.", Priority: Priorities.High));

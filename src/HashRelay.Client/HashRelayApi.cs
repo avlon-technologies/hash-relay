@@ -29,7 +29,7 @@ public sealed class HashRelayApi : IDisposable
         _http.BaseAddress = server;
         _http.Timeout = TimeSpan.FromSeconds(20);
         _http.DefaultRequestHeaders.UserAgent.Clear();
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent ?? $"hash-relay-client/{ClientVersion.Current}");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent ?? $"hashrelay-client/{ClientVersion.Current}");
         if (!string.IsNullOrWhiteSpace(apiKey))
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
     }

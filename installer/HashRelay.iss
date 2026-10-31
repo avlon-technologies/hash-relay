@@ -18,7 +18,7 @@
 #define AppPublisher "Avlon Technologies"
 #define AppUrl "https://hashrelay.dev.avlon.ca"
 #define AgentExe "HashRelay.Agent.exe"
-#define CliExe "hash-relay.exe"
+#define CliExe "hashrelay.exe"
 #define Aumid "Avlon.HashRelay"
 
 [Setup]
@@ -62,12 +62,12 @@ VersionInfoProductName={#AppName}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-WelcomeLabel2=This will install the {#AppName} agent and the hash-relay command line on your computer, for your user account only.%n%nThe agent shows hashtag notifications in Windows Notification Center. After installing, it will ask you to pair this device with your workspace.
-FinishedLabelNoIcons=Setup has finished installing {#AppName}.%n%nOpen a new terminal and run  hash-relay --help  to get started.
+WelcomeLabel2=This will install the {#AppName} agent and the hashrelay command line on your computer, for your user account only.%n%nThe agent shows hashtag notifications in Windows Notification Center. After installing, it will ask you to pair this device with your workspace.
+FinishedLabelNoIcons=Setup has finished installing {#AppName}.%n%nOpen a new terminal and run  hashrelay --help  to get started.
 
 [Tasks]
 Name: "startup"; Description: "Start the {#AppName} agent when I sign in to Windows"; GroupDescription: "Startup:"
-Name: "path"; Description: "Add hash-relay to my PATH (for the command line)"; GroupDescription: "Command line:"
+Name: "path"; Description: "Add hashrelay to my PATH (for the command line)"; GroupDescription: "Command line:"
 
 [Files]
 Source: "{#AgentDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -78,6 +78,10 @@ Source: "..\assets\hashrelay.png"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 Name: "{userprograms}\{#AppName}"; Filename: "{app}\{#AgentExe}"; IconFilename: "{app}\hashrelay.ico"; AppUserModelID: "{#Aumid}"; Comment: "Hashtag notifications for your desktop"
 Name: "{userprograms}\{#AppName} Dashboard"; Filename: "{#AppUrl}/dashboard"; IconFilename: "{app}\hashrelay.ico"
+
+[InstallDelete]
+; The command line was called hash-relay.exe before 0.2; remove it so the old name does not linger on PATH.
+Type: files; Name: "{app}\hash-relay.exe"
 
 [Registry]
 ; Start with Windows (per user). The agent also exposes a toggle for this in its tray menu.
