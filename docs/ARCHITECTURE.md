@@ -51,3 +51,10 @@ Compiled with Continuum ADL core adl/1.4, compiler adlc 0.2.0; 0 errors, 6 revie
 
 ### Scope boundary
 The ADL now contains an Access domain, TenantIdentity bounded context, AccountHolder actor, CreateTenant and IssueApiKey commands, and tenant/key stores. Detailed dashboard UI, user invitations and roles, tenant-switch semantics, registration flow, API-key renewal, and infrastructure identity/binding remain to be authored. Compilation does not ratify any of these product decisions.
+
+## Diagrams committed with documentation
+
+- [Product vision](diagrams/hashrelay-vision.svg) — high-level publisher → routing → delivery → devices narrative.
+- [Notification destinations](diagrams/hashrelay-delivery.svg) — desktop and future mobile endpoints, with proposed transport links distinguished.
+
+These SVGs were rendered with Continuum Diagram from an **earlier** ADL revision, attestation `sha256:f2ce446b35e77d5a7aae1bed4715ac80f0f61e4fd6b9fd75d0cf7c78047012dd`. The current Windows-first model attestation is `sha256:15001b83acfbb18c92baf0a9a945592ef66015ec5205b6cb2168589419254714`. Regenerate before using the figures as a current-model architecture baseline. They are illustrative vision material, not an implementation verification.
