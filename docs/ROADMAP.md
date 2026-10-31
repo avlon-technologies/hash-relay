@@ -11,7 +11,11 @@ One authenticated workspace and publisher, publish API + CLI, persist tags/subsc
 macOS and Linux per-user agents, startup, signing/package automation, diagnostics, update and uninstall, native notification adapters.
 
 ## M3 — Mobile app integration
-Android SDK + FCM, then iOS SDK + APNs; per-application provider credentials; token refresh; sample integrating apps; foreground vs background handling; permission prompts; deep links.
+**Decision (2026-10-31):** Firebase Cloud Messaging is the single push provider for both platforms; iOS is reached through Firebase's APNs relay (APNs key uploaded to the Firebase project), so HashRelay holds no APNs connection. Recorded in the ADL by `architecture/changes/2026-10-31-mobile-app.adl-change` (deployable `MobileApp`, `DeliveryService` dependsOn `FirebaseMessaging`, requirement `DeliveryEvidence`) and in the BDL (`2026-10-31.mobile-m3`).
+
+**In progress:** first-party app in `src/HashRelay.Mobile` (Expo/React Native, iOS + Android). The phone registers once through device pairing (`client: "mobile"`), its primary screen manages hashtag subscriptions, and it can also publish when approved with the publish permission. Server side: push token on the endpoint (`pushProvider`/`pushToken`, rotated through registration and the hub `Hello`), FCM HTTP v1 sender, delivery status `pushed` for provider acceptance distinct from `acked`, token invalidation on `UNREGISTERED`, per-endpoint inbox and HTTP ack. Remaining: Firebase project + credentials in Azure, EAS builds for iOS, store distribution.
+
+**Later:** per-application provider credentials and SDKs for third-party apps, deep links, sample integrating apps.
 
 ## M4 — Platform integrations
 .NET/JS SDKs, managed API keys/scopes, MCP server, documented API contracts, audit trails and reference client apps.

@@ -13,7 +13,7 @@
                     <div class="tags">@foreach (var t in n.Tags) { <span class="tag">#@t</span> }</div>
                     <div class="muted small">
                         <time data-rel datetime="@n.PublishedAt.ToString("o")">@n.PublishedAt.ToString("g")</time>
-                        · @Model.Delivered/@n.MatchedEndpoints delivered
+                        · @Model.Delivered/@n.MatchedEndpoints delivered@(Model.Pushed > 0 ? $" ({Model.Pushed} pushed, {Model.Acked} acknowledged)" : "")
                         @if (n.Priority != "normal") { <span class="badge badge-accent">@n.Priority</span> }
                     </div>
                 </div>

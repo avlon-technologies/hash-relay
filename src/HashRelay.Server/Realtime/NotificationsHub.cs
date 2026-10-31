@@ -22,7 +22,7 @@ public sealed class NotificationsHub(EndpointService endpoints, RoutingService r
         var tenantId = user.TenantId();
         try
         {
-            var ep = await endpoints.RegisterAsync(tenantId, req.EndpointId, req.Name, req.Platform, req.AgentVersion, user.BoundEndpointRef(), connected: true, Context.ConnectionAborted);
+            var ep = await endpoints.RegisterAsync(tenantId, req.EndpointId, req.Name, req.Platform, req.AgentVersion, req.PushProvider, req.PushToken, user.BoundEndpointRef(), connected: true, Context.ConnectionAborted);
             registry.Attach(Context.ConnectionId, ep.Id, user.CredentialId());
             await Groups.AddToGroupAsync(Context.ConnectionId, EndpointService.GroupFor(ep.Id), Context.ConnectionAborted);
             Context.Items[ItemEndpoint] = ep.Id;

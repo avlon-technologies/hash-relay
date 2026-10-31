@@ -6,6 +6,7 @@ using HashRelay.Server.Data;
 using HashRelay.Server.Mcp;
 using HashRelay.Server.Realtime;
 using HashRelay.Server.Services;
+using HashRelay.Server.Services.Push;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -118,6 +119,14 @@ builder.Services.AddHttpClient(HttpDiagramRenderer.HttpClientName, c =>
     c.MaxResponseContentBufferSize = Limits.ImageMaxBytes;
 });
 builder.Services.AddSingleton<IDiagramRenderer, HttpDiagramRenderer>();
+// Push to mobile endpoints: Firebase Cloud Messaging HTTP v1 (Android directly, iOS relayed to APNs by Firebase). Disabled until a service account is configured.
+builder.Services.Configure<FcmOptions>(config.GetSection("HashRelay:Push:Fcm"));
+builder.Services.AddHttpClient(FcmPushSender.HttpClientName, c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(15);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("hashrelay-server/" + HashRelay.Server.Api.ApiEndpoints.Version);
+});
+builder.Services.AddSingleton<IPushSender, FcmPushSender>();
 builder.Services.AddScoped<DevicePairingService>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<ServiceAccountService>();

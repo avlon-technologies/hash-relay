@@ -1,0 +1,34 @@
+{
+  "name": "hashrelay-mobile",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@microsoft/signalr": "^10.0.11",
+    "@react-native-firebase/app": "^27.1.0",
+    "@react-native-firebase/messaging": "^27.1.0",
+    "expo": "~58.0.22",
+    "expo-build-properties": "~58.0.12",
+    "expo-crypto": "~58.0.7",
+    "expo-device": "~58.0.5",
+    "expo-linking": "~58.0.15",
+    "expo-notifications": "~58.1.7",
+    "expo-secure-store": "~58.0.2",
+    "expo-status-bar": "~58.0.4",
+    "react": "19.3.0",
+    "react-native": "0.88.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "expo prebuild",
+    "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor"
+  },
+  "private": true,
+  "description": "HashRelay mobile app for iOS and Android: register the phone, subscribe to hashtags, read and publish notifications."
+}

@@ -6,6 +6,7 @@ using HashRelay.Server.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HashRelay.Server.Tests;
@@ -16,9 +17,13 @@ public class RelayFactory : WebApplicationFactory<Program>
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"hashrelay-test-{Guid.NewGuid():n}.db");
     private readonly string _imagesDir = Path.Combine(Path.GetTempPath(), $"hashrelay-test-images-{Guid.NewGuid():n}");
 
+    /// <summary>Service overrides applied after the app's own registrations (e.g. a fake push sender).</summary>
+    public Action<IServiceCollection>? TestServices { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.ConfigureTestServices(s => TestServices?.Invoke(s));
         builder.UseSetting("HashRelay:DatabasePath", _dbPath);
         builder.UseSetting("HashRelay:ImagesPath", _imagesDir); // isolated per factory: the diagram cache is keyed by content
         builder.UseSetting("HashRelay:PublicUrl", "http://localhost");

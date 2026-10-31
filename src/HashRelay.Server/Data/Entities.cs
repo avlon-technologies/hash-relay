@@ -78,7 +78,16 @@ public sealed class Endpoint
     public DateTimeOffset LastSeenAt { get; set; }
     public DateTimeOffset? LastConnectedAt { get; set; }
     public DateTimeOffset? LastDisconnectedAt { get; set; }
+    /// <summary>Push provider ("fcm") of <see cref="PushToken"/>; null for endpoints reached only over the realtime hub.</summary>
+    public string? PushProvider { get; set; }
+    /// <summary>Provider registration token of a mobile endpoint. Treated as a secret: never shown in the dashboard or API.</summary>
+    public string? PushToken { get; set; }
+    public DateTimeOffset? PushTokenUpdatedAt { get; set; }
+    /// <summary>Set when the provider reported the last token as unregistered; cleared when a new token is registered.</summary>
+    public DateTimeOffset? PushInvalidatedAt { get; set; }
     public List<Subscription> Subscriptions { get; set; } = [];
+
+    public bool CanPush => PushToken is not null && PushProvider is not null;
 }
 
 public sealed class Subscription
@@ -116,8 +125,9 @@ public sealed class Notification
 public static class DeliveryStatus
 {
     public const string Queued = "queued";      // endpoint offline; eligible for replay on reconnect
-    public const string Sent = "sent";          // pushed over a live connection
-    public const string Acked = "acked";        // agent confirmed display
+    public const string Sent = "sent";          // sent over a live connection
+    public const string Pushed = "pushed";      // accepted by the push provider (FCM); display is unknown until the endpoint acks
+    public const string Acked = "acked";        // endpoint confirmed display
     public const string Expired = "expired";    // replay window elapsed
 }
 
@@ -154,7 +164,7 @@ public sealed class DevicePairing
     public required string DeviceName { get; set; }
     public required string Platform { get; set; }
     public string? AgentVersion { get; set; }
-    public required string Client { get; set; }           // "agent" | "cli"
+    public required string Client { get; set; }           // "agent" | "cli" | "mobile"
     public required string Status { get; set; }
     public Guid? TenantId { get; set; }
     public Guid? ApprovedByAccountId { get; set; }

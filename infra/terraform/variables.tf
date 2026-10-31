@@ -67,3 +67,9 @@ variable "mcp_record_name" {
   default     = "mcp.hashrelay"
   description = "Record name inside the zone for the MCP host, e.g. 'mcp.hashrelay' for mcp.hashrelay.<zone>. Empty = no separate MCP host."
 }
+variable "fcm_service_account_json" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Firebase service-account key (JSON contents) used to send mobile push through FCM HTTP v1. Empty disables push; devices then receive on their next foreground connection. Pass with -var-file or TF_VAR_fcm_service_account_json; never commit it."
+}

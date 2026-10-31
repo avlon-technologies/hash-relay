@@ -18,6 +18,10 @@ public static class SchemaUpgrades
         ("Notifications", "Diagram", "TEXT NULL"),
         ("Notifications", "DiagramImageUrl", "TEXT NULL"),
         ("Credentials", "ServiceAccountId", "TEXT NULL"),
+        ("Endpoints", "PushProvider", "TEXT NULL"),
+        ("Endpoints", "PushToken", "TEXT NULL"),
+        ("Endpoints", "PushTokenUpdatedAt", "INTEGER NULL"),
+        ("Endpoints", "PushInvalidatedAt", "INTEGER NULL"),
     ];
 
     public static async Task ApplyAsync(RelayDbContext db, CancellationToken ct = default)

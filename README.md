@@ -16,6 +16,7 @@ hashrelay publish #builds "Build complete" "212 tests passed in 48s"
 | Client | `src/HashRelay.Client` | .NET client: config store, typed HTTP API, realtime listener with infinite reconnect |
 | CLI | `src/HashRelay.Cli` | `hashrelay` — pair, subscribe, publish, listen, test, status |
 | Agent | `src/HashRelay.Agent` | Windows tray agent: native toasts, pairing window, start with Windows |
+| Mobile | `src/HashRelay.Mobile` | Expo/React Native app for iOS and Android: pair the phone, subscribe to hashtags, inbox, publish; push via Firebase Cloud Messaging |
 | Installer | `installer/HashRelay.iss` | Per-user Inno Setup EXE (no admin), agent + CLI, PATH, autostart, clean uninstall |
 | Tests | `tests/HashRelay.Server.Tests` | xunit v3 integration tests over the real server |
 | Infra | `infra/terraform` | Azure Container Apps (consumption, scales to zero) + Azure Files for SQLite + container registry + custom domain with managed certificate |

@@ -2,16 +2,16 @@ model {
   bdl 1.0
   types adl-type/1.0
   expressions adl-expr/1.0
-  definition "2026-10-31.windows-m1"
+  definition "2026-10-31.mobile-m3"
 }
 business HashRelayBusiness #b-hr {
-  description "Windows-first tenant-scoped hashtag notification service."
-  purpose { "Enable developers to manage tenant API keys and publish notifications to subscribed Windows users." }
+  description "Tenant-scoped hashtag notification service for desktop and mobile subscribers."
+  purpose { "Enable developers to manage tenant API keys and publish notifications to subscribed users on their Windows desktops and iOS or Android phones." }
   modality { epistemic stated }
   provenance { source domain-expert, assertedBy "Product owner", assertedOn 2026-10-31 }
   domain Notifications #d-hr {
     capability DeveloperOnboarding #c-onboard { purpose { "Create tenant workspaces and issue API keys through a dashboard." } }
-    capability HashtagNotifications #c-notify { purpose { "Deliver authorized publications to matching Windows desktop subscribers." } }
+    capability HashtagNotifications #c-notify { purpose { "Deliver authorized publications to matching desktop and mobile subscribers." } }
     entity Tenant #e-tenant { identity tenantId tenantId: text name: text }
     entity ApiKey #e-key { identity keyId keyId: text tenantId: text }
     entity Subscription #e-sub { identity subscriptionId subscriptionId: text tag: text tenantId: text subscriberId: text }
@@ -22,12 +22,13 @@ business HashRelayBusiness #b-hr {
     action PublishNotification [permitted] #ac-notif { mayPerform Developer exercises HashtagNotifications creates Notification }
     unspecified ClientEnrollment #u-client {
       modality { epistemic underspecified }
-      question "How should a Windows user agent authenticate without embedding a shared tenant publishing key?"
-      reason "Local loopback proof of concept can use development credentials, but remote client identity is not finalized."
+      question "How should an installed client (desktop agent, CLI or mobile app) authenticate as a subscriber without embedding a shared tenant publishing key?"
+      reason "The implementation currently pairs devices with a device-authorization grant approved in the dashboard; that choice has not been ratified as the business rule, and a mobile app widens the question to app-store distributed clients."
       accountable "Architecture"
       alternatives
-        "OAuth authorization code with PKCE for desktop sign-in"
+        "OAuth authorization code with PKCE for desktop and mobile sign-in"
         "Short-lived endpoint enrollment token issued by the trusted tenant backend"
+        "Device-authorization pairing approved by a workspace member in the dashboard (as implemented)"
     }
   }
   actor Developer [external-party] #a-dev { }

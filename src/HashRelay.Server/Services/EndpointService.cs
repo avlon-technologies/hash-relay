@@ -22,10 +22,13 @@ public sealed class EndpointService(RelayDbContext db, TimeProvider clock, Conne
 
     /// <summary>
     /// Upserts an endpoint. A device-bound credential may only act as its own endpoint; a tenant API key may act as any.
+    /// A push token is stored when <paramref name="pushProvider"/> is given (an empty token clears it); null leaves it unchanged.
     /// </summary>
-    public async Task<Data.Endpoint> RegisterAsync(Guid tenantId, string endpointId, string? name, string? platform, string? agentVersion, Guid? boundEndpointRef, bool connected, CancellationToken ct)
+    public async Task<Data.Endpoint> RegisterAsync(Guid tenantId, string endpointId, string? name, string? platform, string? agentVersion,
+        string? pushProvider, string? pushToken, Guid? boundEndpointRef, bool connected, CancellationToken ct)
     {
         endpointId = ValidateEndpointId(endpointId);
+        var (provider, token) = ValidatePush(pushProvider, pushToken);
         var now = clock.GetUtcNow();
         var ep = await db.Endpoints.Include(e => e.Subscriptions).FirstOrDefaultAsync(e => e.TenantId == tenantId && e.EndpointId == endpointId, ct);
 
@@ -51,8 +54,46 @@ public sealed class EndpointService(RelayDbContext db, TimeProvider clock, Conne
             ep.LastSeenAt = now;
         }
         if (connected) ep.LastConnectedAt = now;
+        if (provider is not null)
+        {
+            if (token is null)
+            {
+                ep.PushProvider = null; ep.PushToken = null; ep.PushTokenUpdatedAt = now;
+            }
+            else if (ep.PushToken != token || ep.PushProvider != provider)
+            {
+                ep.PushProvider = provider; ep.PushToken = token; ep.PushTokenUpdatedAt = now; ep.PushInvalidatedAt = null;
+            }
+        }
         await db.SaveChangesAsync(ct);
+        if (token is not null)
+        {
+            // A reinstalled app may pair under a new endpoint id with the same device token: keep one owner per token so the device is pushed once.
+            await db.Endpoints.Where(e => e.PushToken == token && e.Id != ep.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.PushToken, (string?)null).SetProperty(e => e.PushTokenUpdatedAt, now), ct);
+        }
         return ep;
+    }
+
+    /// <summary>Records that the provider no longer knows the endpoint's token; pushes stop until the app registers a new one.</summary>
+    public async Task InvalidatePushTokenAsync(Guid endpointRef, string token, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow();
+        await db.Endpoints.Where(e => e.Id == endpointRef && e.PushToken == token)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.PushToken, (string?)null).SetProperty(e => e.PushInvalidatedAt, now), ct);
+    }
+
+    private static (string? Provider, string? Token) ValidatePush(string? pushProvider, string? pushToken)
+    {
+        var provider = pushProvider?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(provider)) return (null, null);
+        if (!PushProviders.All.Contains(provider))
+            throw ApiException.Validation($"pushProvider must be one of: {string.Join(", ", PushProviders.All)}.", "pushProvider");
+        var token = pushToken?.Trim();
+        if (string.IsNullOrEmpty(token)) return (provider, null);
+        if (token.Length > PushProviders.TokenMax || token.Any(char.IsWhiteSpace))
+            throw ApiException.Validation($"pushToken must be at most {PushProviders.TokenMax} characters without whitespace.", "pushToken");
+        return (provider, token);
     }
 
     private static string? Clean(string? s, int max)
@@ -76,7 +117,7 @@ public sealed class EndpointService(RelayDbContext db, TimeProvider clock, Conne
         endpointId = ValidateEndpointId(endpointId);
         var ep = await db.Endpoints.Include(e => e.Subscriptions).FirstOrDefaultAsync(e => e.TenantId == tenantId && e.EndpointId == endpointId, ct);
         if (boundEndpointRef is not null && ep?.Id != boundEndpointRef) throw ApiException.Forbidden("This device token is bound to a different endpoint.");
-        return ep ?? await RegisterAsync(tenantId, endpointId, null, null, null, null, connected: false, ct);
+        return ep ?? await RegisterAsync(tenantId, endpointId, null, null, null, null, null, null, connected: false, ct);
     }
 
     public async Task<IReadOnlyList<string>> AddSubscriptionsAsync(Data.Endpoint ep, IEnumerable<string> rawTags, CancellationToken ct)
@@ -169,5 +210,5 @@ public sealed class EndpointService(RelayDbContext db, TimeProvider clock, Conne
     }
 
     public EndpointInfo ToInfo(Data.Endpoint ep)
-        => new(ep.EndpointId, ep.Name, ep.Platform, registry.IsOnline(ep.Id), ep.LastSeenAt, CurrentTags(ep));
+        => new(ep.EndpointId, ep.Name, ep.Platform, registry.IsOnline(ep.Id), ep.LastSeenAt, CurrentTags(ep), ep.CanPush ? ep.PushProvider : null);
 }

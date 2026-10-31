@@ -28,7 +28,8 @@ public sealed record PublishResult(
     int Queued,
     bool Duplicate,
     string? DetailUrl = null,
-    string? ImageUrl = null);
+    string? ImageUrl = null,
+    int Pushed = 0);
 
 /// <summary>Result of <c>POST /api/v1/images</c>: a public, unguessable image URL usable as <see cref="PublishRequest.ImageUrl"/>.</summary>
 public sealed record ImageUploadResult(string Id, string Url, long Bytes, string ContentType);
@@ -50,13 +51,32 @@ public sealed record EndpointInfo(
     string Platform,
     bool Online,
     DateTimeOffset LastSeenAt,
-    IReadOnlyList<string> Subscriptions);
+    IReadOnlyList<string> Subscriptions,
+    string? PushProvider = null);
 
-public sealed record RegisterEndpointRequest(string? EndpointId, string Platform, string? Name = null, string? AgentVersion = null);
+/// <param name="PushProvider">Push provider of <paramref name="PushToken"/> ("fcm"). When given with an empty token, the endpoint's push token is cleared; when null, it is left unchanged.</param>
+/// <param name="PushToken">The provider registration token of a mobile endpoint. Re-send whenever the platform rotates it.</param>
+public sealed record RegisterEndpointRequest(string? EndpointId, string Platform, string? Name = null, string? AgentVersion = null, string? PushProvider = null, string? PushToken = null);
 
 public sealed record SubscriptionsRequest(IReadOnlyList<string> Tags);
 
 public sealed record SubscriptionsResponse(string EndpointId, IReadOnlyList<string> Tags);
+
+/// <summary>One delivery routed to an endpoint (its inbox). <paramref name="Status"/> is a <c>DeliveryStatus</c> value: queued, sent, pushed, acked or expired.</summary>
+public sealed record EndpointDeliveryInfo(
+    Guid DeliveryId,
+    string Status,
+    Guid NotificationId,
+    IReadOnlyList<string> Tags,
+    string Title,
+    string? Body,
+    string? Url,
+    string Priority,
+    DateTimeOffset PublishedAtUtc,
+    string? ImageUrl,
+    string? DetailUrl,
+    bool Rich,
+    DateTimeOffset? AckedAtUtc);
 
 public sealed record NotificationSummary(
     Guid NotificationId,
@@ -80,6 +100,7 @@ public sealed record HealthResponse(string Status, string Version, DateTimeOffse
 
 // ---------- Device pairing (OAuth device-authorization style) ----------
 
+/// <param name="Client">One of <see cref="PairingClients"/>: "agent", "cli" or "mobile".</param>
 public sealed record DeviceCodeRequest(string EndpointId, string DeviceName, string Platform, string? AgentVersion, string Client);
 
 public sealed record DeviceCodeResponse(string DeviceCode, string UserCode, string VerificationUrl, string VerificationUrlComplete, int ExpiresInSeconds, int IntervalSeconds);
@@ -91,7 +112,8 @@ public sealed record DeviceTokenResponse(string Status, string? Token, TenantInf
 
 // ---------- Realtime hub (/hubs/notifications) ----------
 
-public sealed record HelloRequest(string EndpointId, string Name, string Platform, string? AgentVersion);
+/// <param name="PushProvider">Optional push provider ("fcm") of <paramref name="PushToken"/>; mobile apps send their current token on every connect so rotations are picked up.</param>
+public sealed record HelloRequest(string EndpointId, string Name, string Platform, string? AgentVersion, string? PushProvider = null, string? PushToken = null);
 
 public sealed record HelloResponse(
     TenantInfo Tenant,
@@ -157,6 +179,23 @@ public static class Scopes
     public const string Publish = "publish";
     public const string Subscribe = "subscribe";
     public static readonly string[] All = [Publish, Subscribe];
+}
+
+/// <summary>Installed clients that can start the device-pairing flow.</summary>
+public static class PairingClients
+{
+    public const string Agent = "agent";
+    public const string Cli = "cli";
+    public const string Mobile = "mobile";
+    public static readonly string[] All = [Agent, Cli, Mobile];
+}
+
+/// <summary>Push providers a mobile endpoint can register a token for. Firebase Cloud Messaging serves both Android and iOS (relayed to APNs by Firebase).</summary>
+public static class PushProviders
+{
+    public const string Fcm = "fcm";
+    public static readonly string[] All = [Fcm];
+    public const int TokenMax = 4096;
 }
 
 public static class CredentialKinds
