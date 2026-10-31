@@ -106,6 +106,8 @@ main { flex: 1; }
 .nav-links a, .nav-links button.linklike { color: var(--text-2); padding: 8px 12px; border-radius: 8px; font-weight: 500; background: none; border: 0; cursor: pointer; }
 .nav-links a:hover, .nav-links button.linklike:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
 .nav-links a.active { color: var(--text); }
+.nav-links a.btn-primary { color: var(--accent-ink); background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--accent-2))); padding: 0 14px; border-radius: 9px; }
+.nav-links a.btn-primary:hover { background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--accent-2))); filter: brightness(1.08); }
 
 /* ---------- Buttons ---------- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 10px;

@@ -62,3 +62,7 @@ These SVGs were rendered with Continuum Diagram from an **earlier** ADL revision
 ## Windows-first implementation decisions (2026-10-31)
 
 [Windows M1 implementation contract](WINDOWS-M1-CONTRACT.md) and [ADR-0001](adr/0001-windows-first.md) specify exact CLI/HTTP/SignalR contracts, user-session Windows agent, installer lifecycle, dev-only loopback credentials, and separation between M1A local transport and M1B hosted SaaS. Terraform provisions M1B resources; it is **not** needed for the initial loopback demonstration. The ADL and BDL remain valid as semantic source; technology bindings are a proposal, not claimed machine-verified.
+
+## Implementation (2026-10-31)
+
+The model is realised in `src/` (see the repository README). Mapping: `Access.TenantIdentity` → `AccountService`, `CredentialService` and the dashboard pages; `Notifications.Routing.RoutingService` → `RoutingService` + `POST /api/v1/notifications`; `Notifications.Delivery.EndpointService` → `EndpointService` + endpoint/subscription routes; `DeliveryService` → hub dispatch and replay in `RoutingService`/`NotificationsHub`; `DesktopAgent` → `HashRelay.Agent`; `CloudApi` → `HashRelay.Server` on Azure App Service (`infra/terraform`). The unspecified `ClientEnrollment` question in the BDL is answered in code by device pairing (device-authorization grant shape); that decision still needs to be recorded in the BDL/ADL by an architecture change.
