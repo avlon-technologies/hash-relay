@@ -102,12 +102,12 @@ if ($tag) {
 }
 
 # Free managed certificates for every custom hostname (the dashboard host and the MCP host); first time only per name.
-foreach ($host in @($domain, $mcpDomain) | Where-Object { $_ }) {
-  $bound = az containerapp hostname list --resource-group $rg --name $app --query "[?name=='$host' && bindingType=='SniEnabled'] | length(@)" -o tsv
+foreach ($hostName in @($domain, $mcpDomain) | Where-Object { $_ }) {
+  $bound = az containerapp hostname list --resource-group $rg --name $app --query "[?name=='$hostName' && bindingType=='SniEnabled'] | length(@)" -o tsv
   if ("$bound" -ne "1") {
-    Write-Host "`n== Managed certificate for $host" -ForegroundColor Cyan
-    az containerapp hostname bind --resource-group $rg --name $app --hostname $host --environment $cae --validation-method CNAME --output none
-    if ($LASTEXITCODE -ne 0) { throw "az containerapp hostname bind failed for $host" }
+    Write-Host "`n== Managed certificate for $hostName" -ForegroundColor Cyan
+    az containerapp hostname bind --resource-group $rg --name $app --hostname $hostName --environment $cae --validation-method CNAME --output none
+    if ($LASTEXITCODE -ne 0) { throw "az containerapp hostname bind failed for $hostName" }
   }
 }
 
