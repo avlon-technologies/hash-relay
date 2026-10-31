@@ -34,3 +34,9 @@ Web signup/signin, workspace creation, API key generation/revocation, tenant-qua
 
 ## Handoff status
 ADL and BDL compile successfully; technology bindings are authored as an **unvalidated proposal** until the target binding vocabulary/schema is registered and verified. The source code, installer, and an actual Windows end-to-end run still need to be implemented/tested. No successful installation or notification delivery is claimed by this documentation.
+
+## Continuum Diagram — notification delivery landscape
+
+![HashRelay delivery destinations](diagrams/hashrelay-delivery.svg)
+
+This illustration shows declared routing/delivery concepts and proposals for desktop SignalR and mobile push transports. It comes from an earlier ADL snapshot (attestation `sha256:f2ce446b35e77d5a7aae1bed4715ac80f0f61e4fd6b9fd75d0cf7c78047012dd`), not the latest Windows-first ADL. **Only the Windows/SignalR path is in M1.** Neither the Windows executable nor the installer is yet implemented merely by including this diagram.
