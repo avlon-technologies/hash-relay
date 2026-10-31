@@ -12,6 +12,7 @@ namespace HashRelay.Agent;
 internal sealed class AgentContext : ApplicationContext
 {
     private readonly NotifyIcon _tray;
+    private readonly Control _ui;
     private readonly ToolStripMenuItem _statusItem;
     private readonly ToolStripMenuItem _startupItem;
     private readonly ToolStripMenuItem _pairItem;
@@ -22,16 +23,30 @@ internal sealed class AgentContext : ApplicationContext
     private RelayListener? _listener;
     private RelayConfig _config;
     private CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _startGate = new(1, 1);
     private PairForm? _pairForm;
     private readonly bool _silent;
     private bool _announced;
+    private int _unauthorizedStreak;
     private Icon? _iconIdle, _iconOn;
+
+    /// <summary>Consecutive 401s on the same token before the agent stops hammering the server and asks to be paired again.</summary>
+    private const int UnauthorizedGiveUp = 6;
+    /// <summary>How long to wait for the CLI to write the replacement token after the server says ours was replaced.</summary>
+    private static readonly TimeSpan ReplacedTokenWait = TimeSpan.FromSeconds(20);
 
     public AgentContext(bool silent)
     {
         _silent = silent;
         _config = LoadConfig();
         LoadIcons();
+
+        // Everything that touches the tray or the config is marshalled onto the UI thread through this hidden
+        // control. The context menu's handle only exists once the menu has been opened, so it is not a reliable
+        // target; a WinForms timer started from a thread-pool thread never ticks, which is how a config change
+        // written by the CLI used to go unnoticed.
+        _ui = new Control();
+        _ = _ui.Handle;
 
         _statusItem = new ToolStripMenuItem("Starting…") { Enabled = false };
         _pairItem = new ToolStripMenuItem("Pair this device…", null, (_, _) => ShowPairing());
@@ -97,36 +112,61 @@ internal sealed class AgentContext : ApplicationContext
 
     private void Invoke(Action a)
     {
-        if (_tray.ContextMenuStrip is { IsHandleCreated: true } m) m.BeginInvoke(a);
+        if (_ui is { IsDisposed: false, IsHandleCreated: true }) _ui.BeginInvoke(a);
         else a();
     }
 
     // ------------------------------------------------------------------ connection
 
+    /// <summary>
+    /// (Re)creates the listener for the current <see cref="_config"/>. Callers may overlap (config watcher, revoke
+    /// handler, pairing form); the set-up is serialised so two listeners are never alive at once, and a later call
+    /// simply cancels the one before it.
+    /// </summary>
     private async Task StartAsync()
     {
-        await StopListenerAsync();
-        _cts = new CancellationTokenSource();
-        var ct = _cts.Token;
-        if (!_config.IsLoggedIn)
-        {
-            SetStatus("Not paired", "HashRelay — not paired. Right-click to pair this device.");
-            if (!_silent) ShowPairing();
-            return;
-        }
-
+        RelayListener listener;
+        CancellationToken ct;
+        await _startGate.WaitAsync();
         try
         {
-            _listener = new RelayListener(_config, "windows", AgentInfo.Version);
+            await StopListenerAsync();
+            _cts = new CancellationTokenSource();
+            ct = _cts.Token;
+            _unauthorizedStreak = 0;
+            if (!_config.IsLoggedIn)
+            {
+                SetStatus("Not paired", "HashRelay — not paired. Right-click to pair this device.");
+                if (!_silent) ShowPairing();
+                return;
+            }
+
+            try
+            {
+                listener = new RelayListener(_config, "windows", AgentInfo.Version);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Listener init failed", ex);
+                SetStatus("Configuration error", $"HashRelay — {ex.Message}");
+                return;
+            }
+            _listener = listener;
+            Wire(listener, _config.ApiKey!);
         }
-        catch (Exception ex)
+        finally { _startGate.Release(); }
+
+        try { await listener.StartAsync(ct); }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+        catch (Exception ex) { Log.Error("Start failed", ex); }
+    }
+
+    private void Wire(RelayListener listener, string tokenInUse)
+    {
+        listener.StateChanged += (s, ex) => Invoke(() =>
         {
-            Log.Error("Listener init failed", ex);
-            SetStatus("Configuration error", $"HashRelay — {ex.Message}");
-            return;
-        }
-        _listener.StateChanged += (s, ex) => Invoke(() =>
-        {
+            if (!ReferenceEquals(listener, _listener)) return; // a newer listener has replaced this one
             switch (s)
             {
                 case ListenerState.Connected: SetStatus($"Connected · {_config.TenantName ?? _config.Server}", $"HashRelay — connected to {_config.TenantName ?? "workspace"}"); break;
@@ -134,10 +174,14 @@ internal sealed class AgentContext : ApplicationContext
                 case ListenerState.Reconnecting: SetStatus("Reconnecting…", "HashRelay — reconnecting"); break;
                 default: SetStatus("Disconnected", "HashRelay — disconnected"); break;
             }
-            if (ex is not null) Log.Warn($"{s}: {ex.GetType().Name}: {ex.Message}");
+            if (ex is null) { if (s == ListenerState.Connected) _unauthorizedStreak = 0; return; }
+            Log.Warn($"{s}: {ex.GetType().Name}: {ex.Message}");
+            if (ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized }) OnUnauthorized(tokenInUse);
         });
-        _listener.Registered += hello => Invoke(() =>
+        listener.Registered += hello => Invoke(() =>
         {
+            if (!ReferenceEquals(listener, _listener)) return;
+            _unauthorizedStreak = 0;
             _config.TenantName = hello.Tenant.Name;
             _config.TenantSlug = hello.Tenant.Slug;
             SetStatus($"Connected · {hello.Tenant.Name}", $"HashRelay — {hello.Tenant.Name} · {(hello.Subscriptions.Count == 0 ? "no subscriptions" : Tags.DisplayAll(hello.Subscriptions))}");
@@ -149,32 +193,77 @@ internal sealed class AgentContext : ApplicationContext
                 Toasts.ShowInfo("HashRelay is running", $"Connected to {hello.Tenant.Name} as {hello.Name}. Right-click the tray icon to pair with a different workspace.");
             }
         });
-        _listener.NotificationReceived += OnNotification;
-        _listener.SubscriptionsChanged += tags => Invoke(() =>
+        listener.NotificationReceived += OnNotification;
+        listener.SubscriptionsChanged += tags => Invoke(() =>
         {
+            if (!ReferenceEquals(listener, _listener)) return;
             _tray.Text = Truncate($"HashRelay — {_config.TenantName} · {(tags.Count == 0 ? "no subscriptions" : Tags.DisplayAll(tags))}");
             Log.Info($"Subscriptions changed: {Tags.DisplayAll(tags)}");
         });
-        _listener.CredentialRevoked += reason => Invoke(async () =>
+        listener.CredentialRevoked += reason => Invoke(async () =>
         {
+            if (!ReferenceEquals(listener, _listener)) return;
             Log.Warn($"Credential revoked: {reason}");
             await StopListenerAsync();
-            if (reason == "replaced")
-            {
-                // The CLI re-paired this device; pick up the new token.
-                _config = ConfigStore.Load();
-                if (_config.IsLoggedIn) { _ = StartAsync(); return; }
-            }
-            _config.ApiKey = null;
-            ConfigStore.Save(_config);
-            SetStatus("Access revoked", "HashRelay — access revoked. Pair again to continue.");
-            Toasts.ShowInfo("HashRelay access was revoked", "This device's token was revoked in the dashboard. Pair again to keep receiving notifications.");
-            RefreshMenu();
+            if (reason == "replaced" && await AdoptReplacementTokenAsync(tokenInUse)) return;
+            MarkRevoked();
         });
+    }
 
-        try { await _listener.StartAsync(ct); }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { Log.Error("Start failed", ex); }
+    /// <summary>
+    /// "replaced" means the CLI paired this same device again. The server tells us the moment it issues the new
+    /// token, which is before the CLI has finished polling for it and writing it to config.json, so reading the
+    /// file straight away hands back the token that was just revoked. Wait for the file to actually change.
+    /// </summary>
+    private async Task<bool> AdoptReplacementTokenAsync(string revokedToken)
+    {
+        var deadline = DateTime.UtcNow + ReplacedTokenWait;
+        while (DateTime.UtcNow < deadline)
+        {
+            var fresh = ConfigStore.Load();
+            if (fresh.IsLoggedIn && fresh.ApiKey != revokedToken)
+            {
+                if (_config.ApiKey == fresh.ApiKey && _listener is not null) return true; // the config watcher got there first
+                Log.Info("Replacement token found in config; reconnecting");
+                _config = fresh;
+                RefreshMenu();
+                _ = StartAsync();
+                return true;
+            }
+            await Task.Delay(250);
+        }
+        Log.Warn($"No replacement token appeared within {ReplacedTokenWait.TotalSeconds:0}s");
+        return false;
+    }
+
+    /// <summary>
+    /// A 401 while (re)connecting means the server no longer accepts our token. If the CLI has meanwhile written a
+    /// different one, switch to it; otherwise stop after a few attempts instead of retrying a dead token forever.
+    /// </summary>
+    private void OnUnauthorized(string tokenInUse)
+    {
+        var fresh = ConfigStore.Load();
+        if (fresh.IsLoggedIn && fresh.ApiKey != tokenInUse)
+        {
+            Log.Info("Token on disk differs from the one being rejected; reconnecting with it");
+            _config = fresh;
+            RefreshMenu();
+            _ = StartAsync();
+            return;
+        }
+        if (++_unauthorizedStreak < UnauthorizedGiveUp) return;
+        Log.Warn($"Token rejected {_unauthorizedStreak} times in a row; giving up until this device is paired again");
+        _ = Task.Run(async () => { await StopListenerAsync(); Invoke(MarkRevoked); });
+    }
+
+    private void MarkRevoked()
+    {
+        _unauthorizedStreak = 0;
+        _config.ApiKey = null;
+        ConfigStore.Save(_config);
+        SetStatus("Access revoked", "HashRelay — access revoked. Pair again to continue.");
+        Toasts.ShowInfo("HashRelay access was revoked", "This device's token was revoked in the dashboard. Pair again to keep receiving notifications.");
+        RefreshMenu();
     }
 
     private async Task StopListenerAsync()
@@ -299,6 +388,8 @@ internal sealed class AgentContext : ApplicationContext
             _configWatcher?.Dispose();
             _tray.Dispose();
             _debounce.Dispose();
+            _ui.Dispose();
+            _startGate.Dispose();
         }
         base.Dispose(disposing);
     }
