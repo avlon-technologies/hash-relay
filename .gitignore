@@ -1,0 +1,24 @@
+# >>> continuum >>>
+# Continuum — machine-local client state, written by `continuum install`.
+# The development package in continuum/ IS committed; this is not.
+.continuum/
+# <<< continuum <<<
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.db
+*.db-shm
+*.db-wal
+
+# Build outputs
+artifacts/
+src/HashRelay.Server/wwwroot/downloads/*
+!src/HashRelay.Server/wwwroot/downloads/.gitkeep
+
+# Local secrets
+*.local.json
