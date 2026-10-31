@@ -1,0 +1,83 @@
+{
+  "adl-json": "adl-json/1.0",
+  "document": {
+    "universe": "binding",
+    "base": {
+      "package": "Avlon.HashRelay",
+      "version": "draft-1",
+      "canonicalModel": "sha256:15001b83acfbb18c92baf0a9a945592ef66015ec5205b6cb2168589419254714"
+    },
+    "vocabularies": [
+      {
+        "name": "continuum.bindings.hashrelay.windows",
+        "version": "proposal-1"
+      }
+    ],
+    "environment": {
+      "ref": "21212121-2121-4121-8121-212121212121",
+      "hint": "HashRelay.LocalDevelopment"
+    },
+    "bindings": [
+      {
+        "kind": "Binding",
+        "id": "61616161-6161-4161-8161-616161616161",
+        "name": "AspNetCoreWebApi",
+        "attributes": {
+          "vocabulary": "continuum.bindings.hashrelay.windows",
+          "technology": "aspnetcore-net10",
+          "configuration": {
+            "hosting": "single-process-local-development",
+            "https": "required-for-hosted-deployment"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "19191919-1919-4919-8919-191919191919",
+            "hint": "HashRelay.CloudApi"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "62626262-6262-4262-8262-626262626262",
+        "name": "SignalRRealtime",
+        "attributes": {
+          "vocabulary": "continuum.bindings.hashrelay.windows",
+          "technology": "aspnetcore-signalr",
+          "configuration": {
+            "transport": "websocket",
+            "scope": "authenticated-tenant-endpoint",
+            "note": "persistent subscriptions remain in store; group membership rebuilt after reconnect"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "18181818-1818-4818-8818-181818181818",
+            "hint": "HashRelay.Notifications.Delivery.DeliveryService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "63636363-6363-4363-8363-636363636363",
+        "name": "WindowsNotificationClient",
+        "attributes": {
+          "vocabulary": "continuum.bindings.hashrelay.windows",
+          "technology": "windows-app-sdk-appnotifications",
+          "configuration": {
+            "session": "per-user",
+            "startup": "login",
+            "distribution": "inno-setup-demo-exe",
+            "packaging": "signed-production-installer-deferred"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "20202020-2020-4020-8020-202020202020",
+            "hint": "HashRelay.DesktopAgent"
+          }
+        }
+      }
+    ]
+  }
+}
