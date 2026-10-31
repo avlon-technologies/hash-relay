@@ -1,5 +1,9 @@
 # Incremental delivery plan (draft)
 
+
+## M0 — Multi-tenant onboarding and authorization foundation
+Build a minimal signup/signin experience, tenant creation, dashboard tenant selection, tenant-scoped API-key creation/revocation and verification middleware. Establish tenant isolation and authorization tests before accepting publisher traffic. API keys are for trusted publisher integrations, not distributed mobile/desktop clients. This milestone is a prerequisite for M1; keep the UI minimal.
+
 ## M1 — Windows vertical slice
 One authenticated workspace and publisher, publish API + CLI, persist tags/subscriptions, register one Windows endpoint, SignalR connection with reconnection, native toast and duplicate suppression. Tests: subscription match, multi-tag deduplication, unauthorized publication denied, restart/reconnect and missed-event policy. Done when a clean Windows install receives a notification published from a separate machine.
 
