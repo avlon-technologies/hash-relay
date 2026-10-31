@@ -100,7 +100,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RelayDbContext>();
     await db.Database.EnsureCreatedAsync();
-    await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME")))
+        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
 }
 
 app.UseForwardedHeaders();

@@ -22,6 +22,7 @@ public sealed class RelayListener : IAsyncDisposable
     public event Action<IReadOnlyList<string>>? SubscriptionsChanged;
     public event Action<ListenerState, Exception?>? StateChanged;
     public event Action<HelloResponse>? Registered;
+    public event Action<string>? CredentialRevoked;
 
     public ListenerState State { get; private set; } = ListenerState.Disconnected;
     public HelloResponse? LastHello { get; private set; }
@@ -45,7 +46,8 @@ public sealed class RelayListener : IAsyncDisposable
         if (loggerFactory is not null) builder.ConfigureLogging(l => l.Services.AddSingleton(loggerFactory));
         _hub = builder.Build();
 
-        _hub.On<NotificationMessage>(HubMethods.Notify, m => NotificationReceived?.Invoke(m));
+        _hub.On<NotificationMessage>(HubMethods.NotificationReceived, m => NotificationReceived?.Invoke(m));
+        _hub.On<string>(HubMethods.CredentialRevoked, r => CredentialRevoked?.Invoke(r));
         _hub.On<IReadOnlyList<string>>(HubMethods.SubscriptionsChanged, t => SubscriptionsChanged?.Invoke(t));
         _hub.Reconnecting += ex => { Set(ListenerState.Reconnecting, ex); return Task.CompletedTask; };
         _hub.Reconnected += async _ => { Set(ListenerState.Connected, null); await SayHelloAsync(CancellationToken.None); };

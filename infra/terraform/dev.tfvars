@@ -1,0 +1,9 @@
+name_prefix             = "hashrelay"
+environment             = "dev"
+location                = "canadacentral"
+service_plan_sku        = "B1"
+signalr_sku             = "Free_F1"
+signalr_capacity        = 1
+allow_signup            = true
+dns_zone_name           = "dev.avlon.ca"
+dns_record_name         = "hashrelay"

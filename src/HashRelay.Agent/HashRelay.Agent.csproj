@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>HashRelay.Agent</RootNamespace>
+    <AssemblyName>HashRelay.Agent</AssemblyName>
+    <AssemblyTitle>HashRelay</AssemblyTitle>
+    <Description>HashRelay Windows agent: shows hashtag notifications in Windows Notification Center.</Description>
+    <ApplicationIcon>..\..\assets\hashrelay.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <RollForward>Major</RollForward>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <HashRelayServer Condition="'$(HashRelayServer)' == ''">https://hashrelay.dev.avlon.ca</HashRelayServer>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="DefaultServer" Value="$(HashRelayServer)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HashRelay.Client\HashRelay.Client.csproj" />
+    <ProjectReference Include="..\HashRelay.Contracts\HashRelay.Contracts.csproj" />
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\assets\hashrelay.png" Link="hashrelay.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\assets\hashrelay.ico" Link="hashrelay.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>HashRelay.Cli</RootNamespace>
+    <AssemblyName>hash-relay</AssemblyName>
+    <Description>HashRelay command line: pair, subscribe and publish hashtag notifications.</Description>
+    <AssemblyTitle>HashRelay CLI</AssemblyTitle>
+    <ApplicationIcon>..\..\assets\hashrelay.ico</ApplicationIcon>
+    <RollForward>Major</RollForward>
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <HashRelayServer Condition="'$(HashRelayServer)' == ''">https://hashrelay.dev.avlon.ca</HashRelayServer>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="DefaultServer" Value="$(HashRelayServer)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HashRelay.Client\HashRelay.Client.csproj" />
+    <ProjectReference Include="..\HashRelay.Contracts\HashRelay.Contracts.csproj" />
+  </ItemGroup>
+</Project>

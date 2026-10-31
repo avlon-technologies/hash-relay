@@ -14,6 +14,12 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
     public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<DevicePairing> DevicePairings => Set<DevicePairing>();
 
+    /// <summary>SQLite cannot compare DateTimeOffset text; store every timestamp as UTC ticks (INTEGER) instead.</summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder b)
+    {
+        b.Properties<DateTimeOffset>().HaveConversion<UtcTicksConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<Account>(e =>
@@ -101,3 +107,7 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
         });
     }
 }
+
+public sealed class UtcTicksConverter() : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTimeOffset, long>(
+    v => v.UtcTicks,
+    v => new DateTimeOffset(v, TimeSpan.Zero));
