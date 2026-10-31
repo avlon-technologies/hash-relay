@@ -17,6 +17,10 @@ public sealed class HashRelayOptions
     public bool AllowSignup { get; set; } = true;
     public int ReplayWindowHours { get; set; } = 24;
     public int PublishRateLimitPerMinute { get; set; } = 120;
+    /// <summary>Host name that serves only the MCP endpoint (e.g. mcp.hashrelay.dev.avlon.ca). Empty = /mcp is served on every host.</summary>
+    public string McpHost { get; set; } = "";
+    /// <summary>Browser origins allowed to call the MCP endpoint, in addition to https://{McpHost}.</summary>
+    public string[] McpAllowedOrigins { get; set; } = [];
 }
 
 /// <summary>
@@ -25,15 +29,17 @@ public sealed class HashRelayOptions
 /// is replayed on their next Hello, within the replay window.
 /// </summary>
 public sealed class RoutingService(RelayDbContext db, TimeProvider clock, ConnectionRegistry registry, IHubContext<NotificationsHub> hub,
-    IOptions<HashRelayOptions> options, IDiagramRenderer diagrams, ImageStore images, PublicBase publicBase, ILogger<RoutingService> log)
+    IOptions<HashRelayOptions> options, IDiagramRenderer diagrams, ImageStore images, PublicBase publicBase, AuditService audit, ILogger<RoutingService> log)
 {
-    public async Task<PublishResult> PublishAsync(Guid tenantId, Guid credentialId, PublishRequest req, CancellationToken ct)
+    /// <param name="policy">The service-account policy when the caller is a service key; enforced before anything is persisted and audited either way.</param>
+    public async Task<PublishResult> PublishAsync(Guid tenantId, Guid credentialId, PublishRequest req, CancellationToken ct, ServicePolicy? policy = null)
     {
         var v = Validate(req);
         var payloadHash = Secrets.Sha256Hex(JsonSerializer.Serialize(new { v.Tags, v.Title, v.Body, v.Url, v.Priority, v.Markdown, v.ImageUrl, v.Diagram }));
         var now = clock.GetUtcNow();
         var id = req.NotificationId ?? Guid.NewGuid();
         if (id == Guid.Empty) throw ApiException.Validation("notificationId must be a non-empty UUID.", "notificationId");
+        if (policy is not null) await EnforceAsync(policy, tenantId, credentialId, v, now, ct);
 
         if (req.NotificationId is not null)
         {
@@ -102,7 +108,10 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
                 log.LogWarning(ex, "Live dispatch to endpoint {EndpointRef} failed; left queued", d.EndpointRef);
             }
         }
-        if (live > 0) await db.SaveChangesAsync(ct);
+        if (policy is not null)
+            audit.Add(tenantId, AuditActions.Published, policy.ServiceAccountId, credentialId, target: id.ToString(),
+                detail: $"{Tags.DisplayAll(v.Tags)} “{v.Title}” → {endpointRefs.Count} device(s), {live} live");
+        if (live > 0 || policy is not null) await db.SaveChangesAsync(ct);
 
         log.LogInformation("Published {NotificationId} to {Tags} in tenant {TenantId}: {Matched} matched, {Live} live",
             id, Tags.DisplayAll(v.Tags), tenantId, endpointRefs.Count, live);
@@ -118,6 +127,37 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
         var delivered = await db.Deliveries.CountAsync(d => d.NotificationId == existing.Id && d.Status != DeliveryStatus.Queued, ct);
         return new PublishResult(existing.Id, existing.PublishedAt, existing.Tags, existing.Title, existing.MatchedEndpoints,
             delivered, existing.MatchedEndpoints - delivered, Duplicate: true, DetailUrl(existing), ToastImage(existing));
+    }
+
+    /// <summary>
+    /// Service-account guard: allowed hashtags, https-only links on allowed hosts, and the hourly quota (counted from the
+    /// database across every key of the account so REST and MCP share one budget). Refusals are audited.
+    /// </summary>
+    private async Task EnforceAsync(ServicePolicy policy, Guid tenantId, Guid credentialId, Validated v, DateTimeOffset now, CancellationToken ct)
+    {
+        string? problem = null;
+        string code = ErrorCodes.Forbidden;
+        var disallowed = policy.DisallowedTags(v.Tags);
+        if (disallowed.Count > 0)
+            problem = $"This service account may not publish to {Tags.DisplayAll(disallowed)}. Allowed hashtags: {string.Join(", ", policy.AllowedTags.Select(p => "#" + p))}.";
+        else if (policy.UrlProblem(v.Url) is { } urlProblem) problem = $"url {urlProblem}.";
+        else if (policy.UrlProblem(v.ImageUrl) is { } imageProblem) problem = $"imageUrl {imageProblem}.";
+        else
+        {
+            var since = now.AddHours(-1);
+            var used = await db.Notifications.CountAsync(n => n.TenantId == tenantId && n.PublishedAt > since
+                && db.Credentials.Any(c => c.Id == n.PublishedByCredentialId && c.ServiceAccountId == policy.ServiceAccountId), ct);
+            if (used >= policy.HourlyPublishLimit)
+            {
+                problem = $"This service account has reached its limit of {policy.HourlyPublishLimit} notifications per hour.";
+                code = ErrorCodes.Throttled;
+            }
+        }
+        if (problem is null) return;
+
+        audit.Add(tenantId, AuditActions.PublishRefused, policy.ServiceAccountId, credentialId, target: Tags.DisplayAll(v.Tags), detail: problem);
+        await db.SaveChangesAsync(ct);
+        throw new ApiException(code == ErrorCodes.Throttled ? 429 : 403, code, problem);
     }
 
     private sealed record Validated(IReadOnlyList<string> Tags, string Title, string? Body, string? Url, string Priority, string? Markdown, string? ImageUrl, string? Diagram);

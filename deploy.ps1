@@ -90,6 +90,7 @@ $app = Out-TF container_app_name
 $cae = Out-TF container_app_environment_name
 $url = Out-TF public_url
 $domain = Out-TF custom_domain
+$mcpDomain = Out-TF mcp_domain
 
 if ($tag) {
   Write-Host "`n== Roll out $app -> ${repository}:$tag" -ForegroundColor Cyan
@@ -97,12 +98,13 @@ if ($tag) {
   if ($LASTEXITCODE -ne 0) { throw "az containerapp update failed" }
 }
 
-if ($domain) {
-  $bound = az containerapp hostname list --resource-group $rg --name $app --query "[?name=='$domain' && bindingType=='SniEnabled'] | length(@)" -o tsv
+# Free managed certificates for every custom hostname (the dashboard host and the MCP host); first time only per name.
+foreach ($host in @($domain, $mcpDomain) | Where-Object { $_ }) {
+  $bound = az containerapp hostname list --resource-group $rg --name $app --query "[?name=='$host' && bindingType=='SniEnabled'] | length(@)" -o tsv
   if ("$bound" -ne "1") {
-    Write-Host "`n== Managed certificate for $domain" -ForegroundColor Cyan
-    az containerapp hostname bind --resource-group $rg --name $app --hostname $domain --environment $cae --validation-method CNAME --output none
-    if ($LASTEXITCODE -ne 0) { throw "az containerapp hostname bind failed" }
+    Write-Host "`n== Managed certificate for $host" -ForegroundColor Cyan
+    az containerapp hostname bind --resource-group $rg --name $app --hostname $host --environment $cae --validation-method CNAME --output none
+    if ($LASTEXITCODE -ne 0) { throw "az containerapp hostname bind failed for $host" }
   }
 }
 

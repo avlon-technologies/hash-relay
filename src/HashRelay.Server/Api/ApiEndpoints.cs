@@ -40,13 +40,13 @@ public static class ApiEndpoints
         // ---- publish ----
         api.MapPost("/notifications", async (PublishRequest req, HttpContext ctx, RoutingService routing, CancellationToken ct) =>
         {
-            var result = await routing.PublishAsync(ctx.User.TenantId(), ctx.User.CredentialId(), req, ct);
+            var result = await routing.PublishAsync(ctx.User.TenantId(), ctx.User.CredentialId(), req, ct, ServicePolicy.Of(ctx.User));
             return Results.Json(result, statusCode: result.Duplicate ? StatusCodes.Status200OK : StatusCodes.Status202Accepted);
         }).RequireAuthorization(ApiAuth.PolicyPublish).RequireRateLimiting("publish");
 
         api.MapGet("/notifications", async ([FromQuery] int? limit, HttpContext ctx, RoutingService routing, CancellationToken ct) =>
             Results.Ok(await routing.RecentAsync(ctx.User.TenantId(), limit ?? 20, ct)))
-            .RequireAuthorization(ApiAuth.PolicyAny);
+            .RequireAuthorization(ApiAuth.PolicyRead);
 
         // ---- images: raw body upload (image/png|jpeg|gif|webp, ≤ 3 MB) → public unguessable URL for PublishRequest.imageUrl ----
         api.MapPost("/images", async (HttpContext ctx, ImageStore images, PublicBase publicBase, CancellationToken ct) =>
@@ -67,7 +67,7 @@ public static class ApiEndpoints
             var name = await images.SaveAsync(ms.GetBuffer().AsMemory(0, (int)ms.Length), ext, ct);
             var url = publicBase.Absolute(ImageStore.PublicPath(name));
             return Results.Created(url, new ImageUploadResult(name, url, ms.Length, ImageStore.ContentTypeFor(name)));
-        }).RequireAuthorization(ApiAuth.PolicyPublish).RequireRateLimiting("publish").DisableAntiforgery();
+        }).RequireAuthorization(ApiAuth.PolicyImages).RequireRateLimiting("publish").DisableAntiforgery();
 
         app.MapGet(ImageStore.RoutePrefix + "{name}", (string name, ImageStore images) =>
         {
@@ -83,7 +83,7 @@ public static class ApiEndpoints
             var bound = ctx.User.BoundEndpointRef();
             if (bound is not null) list = list.Where(e => e.Id == bound).ToList();
             return Results.Ok(list.Select(endpoints.ToInfo).ToList());
-        }).RequireAuthorization(ApiAuth.PolicyAny);
+        }).RequireAuthorization(ApiAuth.PolicyEndpoints);
 
         api.MapPost("/endpoints", async (RegisterEndpointRequest req, HttpContext ctx, EndpointService endpoints, CancellationToken ct) =>
         {
@@ -102,14 +102,14 @@ public static class ApiEndpoints
 
         api.MapGet("/endpoints/{endpointId}", async (string endpointId, HttpContext ctx, EndpointService endpoints, CancellationToken ct) =>
             Results.Ok(endpoints.ToInfo(await endpoints.RequireAsync(ctx.User.TenantId(), endpointId, ctx.User.BoundEndpointRef(), ct))))
-            .RequireAuthorization(ApiAuth.PolicyAny);
+            .RequireAuthorization(ApiAuth.PolicyEndpoints);
 
         // ---- subscriptions (bulk) ----
         api.MapGet("/endpoints/{endpointId}/subscriptions", async (string endpointId, HttpContext ctx, EndpointService endpoints, CancellationToken ct) =>
         {
             var ep = await endpoints.RequireAsync(ctx.User.TenantId(), endpointId, ctx.User.BoundEndpointRef(), ct);
             return Results.Ok(new SubscriptionsResponse(ep.EndpointId, EndpointService.CurrentTags(ep)));
-        }).RequireAuthorization(ApiAuth.PolicyAny);
+        }).RequireAuthorization(ApiAuth.PolicyEndpoints);
 
         api.MapPut("/endpoints/{endpointId}/subscriptions", async (string endpointId, SubscriptionsRequest req, HttpContext ctx, EndpointService endpoints, CancellationToken ct) =>
         {

@@ -62,3 +62,8 @@ variable "dns_record_name" {
   default     = "hashrelay"
   description = "Record name inside the zone, e.g. 'hashrelay' for hashrelay.<zone>."
 }
+variable "mcp_record_name" {
+  type        = string
+  default     = "mcp.hashrelay"
+  description = "Record name inside the zone for the MCP host, e.g. 'mcp.hashrelay' for mcp.hashrelay.<zone>. Empty = no separate MCP host."
+}

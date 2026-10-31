@@ -6,3 +6,4 @@ container_memory        = "0.5Gi"
 allow_signup            = true
 dns_zone_name           = "dev.avlon.ca"
 dns_record_name         = "hashrelay"
+mcp_record_name         = "mcp.hashrelay"

@@ -163,6 +163,35 @@ public static class CredentialKinds
 {
     public const string Api = "api";
     public const string Device = "device";
+    /// <summary>Key of a service account: an agent or automation principal with fine-grained scopes and a tag allowlist.</summary>
+    public const string Service = "service";
+}
+
+/// <summary>Fine-grained scopes for service accounts (MCP and REST). Each implies a legacy API scope so existing policies apply.</summary>
+public static class ServiceScopes
+{
+    public const string Publish = "notifications:publish";
+    public const string Read = "notifications:read";
+    public const string Endpoints = "endpoints:read";
+    public const string Subscriptions = "subscriptions:write";
+    public const string Images = "images:write";
+    public static readonly string[] All = [Publish, Read, Endpoints, Subscriptions, Images];
+    public static readonly IReadOnlyDictionary<string, string> Descriptions = new Dictionary<string, string>
+    {
+        [Publish] = "Publish notifications to the allowed hashtags",
+        [Read] = "Read recent notifications in the workspace",
+        [Endpoints] = "List devices and their subscriptions",
+        [Subscriptions] = "Change device subscriptions",
+        [Images] = "Upload images for notifications",
+    };
+
+    /// <summary>The legacy scope claims ("publish", "subscribe") implied by a set of service scopes.</summary>
+    public static IEnumerable<string> Implied(IEnumerable<string> scopes)
+    {
+        var set = scopes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (set.Contains(Publish) || set.Contains(Images)) yield return Scopes.Publish;
+        if (set.Contains(Subscriptions)) yield return Scopes.Subscribe;
+    }
 }
 
 public static class HubMethods
