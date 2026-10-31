@@ -13,11 +13,13 @@ if (args_.Has("version", "v") && args_.Positionals.Count == 0)
 }
 
 var command = args_.Positional(0)?.ToLowerInvariant();
-if (command is null || args_.Has("help", "h") && command is not ("publish" or "subscribe"))
+var wantsHelp = args_.Has("help", "h") || command == "help";
+if (command == "help") command = args_.Positional(1)?.ToLowerInvariant();
+if (command is null || wantsHelp)
 {
-    if (command is not null && Cli.Commands.ContainsKey(command)) { Cli.PrintCommandHelp(command); return ExitCodes.Ok; }
-    Cli.PrintHelp();
-    return command is null && !args_.Has("help", "h") ? ExitCodes.InvalidInput : ExitCodes.Ok;
+    if (command is not null && Help.Find(command) is { } doc) { Help.PrintCommand(doc); return ExitCodes.Ok; }
+    Help.PrintOverview();
+    return command is null && !wantsHelp ? ExitCodes.InvalidInput : ExitCodes.Ok;
 }
 
 using var cts = new CancellationTokenSource();

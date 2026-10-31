@@ -19,8 +19,10 @@ public static class Terminal
     public static void Init()
     {
         var noColor = Environment.GetEnvironmentVariable("NO_COLOR");
-        _color = string.IsNullOrEmpty(noColor) && !Console.IsOutputRedirected;
-        if (_color && OperatingSystem.IsWindows()) _color = EnableVirtualTerminal();
+        var force = Environment.GetEnvironmentVariable("CLICOLOR_FORCE"); // e.g. CI logs that render ANSI
+        var forced = !string.IsNullOrEmpty(force) && force != "0";
+        _color = string.IsNullOrEmpty(noColor) && (forced || !Console.IsOutputRedirected);
+        if (_color && OperatingSystem.IsWindows() && !EnableVirtualTerminal() && !forced) _color = false;
         try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch { }
     }
 

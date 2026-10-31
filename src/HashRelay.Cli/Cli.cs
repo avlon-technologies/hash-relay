@@ -19,52 +19,6 @@ public static class Cli
     private static string Platform => OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : OperatingSystem.IsLinux() ? "linux" : "unknown";
     private const string TestTag = "test";
 
-    public static readonly IReadOnlyDictionary<string, (string Usage, string Summary)> Commands = new Dictionary<string, (string, string)>
-    {
-        ["login"] = ("login [--key KEY] [--server URL]", "Pair this device with a workspace in your browser (or store an API key)."),
-        ["logout"] = ("logout", "Forget the stored credential."),
-        ["configure"] = ("configure [--server URL] [--name DEVICE-NAME]", "Change the server or this device's display name."),
-        ["status"] = ("status", "Show server, workspace, device and agent status."),
-        ["subscribe"] = ("subscribe #tag [#tag...]", "Subscribe this device to one or more hashtags."),
-        ["unsubscribe"] = ("unsubscribe #tag [#tag...]", "Remove hashtag subscriptions from this device."),
-        ["subscriptions"] = ("subscriptions", "List this device's subscriptions."),
-        ["publish"] = ("publish #tag [#tag...] \"Title\" [\"Body\"] [--url URL] [--priority low|normal|high] [--id UUID]\n                 [--markdown TEXT | --markdown-file PATH] [--diagram MERMAID | --diagram-file PATH] [--image PATH|URL]", "Publish a notification to hashtags in your workspace."),
-        ["listen"] = ("listen [#tag...]", "Stream this device's notifications to the console."),
-        ["test"] = ("test", "Send a test notification to this device and verify delivery."),
-        ["agent"] = ("agent start|stop|status", "Control the Windows tray agent."),
-        ["open"] = ("open", "Open the dashboard in your browser."),
-    };
-
-    public static void PrintHelp()
-    {
-        Console.WriteLine($"{Terminal.Bold("hashrelay")} {Terminal.Dim(Version)} — hashtag notifications for your desktop\n");
-        Console.WriteLine(Terminal.Bold("Usage"));
-        Console.WriteLine("  hashrelay <command> [options]\n");
-        Console.WriteLine(Terminal.Bold("Commands"));
-        foreach (var (name, (_, summary)) in Commands)
-            Console.WriteLine($"  {Terminal.Cyan(name.PadRight(14))} {summary}");
-        Console.WriteLine($"\n{Terminal.Bold("Global options")}");
-        Console.WriteLine("  --key KEY        Use this API key instead of the stored credential");
-        Console.WriteLine("  --server URL     Use this server instead of the configured one");
-        Console.WriteLine("  --json           Machine-readable output");
-        Console.WriteLine("  --quiet, -q      Suppress informational output");
-        Console.WriteLine("  --help, -h       Show help for a command");
-        Console.WriteLine($"\n{Terminal.Bold("Examples")}");
-        Console.WriteLine($"  hashrelay subscribe {Terminal.Tag("builds")}");
-        Console.WriteLine($"  hashrelay publish {Terminal.Tag("builds")} \"Build complete\" \"212 tests passed\"");
-        Console.WriteLine($"\nConfig: {Terminal.Dim(ConfigStore.FilePath)}");
-    }
-
-    public static void PrintCommandHelp(string command)
-    {
-        var (usage, summary) = Commands[command];
-        Console.WriteLine($"{Terminal.Bold("hashrelay " + usage)}\n\n  {summary}");
-        if (command == "publish")
-        {
-            Console.WriteLine("\n  Tags may be given as positionals starting with '#' or with --tag/-t. Title and body may also be\n  given with --title and --body. --id makes retries idempotent (same id + same payload = no duplicate).\n\n  Rich content (shown on the notification's web page; the toast gets a plain summary + image):\n    --markdown TEXT / --markdown-file PATH   CommonMark with tables, task lists and ```mermaid fences\n    --diagram SRC / --diagram-file PATH      Mermaid source; rendered to PNG for the toast and live on the page\n    --image PATH|URL                         PNG/JPEG/GIF/WebP (≤ 3 MB). A local file is uploaded first.\n  Use '-' as a file path to read from stdin.");
-        }
-    }
-
     public static Task<int> RunAsync(string command, Args a, CancellationToken ct) => command switch
     {
         "login" => LoginAsync(a, ct),
@@ -330,7 +284,7 @@ public static class Cli
 
     private static async Task<int> PublishAsync(Args a, CancellationToken ct)
     {
-        if (a.Has("help", "h")) { PrintCommandHelp("publish"); return ExitCodes.Ok; }
+        if (a.Has("help", "h")) { Help.PrintCommand(Help.Find("publish")!); return ExitCodes.Ok; }
         var cfg = RequireLogin(a);
         var tags = ParseTags(a, out var rest);
         var title = a.Get("title") ?? rest.ElementAtOrDefault(0);
