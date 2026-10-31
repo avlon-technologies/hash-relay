@@ -10,3 +10,6 @@ output "signalr_host" {
 output "web_app_name" {
   value = azurerm_linux_web_app.app.name
 }
+output "public_url" {
+  value = local.custom_domain != "" ? "https://${local.custom_domain}" : "https://${azurerm_linux_web_app.app.default_hostname}"
+}

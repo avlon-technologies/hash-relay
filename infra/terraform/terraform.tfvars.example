@@ -1,7 +1,12 @@
-subscription_id  = "00000000-0000-0000-0000-000000000000"
-name_prefix      = "hashrelaymyunique"
-environment      = "dev"
-location         = "canadacentral"
-service_plan_sku = "B1"
-signalr_sku      = "Free_F1"
-signalr_capacity = 1
+subscription_id         = "00000000-0000-0000-0000-000000000000"
+name_prefix             = "hashrelaymyunique"
+environment             = "dev"
+location                = "canadacentral"
+service_plan_sku        = "B1"
+signalr_sku             = "Free_F1"
+signalr_capacity        = 1
+allow_signup            = true
+# Optional custom domain in an Azure DNS zone you own:
+dns_zone_name           = ""
+dns_zone_resource_group = ""
+dns_record_name         = "hashrelay"

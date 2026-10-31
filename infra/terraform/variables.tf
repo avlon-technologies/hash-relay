@@ -34,3 +34,23 @@ variable "signalr_capacity" {
   type    = number
   default = 1
 }
+variable "allow_signup" {
+  type        = bool
+  default     = true
+  description = "Whether the web dashboard accepts new account sign-ups."
+}
+variable "dns_zone_name" {
+  type        = string
+  default     = ""
+  description = "Existing Azure DNS zone to publish the app under (empty = no custom domain)."
+}
+variable "dns_zone_resource_group" {
+  type        = string
+  default     = ""
+  description = "Resource group of the DNS zone."
+}
+variable "dns_record_name" {
+  type        = string
+  default     = "hashrelay"
+  description = "Record name inside the zone, e.g. 'hashrelay' for hashrelay.<zone>."
+}
