@@ -9,11 +9,12 @@
         <h1>API keys</h1>
         <p>Tenant-scoped credentials for CI jobs, servers and scripts that publish to <strong>@Model.TenantName</strong>.</p>
     </div>
-    <div class="spacer"></div>
-    @if (Model.CanManage)
-    {
-        <button class="btn btn-primary" data-open="#create-key">Create API key</button>
-    }
+    <div class="page-actions">
+        @if (Model.CanManage)
+        {
+            <button class="btn btn-primary" data-open="#create-key">Create API key</button>
+        }
+    </div>
 </div>
 <partial name="_Flash" />
 

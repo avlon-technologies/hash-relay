@@ -21,7 +21,7 @@
     <div class="card">
         <div class="card-header"><h3>Workspace</h3></div>
         <div class="card-body">
-            <form method="post" asp-page-handler="Rename" class="grid grid-2" style="align-items:end">
+            <form method="post" asp-page-handler="Rename" class="form-row two">
                 <div class="field mb-0">
                     <label for="name">Name</label>
                     <input class="input" id="name" name="name" value="@Model.TenantName" maxlength="80" required @(Model.CanManage ? "" : "disabled") />
@@ -57,7 +57,7 @@
             <div><div class="code-title">Email</div><div>@Model.AccountEmail</div></div>
         </div>
         <hr />
-        <form method="post" asp-page-handler="Password" class="grid grid-3" style="align-items:end;max-width:900px" autocomplete="off">
+        <form method="post" asp-page-handler="Password" class="form-row three" autocomplete="off">
             <div class="field mb-0">
                 <label for="currentPassword">Current password</label>
                 <input class="input" id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required />

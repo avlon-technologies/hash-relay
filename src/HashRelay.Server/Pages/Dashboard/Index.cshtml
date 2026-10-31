@@ -9,9 +9,10 @@
         <h1>@Model.TenantName</h1>
         <p>Workspace overview</p>
     </div>
-    <div class="spacer"></div>
-    <a class="btn" href="/downloads">Download agent</a>
-    <a class="btn btn-primary" href="/dashboard/keys?create=1">Create API key</a>
+    <div class="page-actions">
+        <a class="btn" href="/downloads">Download agent</a>
+        <a class="btn btn-primary" href="/dashboard/keys?create=1">Create API key</a>
+    </div>
 </div>
 <partial name="_Flash" />
 @if (Model.Welcome)
@@ -19,14 +20,14 @@
     <div class="alert alert-success">Welcome to HashRelay! Your workspace <strong>@Model.TenantName</strong> is ready. Follow the quick start below to get your first notification.</div>
 }
 
-<div class="grid grid-4">
+<div class="stats">
     <div class="card stat"><div class="k">Devices online</div><div class="v" data-stat="online">@Model.Online</div><div class="s">of @Model.Devices registered</div></div>
-    <div class="card stat"><div class="k">Notifications · 24h</div><div class="v" data-stat="last24h">@Model.Last24h</div><div class="s">@Model.Total all time</div></div>
+    <div class="card stat"><div class="k">Last 24 hours</div><div class="v" data-stat="last24h">@Model.Last24h</div><div class="s">@Model.Total all time</div></div>
     <div class="card stat"><div class="k">Active API keys</div><div class="v" data-stat="keys">@Model.ActiveKeys</div><div class="s"><a href="/dashboard/keys">Manage keys</a></div></div>
     <div class="card stat"><div class="k">Subscriptions</div><div class="v" data-stat="subscriptions">@Model.Subscriptions</div><div class="s">across @Model.DistinctTags distinct tags</div></div>
 </div>
 
-<div class="grid grid-2 mt-3" style="grid-template-columns: 1.2fr .8fr">
+<div class="overview">
     <div class="card">
         <div class="card-header"><h3>Recent activity</h3><div class="spacer"></div><a class="small" href="/dashboard/activity">View all</a></div>
         <div class="card-body">
