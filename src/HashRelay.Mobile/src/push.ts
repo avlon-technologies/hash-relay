@@ -4,7 +4,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from './api';
-import { loadPairing } from './config';
+import { firebaseConfigured, loadPairing } from './config';
 
 export const ANDROID_CHANNEL = 'hashrelay'; // must match HashRelay:Push:Fcm:AndroidChannelId on the server
 export type PushData = Record<string, string | object> | undefined;
@@ -14,9 +14,14 @@ type Messaging = typeof import('@react-native-firebase/messaging');
 let messagingPromise: Promise<Messaging | null> | null = null;
 
 function messaging(): Promise<Messaging | null> {
+  // The native module is always linked, but without the Firebase client files no [DEFAULT] app exists and every call
+  // throws; treat that build as "no push" up front instead of surfacing Firebase's initialisation error.
+  if (!firebaseConfigured) return Promise.resolve(null);
   messagingPromise ??= import('@react-native-firebase/messaging').then((m) => m, () => null);
   return messagingPromise;
 }
+
+const NO_FIREBASE = 'unavailable in this build (no Firebase client files; see the README)';
 
 /** Foreground presentation of notifications the app schedules locally (live hub deliveries, foreground pushes). */
 export function configureForegroundDisplay(): void {
@@ -31,7 +36,8 @@ export async function ensureNotificationPermission(): Promise<boolean> {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
       name: 'HashRelay notifications',
       importance: Notifications.AndroidImportance.HIGH,
-      sound: 'default',
+      // No `sound`: the channel then uses the system default. expo-notifications treats any string here as a custom
+      // sound file bundled through its config plugin and logs an error when 'default' is not found.
       lightColor: '#2563eb',
     });
   }
@@ -44,7 +50,7 @@ export async function ensureNotificationPermission(): Promise<boolean> {
 /** Obtains the FCM registration token, requesting permission on iOS. Never throws. */
 export async function getPushToken(): Promise<PushState> {
   const fb = await messaging();
-  if (!fb) return { provider: null, token: null, reason: 'Firebase is not available in this build.' };
+  if (!fb) return { provider: null, token: null, reason: NO_FIREBASE };
   try {
     const m = fb.getMessaging();
     if (Platform.OS === 'ios') {

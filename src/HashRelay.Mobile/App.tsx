@@ -2,7 +2,7 @@
 // publish when the device was approved with the publish permission.
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, SafeAreaView, StatusBar as RNStatusBar, StyleSheet, Text, View } from 'react-native';
 import { InboxScreen } from './src/screens/InboxScreen';
 import { PairScreen } from './src/screens/PairScreen';
 import { PublishScreen } from './src/screens/PublishScreen';
@@ -62,7 +62,10 @@ export default function App() {
   const t = useTheme();
   return (
     <StoreProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
+      {/* SafeAreaView only insets on iOS. Android draws edge-to-edge, so the status bar height is padded by hand here
+          and the tab bar reserves room for the gesture pill (see styles.tabs). react-native-safe-area-context would be
+          the proper fix but its native build needs Windows long paths enabled. */}
+      <SafeAreaView style={{ flex: 1, backgroundColor: t.bg, paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight ?? 24 : 0 }}>
         <StatusBar style={t.dark ? 'light' : 'dark'} />
         <Shell />
       </SafeAreaView>
@@ -72,7 +75,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabs: { flexDirection: 'row', borderTopWidth: 1, paddingBottom: 6 },
+  tabs: { flexDirection: 'row', borderTopWidth: 1, paddingBottom: Platform.OS === 'android' ? 22 : 6 }, // Android: clear the gesture pill
   tab: { flex: 1, alignItems: 'center', paddingVertical: 8, gap: 2 },
   glyph: { fontSize: 20, fontWeight: '700' },
   tabLabel: { fontSize: 11, fontWeight: '600' },

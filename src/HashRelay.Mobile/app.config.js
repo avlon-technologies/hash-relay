@@ -38,6 +38,8 @@ module.exports = ({ config }) => ({
     predictiveBackGestureEnabled: false,
   },
   plugins: [
+    // Mods run last-registered first, so this must precede expo-notifications to see the meta-data it writes.
+    './plugins/withFirebaseNotificationColor',
     'expo-secure-store',
     ['expo-notifications', { color: '#2563eb' }],
     ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
