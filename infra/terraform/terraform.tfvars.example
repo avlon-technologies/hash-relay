@@ -1,0 +1,7 @@
+subscription_id  = "00000000-0000-0000-0000-000000000000"
+name_prefix      = "hashrelaymyunique"
+environment      = "dev"
+location         = "canadacentral"
+service_plan_sku = "B1"
+signalr_sku      = "Free_F1"
+signalr_capacity = 1
