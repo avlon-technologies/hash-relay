@@ -88,6 +88,14 @@ resource "azurerm_container_app_environment" "env" {
   location                   = azurerm_resource_group.app.location
   log_analytics_workspace_id = azurerm_log_analytics_workspace.logs.id
   tags                       = local.tags
+
+  # Azure creates new environments in workload-profiles mode with this profile; declare it so Terraform does not fight it.
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+    minimum_count         = 0
+    maximum_count         = 0
+  }
 }
 
 resource "azurerm_container_app_environment_storage" "data" {
@@ -106,6 +114,7 @@ resource "azurerm_container_app" "app" {
   container_app_environment_id = azurerm_container_app_environment.env.id
   resource_group_name          = azurerm_resource_group.app.name
   revision_mode                = "Single"
+  workload_profile_name        = "Consumption"
   tags                         = local.tags
 
   identity {
