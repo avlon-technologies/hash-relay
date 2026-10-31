@@ -75,12 +75,28 @@ if (-not $SkipImage) {
   if (-not (Test-Path (Join-Path $root "src\HashRelay.Server\wwwroot\downloads\HashRelay-Setup.exe"))) {
     Write-Warning "wwwroot/downloads has no installer; run ./build.ps1 first so /downloads is populated in the image."
   }
+  # az acr build stats every file under the context before it applies .dockerignore, and the Expo node_modules tree
+  # under src/HashRelay.Mobile has paths beyond Windows MAX_PATH, so the upload dies before anything reaches ACR.
+  # Build from a clean export of HEAD instead (uncommitted changes are therefore not deployed), plus the git-ignored
+  # installer + CLI zip that build.ps1 drops into wwwroot/downloads.
+  $ctx = Join-Path ([IO.Path]::GetTempPath()) "hashrelay-ctx-$sha"
+  if (Test-Path $ctx) { Remove-Item $ctx -Recurse -Force }
+  New-Item -ItemType Directory $ctx | Out-Null
+  $tar = Join-Path $ctx "context.tar"
+  git -C $root archive --format=tar -o $tar HEAD
+  if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
+  tar -xf $tar -C $ctx
+  Remove-Item $tar -Force
+  $dl = Join-Path $root "src\HashRelay.Server\wwwroot\downloads"
+  if (Test-Path $dl) { Copy-Item (Join-Path $dl "*") (Join-Path $ctx "src\HashRelay.Server\wwwroot\downloads") -Force }
   Write-Host "`n== Build image $loginServer/${repository}:$tag (az acr build)" -ForegroundColor Cyan
   # az writes progress warnings to stderr; keep them from becoming terminating errors when stderr is redirected.
   $eap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-  az acr build --registry $registry --image "${repository}:$tag" --image "${repository}:latest" --file (Join-Path $root "Dockerfile") $root 2>&1 | ForEach-Object { "$_" }
+  az acr build --registry $registry --image "${repository}:$tag" --image "${repository}:latest" --file (Join-Path $ctx "Dockerfile") $ctx 2>&1 | ForEach-Object { "$_" }
+  $acrExit = $LASTEXITCODE
+  Remove-Item $ctx -Recurse -Force -ErrorAction SilentlyContinue
   $ErrorActionPreference = $eap
-  if ($LASTEXITCODE -ne 0) { throw "az acr build failed" }
+  if ($acrExit -ne 0) { throw "az acr build failed" }
 }
 
 if (-not $SkipInfra) {
