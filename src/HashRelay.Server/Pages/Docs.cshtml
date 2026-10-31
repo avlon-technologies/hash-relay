@@ -45,7 +45,7 @@ hash-relay publish #builds "Build complete" "212 tests passed in 48s"</code></pr
             <tr><td class="mono">hash-relay subscribe #tag…</td><td>Subscribe this device to one or more hashtags.</td></tr>
             <tr><td class="mono">hash-relay unsubscribe #tag…</td><td>Remove subscriptions.</td></tr>
             <tr><td class="mono">hash-relay subscriptions</td><td>List this device's subscriptions.</td></tr>
-            <tr><td class="mono">hash-relay publish #tag… "Title" ["Body"]</td><td>Publish. Also accepts <code>--tag</code>, <code>--title</code>, <code>--body</code>, <code>--url</code>, <code>--priority</code>, <code>--id</code>.</td></tr>
+            <tr><td class="mono">hash-relay publish #tag… "Title" ["Body"]</td><td>Publish. Also accepts <code>--tag</code>, <code>--title</code>, <code>--body</code>, <code>--url</code>, <code>--priority</code>, <code>--id</code>, and for rich content <code>--markdown</code>/<code>--markdown-file</code>, <code>--diagram</code>/<code>--diagram-file</code> (Mermaid) and <code>--image</code> (file or URL). Use <code>-</code> as a file to read stdin.</td></tr>
             <tr><td class="mono">hash-relay listen [#tag…]</td><td>Stream notifications for this device to the console.</td></tr>
             <tr><td class="mono">hash-relay test</td><td>Publish a test notification to this device and verify delivery.</td></tr>
             <tr><td class="mono">hash-relay status</td><td>Show server, workspace, device and agent status.</td></tr>
@@ -68,8 +68,14 @@ Authorization: Bearer hr_dev_…         # device token (issued by pairing)</cod
   "body": "212 tests passed",        // optional, ≤ 1000 chars
   "url": "https://ci.example/run/42", // optional; opened when the toast is clicked
   "priority": "normal",              // low | normal | high
-  "notificationId": "uuid"           // optional; makes retries idempotent
+  "notificationId": "uuid",          // optional; makes retries idempotent
+  "markdown": "## Details\n…",       // optional, ≤ 20 000 chars; rendered on the notification page
+  "diagram": "graph LR\nA-->B",      // optional Mermaid source, ≤ 10 000 chars (else the first ```mermaid fence in markdown)
+  "imageUrl": "https://…/i/….png"    // optional absolute image URL (see POST /api/v1/images)
 }</code></pre></div>
+        <p><strong>Rich content.</strong> A Windows toast shows plain text and one image, so <code>markdown</code> and <code>diagram</code> are rendered on a web page at <code>/n/{notificationId}</code> (members of the workspace only), which the toast opens when clicked. The toast body falls back to the first paragraph of the markdown. A diagram is also rendered to PNG on the server and shown inside the toast; the page renders it live with Mermaid, as it does any <code>```mermaid</code> fence in the markdown. Responses include <code>detailUrl</code> and <code>imageUrl</code>.</p>
+        <div class="endpoint"><span class="method">POST</span><code>/api/v1/images</code> <span class="badge">publish</span></div>
+        <p>Raw body upload with <code>Content-Type: image/png | image/jpeg | image/gif | image/webp</code>, at most 3 MB. Returns <code>201 {"id","url","bytes","contentType"}</code>; the URL is public but unguessable and is what you pass as <code>imageUrl</code>. From the CLI, <code>--image path.png</code> does this for you.</p>
         <p>Returns <code>202 Accepted</code>:</p>
         <div class="code"><pre><code>{
   "notificationId": "7a2c…", "acceptedAtUtc": "2026-10-31T12:00:00Z",
@@ -107,7 +113,8 @@ Subscribe(tags[]) / Unsubscribe(tags[]) → tags[]
 Ack(deliveryId)
 
 // server → client
-NotificationReceived({ notificationId, tenantId, tags, title, body, publishedAtUtc, deliveryId, url, priority, tenantName, replayed })
+NotificationReceived({ notificationId, tenantId, tags, title, body, publishedAtUtc, deliveryId, url, priority, tenantName, replayed,
+                       imageUrl, detailUrl, rich })
 SubscriptionsChanged(tags[])
 CredentialRevoked(reason)</code></pre></div>
         <p>Groups are per-endpoint routing addresses only. Subscriptions are persisted and are the sole authority for matching.</p>

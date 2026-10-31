@@ -11,14 +11,16 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HashRelay.Server.Tests;
 
 /// <summary>Boots the real server against a throwaway SQLite file per test class.</summary>
-public sealed class RelayFactory : WebApplicationFactory<Program>
+public class RelayFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"hashrelay-test-{Guid.NewGuid():n}.db");
+    private readonly string _imagesDir = Path.Combine(Path.GetTempPath(), $"hashrelay-test-images-{Guid.NewGuid():n}");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("HashRelay:DatabasePath", _dbPath);
+        builder.UseSetting("HashRelay:ImagesPath", _imagesDir); // isolated per factory: the diagram cache is keyed by content
         builder.UseSetting("HashRelay:PublicUrl", "http://localhost");
         builder.UseSetting("HashRelay:ReplayWindowHours", "24");
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
@@ -32,9 +34,24 @@ public sealed class RelayFactory : WebApplicationFactory<Program>
         base.Dispose(disposing);
         foreach (var f in new[] { _dbPath, _dbPath + "-wal", _dbPath + "-shm" })
             try { if (File.Exists(f)) File.Delete(f); } catch { }
+        try { if (Directory.Exists(_imagesDir)) Directory.Delete(_imagesDir, recursive: true); } catch { }
     }
 
-    public sealed record Workspace(Guid TenantId, string Slug, Guid AccountId, string ApiKey, string SubscribeOnlyKey);
+    public sealed record Workspace(Guid TenantId, string Slug, Guid AccountId, string ApiKey, string SubscribeOnlyKey, string Email = "", string Password = "");
+
+    /// <summary>A cookie-authenticated browser client for the workspace's account, signed in through the real login form.</summary>
+    public async Task<HttpClient> LoginAsync(Workspace ws)
+    {
+        var c = CreateClient(new() { AllowAutoRedirect = false, HandleCookies = true });
+        var page = await c.GetStringAsync("/login");
+        var token = System.Text.RegularExpressions.Regex.Match(page, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
+        var res = await c.PostAsync("/login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Email"] = ws.Email, ["Input.Password"] = ws.Password, ["__RequestVerificationToken"] = token,
+        }));
+        if (res.StatusCode != System.Net.HttpStatusCode.Found) throw new InvalidOperationException($"Login failed: {(int)res.StatusCode}");
+        return c;
+    }
 
     /// <summary>Creates an account + tenant directly through the services and issues a publish+subscribe key and a subscribe-only key.</summary>
     public async Task<Workspace> CreateWorkspaceAsync(string name)
@@ -42,10 +59,12 @@ public sealed class RelayFactory : WebApplicationFactory<Program>
         using var scope = Services.CreateScope();
         var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
         var creds = scope.ServiceProvider.GetRequiredService<CredentialService>();
-        var (account, tenant) = await accounts.SignUpAsync($"{Guid.NewGuid():n}@test.local", "Tester", "correct-horse-battery", name, CancellationToken.None);
+        var email = $"{Guid.NewGuid():n}@test.local";
+        const string password = "correct-horse-battery";
+        var (account, tenant) = await accounts.SignUpAsync(email, "Tester", password, name, CancellationToken.None);
         var (_, full) = await creds.IssueApiKeyAsync(tenant.Id, account.Id, "full", [Scopes.Publish, Scopes.Subscribe], null, CancellationToken.None);
         var (_, sub) = await creds.IssueApiKeyAsync(tenant.Id, account.Id, "subscribe-only", [Scopes.Subscribe], null, CancellationToken.None);
-        return new Workspace(tenant.Id, tenant.Slug, account.Id, full, sub);
+        return new Workspace(tenant.Id, tenant.Slug, account.Id, full, sub, email, password);
     }
 
     public HttpClient ApiClient(string? key)

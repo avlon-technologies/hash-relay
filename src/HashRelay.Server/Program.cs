@@ -103,6 +103,16 @@ builder.Services.AddScoped<CurrentTenant>();
 builder.Services.AddScoped<CredentialService>();
 builder.Services.AddScoped<EndpointService>();
 builder.Services.AddScoped<RoutingService>();
+builder.Services.AddScoped<PublicBase>();
+builder.Services.AddSingleton<ImageStore>();
+builder.Services.Configure<DiagramOptions>(config.GetSection("HashRelay:Diagrams"));
+builder.Services.AddHttpClient(HttpDiagramRenderer.HttpClientName, c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(30);
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("hash-relay-server/" + HashRelay.Server.Api.ApiEndpoints.Version);
+    c.MaxResponseContentBufferSize = Limits.ImageMaxBytes;
+});
+builder.Services.AddSingleton<IDiagramRenderer, HttpDiagramRenderer>();
 builder.Services.AddScoped<DevicePairingService>();
 
 var app = builder.Build();
@@ -111,6 +121,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<RelayDbContext>();
     await db.Database.EnsureCreatedAsync();
+    await SchemaUpgrades.ApplyAsync(db);
     if (useWal) await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
 }
 

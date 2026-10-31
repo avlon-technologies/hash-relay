@@ -48,6 +48,34 @@ public static class ApiEndpoints
             Results.Ok(await routing.RecentAsync(ctx.User.TenantId(), limit ?? 20, ct)))
             .RequireAuthorization(ApiAuth.PolicyAny);
 
+        // ---- images: raw body upload (image/png|jpeg|gif|webp, ≤ 3 MB) → public unguessable URL for PublishRequest.imageUrl ----
+        api.MapPost("/images", async (HttpContext ctx, ImageStore images, PublicBase publicBase, CancellationToken ct) =>
+        {
+            var ext = ImageStore.ExtensionFor(ctx.Request.ContentType);
+            if (ext is null) throw ApiException.Validation($"Content-Type must be one of: {string.Join(", ", Limits.ImageContentTypes)}.", "contentType");
+            if (ctx.Request.ContentLength is > Limits.ImageMaxBytes) throw ApiException.Validation($"Image must be at most {Limits.ImageMaxBytes / 1024 / 1024} MB.", "body");
+            using var ms = new MemoryStream();
+            var buffer = new byte[64 * 1024];
+            int read;
+            while ((read = await ctx.Request.Body.ReadAsync(buffer, ct)) > 0)
+            {
+                if (ms.Length + read > Limits.ImageMaxBytes) throw ApiException.Validation($"Image must be at most {Limits.ImageMaxBytes / 1024 / 1024} MB.", "body");
+                ms.Write(buffer, 0, read);
+            }
+            if (ms.Length == 0 || !ImageStore.LooksLike(ms.GetBuffer().AsSpan(0, (int)ms.Length), ext))
+                throw ApiException.Validation("The body is not a valid image of the declared type.", "body");
+            var name = await images.SaveAsync(ms.GetBuffer().AsMemory(0, (int)ms.Length), ext, ct);
+            var url = publicBase.Absolute(ImageStore.PublicPath(name));
+            return Results.Created(url, new ImageUploadResult(name, url, ms.Length, ImageStore.ContentTypeFor(name)));
+        }).RequireAuthorization(ApiAuth.PolicyPublish).RequireRateLimiting("publish").DisableAntiforgery();
+
+        app.MapGet(ImageStore.RoutePrefix + "{name}", (string name, ImageStore images) =>
+        {
+            var path = images.PathFor(name);
+            if (path is null) return Results.NotFound();
+            return Results.File(path, ImageStore.ContentTypeFor(name), lastModified: File.GetLastWriteTimeUtc(path));
+        }).AllowAnonymous();
+
         // ---- endpoints ----
         api.MapGet("/endpoints", async (HttpContext ctx, EndpointService endpoints, CancellationToken ct) =>
         {

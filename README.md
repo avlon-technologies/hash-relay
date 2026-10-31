@@ -63,6 +63,11 @@ the single replica alive while they are online.
   tenant and records one delivery per endpoint. Connected endpoints receive it live over SignalR; offline ones get it
   replayed on their next `Hello` within the replay window (24 h). `notificationId` makes retries idempotent; a
   reused id with a different payload is `409`.
+- **Rich content.** A toast can show plain text and one image, nothing more. So `markdown` (CommonMark, tables,
+  task lists, ```` ```mermaid ```` fences) and `diagram` (Mermaid source) are rendered on a per-notification page at
+  `/n/{id}` that the toast opens on click; the toast body is the first paragraph of the markdown. Diagrams are also
+  rendered to PNG server-side (via mermaid.ink by default, Kroki supported, `HashRelay:Diagrams`) and shown inside the
+  toast; `POST /api/v1/images` uploads a picture for `imageUrl`. CLI: `--markdown[-file]`, `--diagram[-file]`, `--image`.
 - **Transport.** Groups are per-endpoint addresses only; subscriptions live in the database and are the sole matching
   authority. The agent reconnects with backoff forever, re-registers after every reconnect, acks displayed deliveries
   and suppresses duplicates.

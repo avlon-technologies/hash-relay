@@ -13,6 +13,7 @@ public sealed class HashRelayOptions
 {
     public string PublicUrl { get; set; } = "";
     public string DatabasePath { get; set; } = "";
+    public string ImagesPath { get; set; } = "";
     public bool AllowSignup { get; set; } = true;
     public int ReplayWindowHours { get; set; } = 24;
     public int PublishRateLimitPerMinute { get; set; } = 120;
@@ -24,12 +25,12 @@ public sealed class HashRelayOptions
 /// is replayed on their next Hello, within the replay window.
 /// </summary>
 public sealed class RoutingService(RelayDbContext db, TimeProvider clock, ConnectionRegistry registry, IHubContext<NotificationsHub> hub,
-    IOptions<HashRelayOptions> options, ILogger<RoutingService> log)
+    IOptions<HashRelayOptions> options, IDiagramRenderer diagrams, ImageStore images, PublicBase publicBase, ILogger<RoutingService> log)
 {
     public async Task<PublishResult> PublishAsync(Guid tenantId, Guid credentialId, PublishRequest req, CancellationToken ct)
     {
-        var (tags, title, body, url, priority) = Validate(req);
-        var payloadHash = Secrets.Sha256Hex(JsonSerializer.Serialize(new { tags, title, body, url, priority }));
+        var v = Validate(req);
+        var payloadHash = Secrets.Sha256Hex(JsonSerializer.Serialize(new { v.Tags, v.Title, v.Body, v.Url, v.Priority, v.Markdown, v.ImageUrl, v.Diagram }));
         var now = clock.GetUtcNow();
         var id = req.NotificationId ?? Guid.NewGuid();
         if (id == Guid.Empty) throw ApiException.Validation("notificationId must be a non-empty UUID.", "notificationId");
@@ -40,13 +41,28 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
             if (existing is not null) return await DuplicateAsync(existing, tenantId, payloadHash, ct);
         }
 
-        var endpointRefs = await db.Subscriptions.Where(s => s.TenantId == tenantId && tags.Contains(s.Tag))
+        // Render the diagram before anything is persisted so the first delivery already carries the image.
+        string? diagramImageUrl = null;
+        if (v.Diagram is not null && diagrams.Enabled)
+        {
+            var cached = ImageStore.CachedName("mermaid:" + v.Diagram, "png");
+            if (images.Exists(cached)) diagramImageUrl = publicBase.Absolute(ImageStore.PublicPath(cached));
+            else
+            {
+                var png = await diagrams.RenderPngAsync(v.Diagram, ct);
+                if (png is not null && png.Length <= Limits.ImageMaxBytes)
+                    diagramImageUrl = publicBase.Absolute(ImageStore.PublicPath(await images.SaveCachedAsync("mermaid:" + v.Diagram, png, "png", ct)));
+            }
+        }
+
+        var endpointRefs = await db.Subscriptions.Where(s => s.TenantId == tenantId && v.Tags.Contains(s.Tag))
             .Select(s => s.EndpointRef).Distinct().ToListAsync(ct);
 
         var notification = new Notification
         {
-            Id = id, TenantId = tenantId, TagsCsv = string.Join(',', tags), Title = title, Body = body, Url = url,
-            Priority = priority, PayloadHash = payloadHash, PublishedByCredentialId = credentialId, PublishedAt = now,
+            Id = id, TenantId = tenantId, TagsCsv = string.Join(',', v.Tags), Title = v.Title, Body = v.Body, Url = v.Url,
+            Priority = v.Priority, Markdown = v.Markdown, ImageUrl = v.ImageUrl, Diagram = v.Diagram, DiagramImageUrl = diagramImageUrl,
+            PayloadHash = payloadHash, PublishedByCredentialId = credentialId, PublishedAt = now,
             MatchedEndpoints = endpointRefs.Count,
         };
         var deliveries = endpointRefs.Select(ep => new Delivery
@@ -89,8 +105,9 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
         if (live > 0) await db.SaveChangesAsync(ct);
 
         log.LogInformation("Published {NotificationId} to {Tags} in tenant {TenantId}: {Matched} matched, {Live} live",
-            id, Tags.DisplayAll(tags), tenantId, endpointRefs.Count, live);
-        return new PublishResult(id, now, tags, title, endpointRefs.Count, live, endpointRefs.Count - live, Duplicate: false);
+            id, Tags.DisplayAll(v.Tags), tenantId, endpointRefs.Count, live);
+        return new PublishResult(id, now, v.Tags, v.Title, endpointRefs.Count, live, endpointRefs.Count - live, Duplicate: false,
+            DetailUrl(notification), ToastImage(notification));
     }
 
     private async Task<PublishResult> DuplicateAsync(Notification existing, Guid tenantId, string payloadHash, CancellationToken ct)
@@ -100,10 +117,12 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
             throw ApiException.Conflict("A notification with this notificationId already exists with a different payload.");
         var delivered = await db.Deliveries.CountAsync(d => d.NotificationId == existing.Id && d.Status != DeliveryStatus.Queued, ct);
         return new PublishResult(existing.Id, existing.PublishedAt, existing.Tags, existing.Title, existing.MatchedEndpoints,
-            delivered, existing.MatchedEndpoints - delivered, Duplicate: true);
+            delivered, existing.MatchedEndpoints - delivered, Duplicate: true, DetailUrl(existing), ToastImage(existing));
     }
 
-    private static (IReadOnlyList<string> Tags, string Title, string? Body, string? Url, string Priority) Validate(PublishRequest req)
+    private sealed record Validated(IReadOnlyList<string> Tags, string Title, string? Body, string? Url, string Priority, string? Markdown, string? ImageUrl, string? Diagram);
+
+    private static Validated Validate(PublishRequest req)
     {
         var details = new Dictionary<string, string[]>();
         IReadOnlyList<string> tags = [];
@@ -121,18 +140,31 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
         var title = (req.Title ?? "").Trim();
         if (title.Length is < 1 or > Limits.TitleMax) details["title"] = [$"Title must be 1–{Limits.TitleMax} characters."];
 
+        var markdown = string.IsNullOrWhiteSpace(req.Markdown) ? null : req.Markdown.Replace("\r\n", "\n").Trim();
+        if (markdown is not null && markdown.Length > Limits.MarkdownMax) details["markdown"] = [$"markdown must be at most {Limits.MarkdownMax} characters."];
+
         var body = string.IsNullOrWhiteSpace(req.Body) ? null : req.Body.Trim();
+        body ??= MarkdownRenderer.Summary(markdown, 200);
         if (body is not null && body.Length > Limits.BodyMax) details["body"] = [$"Body must be at most {Limits.BodyMax} characters."];
 
         var url = string.IsNullOrWhiteSpace(req.Url) ? null : req.Url.Trim();
-        if (url is not null && (url.Length > Limits.UrlMax || !Uri.TryCreate(url, UriKind.Absolute, out var u) || u.Scheme is not ("http" or "https")))
-            details["url"] = ["url must be an absolute http(s) URL."];
+        if (url is not null && !IsHttpUrl(url)) details["url"] = ["url must be an absolute http(s) URL."];
+
+        var imageUrl = string.IsNullOrWhiteSpace(req.ImageUrl) ? null : req.ImageUrl.Trim();
+        if (imageUrl is not null && !IsHttpUrl(imageUrl)) details["imageUrl"] = ["imageUrl must be an absolute http(s) URL (upload a file with POST /api/v1/images)."];
+
+        var diagram = string.IsNullOrWhiteSpace(req.Diagram) ? null : req.Diagram.Replace("\r\n", "\n").Trim();
+        diagram ??= MarkdownRenderer.FirstMermaidBlock(markdown);
+        if (diagram is not null && diagram.Length > Limits.DiagramMax) details["diagram"] = [$"diagram must be at most {Limits.DiagramMax} characters."];
 
         if (!Priorities.TryNormalize(req.Priority, out var priority)) details["priority"] = [$"priority must be one of: {string.Join(", ", Priorities.All)}."];
 
         if (details.Count > 0) throw new ApiException(400, ErrorCodes.Validation, "The publication is not valid.", details);
-        return (tags, title, body, url, priority);
+        return new Validated(tags, title, body, url, priority, markdown, imageUrl, diagram);
     }
+
+    private static bool IsHttpUrl(string url)
+        => url.Length <= Limits.UrlMax && Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme is "http" or "https";
 
     /// <summary>Replays queued deliveries to a freshly connected endpoint; expires those outside the replay window.</summary>
     public async Task<int> ReplayAsync(Guid tenantId, Guid endpointRef, string connectionId, CancellationToken ct)
@@ -166,15 +198,35 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
             .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, DeliveryStatus.Acked).SetProperty(d => d.AckedAt, now), ct);
     }
 
-    private static NotificationMessage ToMessage(Notification n, Delivery d, string tenantName, bool replayed)
-        => new(n.Id, n.TenantId, n.Tags, n.Title, n.Body, n.PublishedAt, d.Id, n.Url, n.Priority, tenantName, replayed);
+    public static bool IsRich(Notification n) => n.Markdown is not null || n.Diagram is not null;
+    public static string? ToastImage(Notification n) => n.ImageUrl ?? n.DiagramImageUrl;
+    public string DetailUrl(Notification n) => publicBase.Absolute($"/n/{n.Id}");
+
+    private NotificationMessage ToMessage(Notification n, Delivery d, string tenantName, bool replayed)
+        => new(n.Id, n.TenantId, n.Tags, n.Title, n.Body, n.PublishedAt, d.Id, n.Url, n.Priority, tenantName, replayed,
+            ToastImage(n), DetailUrl(n), IsRich(n));
 
     public async Task<List<NotificationSummary>> RecentAsync(Guid tenantId, int limit, CancellationToken ct)
     {
         limit = Math.Clamp(limit, 1, 200);
-        return await db.Notifications.AsNoTracking().Where(n => n.TenantId == tenantId).OrderByDescending(n => n.PublishedAt).Take(limit)
-            .Select(n => new NotificationSummary(n.Id, n.TagsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries), n.Title, n.Body, n.Url, n.Priority, n.PublishedAt,
-                n.MatchedEndpoints, n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued)))
+        var rows = await db.Notifications.AsNoTracking().Where(n => n.TenantId == tenantId).OrderByDescending(n => n.PublishedAt).Take(limit)
+            .Select(n => new
+            {
+                n.Id, n.TagsCsv, n.Title, n.Body, n.Url, n.Priority, n.PublishedAt, n.MatchedEndpoints,
+                Delivered = n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued),
+                HasMarkdown = n.Markdown != null, HasDiagram = n.Diagram != null, n.ImageUrl, n.DiagramImageUrl,
+            })
             .ToListAsync(ct);
+        var baseUrl = publicBase.Url;
+        return rows.Select(n => new NotificationSummary(n.Id, n.TagsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries), n.Title, n.Body, n.Url, n.Priority,
+            n.PublishedAt, n.MatchedEndpoints, n.Delivered, n.HasMarkdown, n.HasDiagram, n.ImageUrl ?? n.DiagramImageUrl, $"{baseUrl}/n/{n.Id}")).ToList();
+    }
+
+    /// <summary>A notification for the detail page: only members of its tenant may see it.</summary>
+    public Task<Notification?> FindAsync(Guid id, IEnumerable<Guid> memberTenantIds, CancellationToken ct)
+    {
+        var tenants = memberTenantIds.ToList();
+        return db.Notifications.AsNoTracking().Include(n => n.Deliveries)
+            .FirstOrDefaultAsync(n => n.Id == id && tenants.Contains(n.TenantId), ct);
     }
 }

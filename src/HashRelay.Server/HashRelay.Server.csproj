@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HashRelay.Contracts\HashRelay.Contracts.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Markdig" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="HashRelay.Server.Tests" />

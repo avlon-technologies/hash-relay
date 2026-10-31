@@ -10,6 +10,7 @@ public sealed class Args
     private static readonly HashSet<string> ValueOptions = new(StringComparer.OrdinalIgnoreCase)
     {
         "tag", "t", "title", "body", "b", "url", "priority", "p", "id", "key", "server", "name", "limit", "timeout", "scopes",
+        "image", "markdown", "m", "markdown-file", "diagram", "d", "diagram-file",
     };
 
     public static Args Parse(IEnumerable<string> argv)

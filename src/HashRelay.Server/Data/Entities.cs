@@ -99,6 +99,10 @@ public sealed class Notification
     public string? Body { get; set; }
     public string? Url { get; set; }
     public required string Priority { get; set; }
+    public string? Markdown { get; set; }               // rich body, rendered on /n/{id}
+    public string? ImageUrl { get; set; }               // publisher-supplied image (absolute URL)
+    public string? Diagram { get; set; }                // Mermaid source
+    public string? DiagramImageUrl { get; set; }        // server-rendered PNG of Diagram, when rendering succeeded
     public required string PayloadHash { get; set; }    // for idempotency conflict detection
     public Guid? PublishedByCredentialId { get; set; }
     public DateTimeOffset PublishedAt { get; set; }
