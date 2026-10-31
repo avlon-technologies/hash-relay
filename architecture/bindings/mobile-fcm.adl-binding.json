@@ -1,0 +1,89 @@
+{
+  "adl-json": "adl-json/1.0",
+  "document": {
+    "universe": "binding",
+    "base": {
+      "package": "Avlon.HashRelay",
+      "version": "draft-1",
+      "canonicalModel": "sha256:ec8d8674f26c93366ec102a3f7ce6c2aa4836410ac05a20820070933daa962e7"
+    },
+    "vocabularies": [
+      {
+        "name": "continuum.bindings.hashrelay.mobile",
+        "version": "proposal-1"
+      }
+    ],
+    "environment": {
+      "ref": "21212121-2121-4121-8121-212121212121",
+      "hint": "HashRelay.LocalDevelopment"
+    },
+    "bindings": [
+      {
+        "kind": "Binding",
+        "id": "4fa07a2f-cc04-424b-8c38-6c95f1033058",
+        "name": "ExpoReactNativeApp",
+        "attributes": {
+          "vocabulary": "continuum.bindings.hashrelay.mobile",
+          "technology": "expo-react-native-typescript",
+          "configuration": {
+            "location": "src/HashRelay.Mobile",
+            "platforms": "ios, android",
+            "enrollment": "device-authorization pairing with client=mobile; subscriber token bound to the endpoint",
+            "pushToken": "@react-native-firebase/messaging on both platforms; registered through RegisterEndpoint (pushProvider=fcm, pushToken) and re-sent in every hub Hello",
+            "foreground": "SignalR hub connection while active; disconnected when backgrounded so the server routes to push",
+            "iosBuild": "EAS Build (no iOS Simulator on Windows)"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "016836e1-a201-4cfd-9e8b-3c114c612ee3",
+            "hint": "HashRelay.MobileApp"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "f6954df5-d5a0-4ef8-bcbe-97ca4d836af0",
+        "name": "FirebaseCloudMessagingPush",
+        "attributes": {
+          "vocabulary": "continuum.bindings.hashrelay.mobile",
+          "technology": "fcm-http-v1",
+          "configuration": {
+            "implementation": "HashRelay.Server/Services/Push/FcmPushSender.cs behind IPushSender; dispatch in RoutingService.PushAsync",
+            "credential": "Firebase service-account JSON via HashRelay:Push:Fcm:ServiceAccountJson (Container App secret fcm-service-account)",
+            "selection": "queued deliveries whose endpoint holds an fcm token and is not live-connected",
+            "evidence": "provider acceptance recorded as delivery status 'pushed'; 'acked' only on endpoint acknowledgement (hub Ack or POST .../deliveries/{id}/ack)",
+            "tokenInvalidation": "UNREGISTERED / 404 clears the endpoint token and sets PushInvalidatedAt; delivery stays queued for replay",
+            "ios": "reached through Firebase's APNs relay with the project's APNs key; no APNs connection in HashRelay"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "18181818-1818-4818-8818-181818181818",
+            "hint": "HashRelay.Notifications.Delivery.DeliveryService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "5340def6-8d99-4d03-bc13-53b5defeaf37",
+        "name": "MobileEndpointRegistration",
+        "attributes": {
+          "vocabulary": "continuum.bindings.hashrelay.mobile",
+          "technology": "aspnetcore-minimal-api",
+          "configuration": {
+            "providerToken": "Endpoint.PushProvider + Endpoint.PushToken (secret, never returned); RegisterEndpointRequest.pushProvider/pushToken and HelloRequest.pushProvider/pushToken",
+            "rotation": "a new token replaces the old one and clears PushInvalidatedAt; the same token registered by a newer endpoint id is removed from the older one",
+            "pairingClient": "DeviceCodeRequest.client = mobile"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "17171717-1717-4717-8717-171717171717",
+            "hint": "HashRelay.Notifications.Delivery.EndpointService"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -22,6 +22,23 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet run --project tests/HashRelay.Server.Tests/HashRelay.Server.Tests.csproj -c Release
 
+  mobile:
+    name: Mobile app type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/HashRelay.Mobile/package-lock.json
+      - run: npm ci
+        working-directory: src/HashRelay.Mobile
+      - run: npm run typecheck
+        working-directory: src/HashRelay.Mobile
+      - run: npx expo config --type public > /dev/null
+        working-directory: src/HashRelay.Mobile
+
   windows:
     name: Agent, CLI and installer (Windows)
     runs-on: windows-latest

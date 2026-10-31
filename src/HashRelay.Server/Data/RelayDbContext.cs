@@ -132,6 +132,9 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Property(x => x.Name).HasMaxLength(80);
             e.Property(x => x.Platform).HasMaxLength(32);
             e.Property(x => x.AgentVersion).HasMaxLength(32);
+            e.Property(x => x.PushProvider).HasMaxLength(16);
+            e.Property(x => x.PushToken).HasMaxLength(Contracts.PushProviders.TokenMax);
+            e.Ignore(x => x.CanPush);
         });
 
         b.Entity<Subscription>(e =>

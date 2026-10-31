@@ -90,14 +90,28 @@ public static class ApiEndpoints
             var tenantId = ctx.User.TenantId();
             var endpointId = EndpointService.ValidateEndpointId(req.EndpointId);
             var existed = (await endpoints.ListAsync(tenantId, ct)).Any(e => e.EndpointId == endpointId);
-            var ep = await endpoints.RegisterAsync(tenantId, endpointId, req.Name, req.Platform, req.AgentVersion, ctx.User.BoundEndpointRef(), connected: false, ct);
+            var ep = await endpoints.RegisterAsync(tenantId, endpointId, req.Name, req.Platform, req.AgentVersion, req.PushProvider, req.PushToken, ctx.User.BoundEndpointRef(), connected: false, ct);
             return Results.Json(endpoints.ToInfo(ep), statusCode: existed ? StatusCodes.Status200OK : StatusCodes.Status201Created);
         }).RequireAuthorization(ApiAuth.PolicySubscribe);
 
         api.MapPut("/endpoints/{endpointId}", async (string endpointId, RegisterEndpointRequest req, HttpContext ctx, EndpointService endpoints, CancellationToken ct) =>
         {
-            var ep = await endpoints.RegisterAsync(ctx.User.TenantId(), endpointId, req.Name, req.Platform, req.AgentVersion, ctx.User.BoundEndpointRef(), connected: false, ct);
+            var ep = await endpoints.RegisterAsync(ctx.User.TenantId(), endpointId, req.Name, req.Platform, req.AgentVersion, req.PushProvider, req.PushToken, ctx.User.BoundEndpointRef(), connected: false, ct);
             return Results.Ok(endpoints.ToInfo(ep));
+        }).RequireAuthorization(ApiAuth.PolicySubscribe);
+
+        // ---- deliveries: an endpoint's inbox, and acknowledgement over HTTP for clients that received a push while not connected ----
+        api.MapGet("/endpoints/{endpointId}/deliveries", async (string endpointId, [FromQuery] int? limit, HttpContext ctx, EndpointService endpoints, RoutingService routing, CancellationToken ct) =>
+        {
+            var ep = await endpoints.RequireAsync(ctx.User.TenantId(), endpointId, ctx.User.BoundEndpointRef(), ct);
+            return Results.Ok(await routing.ListDeliveriesAsync(ctx.User.TenantId(), ep.Id, limit ?? 50, ct));
+        }).RequireAuthorization(ApiAuth.PolicyEndpoints);
+
+        api.MapPost("/endpoints/{endpointId}/deliveries/{deliveryId:guid}/ack", async (string endpointId, Guid deliveryId, HttpContext ctx, EndpointService endpoints, RoutingService routing, CancellationToken ct) =>
+        {
+            var ep = await endpoints.RequireAsync(ctx.User.TenantId(), endpointId, ctx.User.BoundEndpointRef(), ct);
+            await routing.AckAsync(ctx.User.TenantId(), ep.Id, deliveryId, ct);
+            return Results.NoContent();
         }).RequireAuthorization(ApiAuth.PolicySubscribe);
 
         api.MapGet("/endpoints/{endpointId}", async (string endpointId, HttpContext ctx, EndpointService endpoints, CancellationToken ct) =>

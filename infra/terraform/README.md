@@ -37,3 +37,7 @@ Official references:
 - https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/linux_web_app
 - https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/signalr_service
 - https://learn.microsoft.com/en-us/azure/azure-signalr/signalr-howto-authorize-managed-identity
+
+## Mobile push (optional)
+
+Set `fcm_service_account_json` to the contents of a Firebase service-account key to let the server send push notifications to paired phones through Firebase Cloud Messaging (both Android and iOS). It becomes the Container App secret `fcm-service-account`, exposed to the server as `HashRelay__Push__Fcm__ServiceAccountJson`. Pass it as `TF_VAR_fcm_service_account_json` or via a git-ignored tfvars file; leave it empty to run without push (devices receive on their next foreground connection). See `src/HashRelay.Mobile/README.md` for the Firebase project setup.

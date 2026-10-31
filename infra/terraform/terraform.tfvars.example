@@ -9,3 +9,6 @@ allow_signup            = true
 dns_zone_name           = ""
 dns_zone_resource_group = ""
 dns_record_name         = "hashrelay"
+
+# Mobile push (optional): contents of the Firebase service-account key. Keep it out of git; prefer TF_VAR_fcm_service_account_json.
+# fcm_service_account_json = file("fcm-service-account.json")

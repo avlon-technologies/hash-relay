@@ -21,7 +21,7 @@
     <div class="card"><div class="card-body empty">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         <h3>No devices yet</h3>
-        <p>Install the Windows agent and approve its pairing code here. The device will appear with its subscriptions.</p>
+        <p>Install the Windows agent or the mobile app and approve its pairing code here. The device will appear with its subscriptions.</p>
         <a class="btn btn-primary" href="/downloads">Download for Windows</a>
     </div></div>
 }
@@ -38,8 +38,10 @@
                 <div>
                     <div class="flex"><strong>@d.Endpoint.Name</strong>
                         <span class="badge @(online ? "badge-success" : "")" data-endpoint-status="@d.Endpoint.EndpointId"><span class="dot @(online ? "pulse" : "")"></span>@(online ? "Online" : "Offline")</span>
+                        @if (d.Endpoint.CanPush) { <span class="badge badge-accent" title="Receives push notifications while the app is in the background">Push · @d.Endpoint.PushProvider!.ToUpperInvariant()</span> }
+                        else if (d.Endpoint.PushInvalidatedAt is not null) { <span class="badge" title="The push provider no longer knows this device's token; open the app to register a new one">Push token expired</span> }
                     </div>
-                    <div class="small muted">@d.Endpoint.Platform · agent @(d.Endpoint.AgentVersion ?? "—") · last seen <time data-rel data-endpoint-seen="@d.Endpoint.EndpointId" datetime="@d.Endpoint.LastSeenAt.ToString("o")">@d.Endpoint.LastSeenAt.ToString("g")</time></div>
+                    <div class="small muted">@d.Endpoint.Platform · @(d.Endpoint.Platform is "ios" or "android" ? "app" : "agent") @(d.Endpoint.AgentVersion ?? "—") · last seen <time data-rel data-endpoint-seen="@d.Endpoint.EndpointId" datetime="@d.Endpoint.LastSeenAt.ToString("o")">@d.Endpoint.LastSeenAt.ToString("g")</time></div>
                 </div>
             </div>
             <div class="spacer"></div>

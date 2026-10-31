@@ -52,13 +52,17 @@
                         {
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6M12 19h8"/></svg>
                         }
+                        else if (Model.Pairing.Client == "mobile")
+                        {
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+                        }
                         else
                         {
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
                         }
                     </div>
                     <div>
-                        <div><strong>@Model.Pairing.DeviceName</strong> <span class="badge">@(Model.Pairing.Client == "cli" ? "CLI" : "Agent")</span></div>
+                        <div><strong>@Model.Pairing.DeviceName</strong> <span class="badge">@(Model.Pairing.Client switch { "cli" => "CLI", "mobile" => "Mobile app", _ => "Agent" })</span></div>
                         <div class="small muted">@Model.Pairing.Platform · requested <time data-rel datetime="@Model.Pairing.CreatedAt.ToString("o")">just now</time></div>
                     </div>
                 </div>
@@ -78,7 +82,7 @@
                         <label>This device may</label>
                         <div class="checks">
                             <label class="check"><input type="checkbox" name="scopes" value="subscribe" checked /> receive notifications</label>
-                            <label class="check"><input type="checkbox" name="scopes" value="publish" checked /> publish with the CLI</label>
+                            <label class="check"><input type="checkbox" name="scopes" value="publish" checked /> publish (CLI or mobile app)</label>
                         </div>
                         <p class="hint">A device token is issued, bound to this device only. You can revoke it any time from Devices.</p>
                     </div>

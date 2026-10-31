@@ -3,6 +3,7 @@ using HashRelay.Contracts;
 using HashRelay.Server.Auth;
 using HashRelay.Server.Data;
 using HashRelay.Server.Realtime;
+using HashRelay.Server.Services.Push;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -25,11 +26,14 @@ public sealed class HashRelayOptions
 
 /// <summary>
 /// Authorises publications, matches the union of subscribers for the addressed hashtags, records one delivery per
-/// endpoint (OncePerEndpoint) and dispatches over live hub connections. Offline endpoints keep a queued delivery that
-/// is replayed on their next Hello, within the replay window.
+/// endpoint (OncePerEndpoint) and dispatches over live hub connections. Endpoints that are not connected but hold a
+/// push token are handed to the push provider; acceptance there is recorded as <see cref="DeliveryStatus.Pushed"/>,
+/// never as display (DeliveryEvidence). Other offline endpoints keep a queued delivery that is replayed on their next
+/// Hello, within the replay window.
 /// </summary>
 public sealed class RoutingService(RelayDbContext db, TimeProvider clock, ConnectionRegistry registry, IHubContext<NotificationsHub> hub,
-    IOptions<HashRelayOptions> options, IDiagramRenderer diagrams, ImageStore images, PublicBase publicBase, AuditService audit, ILogger<RoutingService> log)
+    IOptions<HashRelayOptions> options, IDiagramRenderer diagrams, ImageStore images, PublicBase publicBase, AuditService audit,
+    IPushSender push, EndpointService endpoints, ILogger<RoutingService> log)
 {
     /// <param name="policy">The service-account policy when the caller is a service key; enforced before anything is persisted and audited either way.</param>
     public async Task<PublishResult> PublishAsync(Guid tenantId, Guid credentialId, PublishRequest req, CancellationToken ct, ServicePolicy? policy = null)
@@ -108,15 +112,86 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
                 log.LogWarning(ex, "Live dispatch to endpoint {EndpointRef} failed; left queued", d.EndpointRef);
             }
         }
+        var pushed = await PushAsync(notification, deliveries.Where(d => d.Status == DeliveryStatus.Queued).ToList(), tenantName, now, ct);
         if (policy is not null)
             audit.Add(tenantId, AuditActions.Published, policy.ServiceAccountId, credentialId, target: id.ToString(),
-                detail: $"{Tags.DisplayAll(v.Tags)} “{v.Title}” → {endpointRefs.Count} device(s), {live} live");
-        if (live > 0 || policy is not null) await db.SaveChangesAsync(ct);
+                detail: $"{Tags.DisplayAll(v.Tags)} “{v.Title}” → {endpointRefs.Count} device(s), {live} live, {pushed} pushed");
+        if (live > 0 || pushed > 0 || policy is not null) await db.SaveChangesAsync(ct);
 
-        log.LogInformation("Published {NotificationId} to {Tags} in tenant {TenantId}: {Matched} matched, {Live} live",
-            id, Tags.DisplayAll(v.Tags), tenantId, endpointRefs.Count, live);
-        return new PublishResult(id, now, v.Tags, v.Title, endpointRefs.Count, live, endpointRefs.Count - live, Duplicate: false,
-            DetailUrl(notification), ToastImage(notification));
+        log.LogInformation("Published {NotificationId} to {Tags} in tenant {TenantId}: {Matched} matched, {Live} live, {Pushed} pushed",
+            id, Tags.DisplayAll(v.Tags), tenantId, endpointRefs.Count, live, pushed);
+        return new PublishResult(id, now, v.Tags, v.Title, endpointRefs.Count, live, endpointRefs.Count - live - pushed, Duplicate: false,
+            DetailUrl(notification), ToastImage(notification), pushed);
+    }
+
+    /// <summary>
+    /// Hands queued deliveries for push-capable endpoints to the provider. Acceptance moves the delivery to
+    /// <see cref="DeliveryStatus.Pushed"/>; an unregistered token is dropped from the endpoint and the delivery stays
+    /// queued for replay; transient failures also stay queued. Nothing here is reported as displayed.
+    /// </summary>
+    private async Task<int> PushAsync(Notification n, List<Delivery> queued, string tenantName, DateTimeOffset now, CancellationToken ct)
+    {
+        if (!push.Enabled || queued.Count == 0) return 0;
+        var refs = queued.Select(d => d.EndpointRef).ToList();
+        var targets = await db.Endpoints.AsNoTracking()
+            .Where(e => refs.Contains(e.Id) && e.PushToken != null && e.PushProvider == push.Provider)
+            .Select(e => new { e.Id, e.PushToken, e.Platform }).ToListAsync(ct);
+        var pushed = 0;
+        foreach (var t in targets)
+        {
+            var d = queued.First(x => x.EndpointRef == t.Id);
+            PushResult result;
+            try { result = await push.SendAsync(ToPush(n, d, tenantName, t.PushToken!, t.Platform), ct); }
+            catch (Exception ex) { result = new PushResult(PushOutcome.Failed, null, ex.Message); }
+            d.Attempts++;
+            switch (result.Outcome)
+            {
+                case PushOutcome.Accepted:
+                    d.Status = DeliveryStatus.Pushed;
+                    d.SentAt = now;
+                    pushed++;
+                    break;
+                case PushOutcome.InvalidToken:
+                    log.LogInformation("Push token of endpoint {EndpointRef} is no longer registered; dropped ({Error})", t.Id, result.Error);
+                    await endpoints.InvalidatePushTokenAsync(t.Id, t.PushToken!, ct);
+                    break;
+                default:
+                    log.LogWarning("Push to endpoint {EndpointRef} failed; left queued: {Error}", t.Id, result.Error);
+                    break;
+            }
+        }
+        return pushed;
+    }
+
+    private PushMessage ToPush(Notification n, Delivery d, string tenantName, string token, string platform)
+    {
+        var data = new Dictionary<string, string>
+        {
+            ["notificationId"] = n.Id.ToString(),
+            ["deliveryId"] = d.Id.ToString(),
+            ["tenantId"] = n.TenantId.ToString(),
+            ["tenantName"] = tenantName,
+            ["tags"] = n.TagsCsv,
+            ["priority"] = n.Priority,
+            ["publishedAt"] = n.PublishedAt.ToString("o"),
+            ["detailUrl"] = DetailUrl(n),
+            ["rich"] = IsRich(n) ? "true" : "false",
+        };
+        if (n.Url is not null) data["url"] = n.Url;
+        if (ToastImage(n) is { } img) data["imageUrl"] = img;
+        return new PushMessage(token, platform, n.Title, n.Body ?? "", ToastImage(n), n.Priority, n.Id.ToString("n"), data);
+    }
+
+    /// <summary>The deliveries routed to one endpoint, newest first: the mobile app's inbox.</summary>
+    public async Task<List<EndpointDeliveryInfo>> ListDeliveriesAsync(Guid tenantId, Guid endpointRef, int limit, CancellationToken ct)
+    {
+        limit = Math.Clamp(limit, 1, 200);
+        var rows = await db.Deliveries.AsNoTracking().Include(d => d.Notification)
+            .Where(d => d.TenantId == tenantId && d.EndpointRef == endpointRef)
+            .OrderByDescending(d => d.CreatedAt).Take(limit).ToListAsync(ct);
+        return rows.Select(d => new EndpointDeliveryInfo(d.Id, d.Status, d.NotificationId, d.Notification.Tags, d.Notification.Title, d.Notification.Body,
+            d.Notification.Url, d.Notification.Priority, d.Notification.PublishedAt, ToastImage(d.Notification), DetailUrl(d.Notification),
+            IsRich(d.Notification), d.AckedAt)).ToList();
     }
 
     private async Task<PublishResult> DuplicateAsync(Notification existing, Guid tenantId, string payloadHash, CancellationToken ct)

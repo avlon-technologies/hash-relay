@@ -128,6 +128,15 @@ resource "azurerm_container_app" "app" {
     identity = azurerm_user_assigned_identity.app.id
   }
 
+  # Firebase service-account key for mobile push (FCM HTTP v1). Absent = push disabled, devices stay queued for replay.
+  dynamic "secret" {
+    for_each = var.fcm_service_account_json != "" ? [1] : []
+    content {
+      name  = "fcm-service-account"
+      value = var.fcm_service_account_json
+    }
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8080
@@ -171,6 +180,13 @@ resource "azurerm_container_app" "app" {
       env {
         name  = "HashRelay__AllowSignup"
         value = tostring(var.allow_signup)
+      }
+      dynamic "env" {
+        for_each = var.fcm_service_account_json != "" ? [1] : []
+        content {
+          name        = "HashRelay__Push__Fcm__ServiceAccountJson"
+          secret_name = "fcm-service-account"
+        }
       }
 
       liveness_probe {

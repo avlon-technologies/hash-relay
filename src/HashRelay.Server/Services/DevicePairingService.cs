@@ -20,7 +20,7 @@ public sealed class DevicePairingService(RelayDbContext db, TimeProvider clock, 
     {
         var endpointId = EndpointService.ValidateEndpointId(req.EndpointId);
         var client = (req.Client ?? "").Trim().ToLowerInvariant();
-        if (client is not ("agent" or "cli")) throw ApiException.Validation("client must be 'agent' or 'cli'.", "client");
+        if (!PairingClients.All.Contains(client)) throw ApiException.Validation($"client must be one of: {string.Join(", ", PairingClients.All)}.", "client");
         var name = (req.DeviceName ?? "").Trim();
         if (name.Length is < 1 or > Limits.DeviceNameMax) throw ApiException.Validation($"deviceName must be 1–{Limits.DeviceNameMax} characters.", "deviceName");
 
@@ -92,8 +92,8 @@ public sealed class DevicePairingService(RelayDbContext db, TimeProvider clock, 
         var now = clock.GetUtcNow();
         var pairing = await db.DevicePairings.FirstOrDefaultAsync(p => p.Id == pairingId && p.Status == PairingStatus.Pending && p.ExpiresAt > now, ct)
                       ?? throw ApiException.NotFound("This pairing request has expired or was already handled.");
-        var ep = await endpoints.RegisterAsync(tenantId, pairing.EndpointId, pairing.DeviceName, pairing.Platform, pairing.AgentVersion, null, connected: false, ct);
-        var label = pairing.Client == "cli" ? $"{pairing.DeviceName} (CLI)" : pairing.DeviceName;
+        var ep = await endpoints.RegisterAsync(tenantId, pairing.EndpointId, pairing.DeviceName, pairing.Platform, pairing.AgentVersion, null, null, null, connected: false, ct);
+        var label = pairing.Client == PairingClients.Cli ? $"{pairing.DeviceName} (CLI)" : pairing.DeviceName;
         var (cred, secret) = await credentials.IssueDeviceTokenAsync(tenantId, accountId, ep.Id, label, scopes, ct);
         pairing.Status = PairingStatus.Approved;
         pairing.TenantId = tenantId;
