@@ -1,0 +1,46 @@
+@page "/approvals/{id:guid}"
+@model HashRelay.Server.Pages.ApprovalModel
+@{
+    ViewData["Title"] = "Approval: " + Model.Item.Subject;
+    var a = Model.Item;
+}
+<section class="section">
+    <div class="container narrow">
+        <nav class="crumbs"><a href="/approvals">Approvals</a> <span>/</span> <span>@a.Subject</span></nav>
+        <article class="card">
+            <div class="card-body">
+                <div class="muted small">
+                    Requested by <strong>@a.RequesterName</strong> <span class="badge">@a.RequesterType</span>
+                    · created <time data-rel datetime="@a.CreatedAt.ToString("o")">@a.CreatedAt.ToString("u")</time>
+                    · expires <time datetime="@a.ExpiresAt.ToString("o")">@a.ExpiresAt.ToString("u")</time>
+                </div>
+                <h1 class="notification-title">@a.Subject</h1>
+                <p><span class="badge badge-accent" data-approval-status="@a.Status">@a.Status</span>
+                    @if (a.ResolutionCause is not null)
+                    {
+                        <span class="muted small">by @a.ResolutionCause@(a.DecidedByName is null ? "" : $" ({a.DecidedByName})") at @a.ResolvedAt?.ToString("u")</span>
+                    }
+                </p>
+                @if (a.Description is not null)
+                {
+                    @* Requester-written text: rendered as text, never as markup. *@
+                    <div class="md"><pre style="white-space:pre-wrap">@a.Description</pre></div>
+                }
+                @if (a.DecisionNote is not null) { <p class="muted">Note: @a.DecisionNote</p> }
+                @if (Model.Done is not null) { <p class="flash flash-ok">@Model.Done</p> }
+                @if (Model.Error is not null) { <p class="flash flash-error">@Model.Error</p> }
+                @if (Model.CanDecide)
+                {
+                    <form method="post">
+                        <input type="hidden" name="Key" value="@Model.DecisionKey" />
+                        <label for="Note">Note (optional)</label>
+                        <input id="Note" name="Note" maxlength="@ApprovalLimits.NoteMax" />
+                        <p class="muted small">HashRelay records your decision; the requesting system performs the operation itself.</p>
+                        <button class="btn btn-primary" type="submit" asp-page-handler="Approve">Approve</button>
+                        <button class="btn" type="submit" asp-page-handler="Reject">Reject</button>
+                    </form>
+                }
+            </div>
+        </article>
+    </div>
+</section>

@@ -1,0 +1,23 @@
+@page "/approvals"
+@model HashRelay.Server.Pages.ApprovalsModel
+@{
+    ViewData["Title"] = "Approvals";
+}
+<section class="section">
+    <div class="container narrow">
+        <h1>Waiting on you</h1>
+        @if (Model.Items.Count == 0)
+        {
+            <p class="muted">No approvals are waiting on you.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var a in Model.Items)
+                {
+                    <li><a href="/approvals/@a.Id">@a.Subject</a> <span class="muted small">from @a.RequesterName · expires @a.ExpiresAt.ToString("u")</span></li>
+                }
+            </ul>
+        }
+    </div>
+</section>
