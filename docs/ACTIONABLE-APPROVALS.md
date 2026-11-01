@@ -64,6 +64,61 @@ Multi-person quorum, delegation, hierarchical policies, escalation, approval exe
 ## Remaining implementation gates
 ADL is an unaccepted draft; review/adopt against repo lifecycle rules. Continuum warnings must be evaluated (not silently ignored), particularly the approval event consumer, verification and ownership bindings. Validate schema against existing database migrations, identity policies and deployment conventions before implementation. No code/tests were executed by this design-only artifact.
 
+## Approval round trip — who records and returns the decision
+
+This sequence is the **proposed implementation contract** grounded in the Continuum model. The model now declares ApprovalService's dependency on RoutingService and TenantAdministrationService and declares ApprovalOutcomeReader subscribing to ApprovalResolved. The concrete HTTPS calls, transactional outbox and originating-system polling are implementation choices documented here, **not falsely claimed to be executable ADL workflow semantics**.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Origin as Originating system
+    participant Approval as ApprovalService
+    participant Store as ApprovalStore + Outbox
+    participant Routing as Existing RoutingService
+    participant Delivery as Existing DeliveryService
+    actor Human as End user
+    participant Reader as ApprovalOutcomeReader
+
+    Origin->>Approval: POST /approvals (idempotency key, approver, expiry, correlationId)
+    Approval->>Approval: Validate tenant, requester and designated approver
+    Approval->>Store: Commit Pending approval + audit + notification intent
+    Store-->>Approval: approvalId
+    Approval-->>Origin: 201 Pending (approvalId; status URL)
+    Approval->>Routing: Publish linked notification to hashtags
+    Routing-->>Delivery: NotificationAccepted
+    Delivery-->>Human: Native toast / mobile push (approvalId link)
+    Human->>Approval: Open first-party approval page (authenticated)
+    Approval->>Store: Read current state and approver entitlement
+    Store-->>Approval: Pending, version, expiry
+    Approval-->>Human: Show details and Approve / Reject
+    Human->>Approval: POST /approvals/{id}/decision (approve or reject)
+    Approval->>Approval: Recheck human identity, eligibility and expiry
+    Approval->>Store: Atomic Pending -> Approved/Rejected + audit + outbox
+    alt First valid decision wins
+        Store-->>Approval: Committed terminal state
+        Approval-->>Human: Decision confirmed
+        Store-->>Reader: ApprovalResolved (via durable outbox)
+        Reader-->>Origin: Result available / event hint
+        Origin->>Approval: GET /approvals/{id}
+        Approval->>Store: Read authoritative terminal state
+        Store-->>Origin: Approved/Rejected + actor + time + correlationId
+        Note over Origin: Revalidate business preconditions; execute only when Approved
+    else Already terminal or expired
+        Store-->>Approval: Conflict / final state
+        Approval-->>Human: Existing decision / expired; no new transition
+    end
+```
+
+**Where the decision lives:** ApprovalStore is the server's transactional source of truth; the decision row, immutable audit entry, and outbox event are committed atomically. SignalR and push deliver *information*, not authoritative state. If the client disconnects after clicking Approve, it can re-read status; the server cannot undo a committed decision merely because its response was lost.
+
+**How the originating system learns:** It stores `approvalId` and `requesterCorrelationId` returned by creation. It can poll the authenticated GET status endpoint at any time, or wake up on an at-least-once `ApprovalResolved` event and then GET. An offline requester can recover without a persistent socket; duplicated events are deduplicated by approval ID and state version. `ApprovalOutcomeReader` is modeled as an internal completion subscriber, **not as a guaranteed external webhook**. Do not suggest that directly pushing events to arbitrary systems already exists. 
+
+**What approval authorizes:** It is a durable human decision, not an executable delegation to HashRelay. The originating system still validates authorization scope, original request identity, target release/environment, and current business preconditions before doing anything.
+
+**Example:** A deployment service requests approval for release v2.4.1 and receives `approvalId=123`. Your Windows device displays the request. You open the authenticated decision page and approve. HashRelay records `Approved` plus the actor/time and emits a durable completion notification. The deployment service sees that completion, GETs approval 123, confirms it still matches release v2.4.1, and runs the deployment using its own credentials. If the requester was offline, it retrieves that same Approved state on restart.
+
+**Model fidelity:** Continuum Diagram generated a revised round-trip editorial view from ADL attestation `sha256:840751f090d4cfd371c41e6f40c78b675532e91c863a7918ab1788c64ddd1ba8` (run `7c89f31a-b716-473b-bd7c-de40a9854e24`). It reports that no formal Workflow elements exist, so the sequence above is explicitly a proposed contract, not an ADL-validated runtime trace.
+
 ## Continuum Diagram — approval architecture in context
 
 ![Continuum Diagram C3: actionable approvals](diagrams/hashrelay-actionable-approvals.svg)
