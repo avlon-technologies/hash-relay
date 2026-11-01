@@ -55,3 +55,9 @@ A publisher may request a human decision and address it to an authorized approve
 
 ### Initial scope
 Create/list/read approval requests; authorized approve/reject; expiry/cancellation; stable correlation; detail-page and notification presentation; durable requester retrieval and resumable completion indication; audit trail; REST + MCP creation and status; multi-device convergence. Future extensions (quorum voting, delegation, automatic execution, conditional approval policies, complex escalation chains) are explicitly out of scope.
+
+### Actionable approval architecture diagram
+
+![Continuum Diagram — actionable approval architecture](diagrams/hashrelay-actionable-approvals.svg)
+
+This is a Continuum Diagram C3 view from the proposed ADL, not a diagram of implemented approval functionality. See [Actionable approvals](ACTIONABLE-APPROVALS.md#continuum-diagram--approval-architecture-in-context) for the detailed state flow and gaps still to be declared.
