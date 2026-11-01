@@ -100,6 +100,18 @@ if (-not $SkipImage) {
 }
 
 if (-not $SkipInfra) {
+  # Secret values reach Terraform only through TF_VAR_* (or a git-ignored tfvars). If one is missing, the plan
+  # silently deletes the live secret (this removed the FCM key once). Refuse instead.
+  $liveSecrets = @(az containerapp secret list -g "rg-hashrelay-$Environment" -n "ca-hashrelay-$Environment" --query "[].name" -o tsv 2>$null)
+  $secretVars = @{ "fcm-service-account" = "fcm_service_account_json"; "smtp-password" = "smtp_password" }
+  foreach ($s in $secretVars.GetEnumerator()) {
+    $supplied = [Environment]::GetEnvironmentVariable("TF_VAR_$($s.Value)")
+    if (-not $supplied) { $supplied = Get-ChildItem $tf -Filter *.auto.tfvars -ErrorAction SilentlyContinue | Select-String -Pattern "^\s*$($s.Value)\s*=" -Quiet }
+    if (-not $supplied) { $supplied = (Test-Path (Join-Path $tf "terraform.tfvars")) -and (Select-String -Path (Join-Path $tf "terraform.tfvars") -Pattern "^\s*$($s.Value)\s*=" -Quiet) }
+    if (($liveSecrets -contains $s.Key) -and -not $supplied) {
+      throw "The live app has secret '$($s.Key)' but TF_VAR_$($s.Value) is not set; applying would delete it. Set it (or pass -SkipInfra)."
+    }
+  }
   Write-Host "`n== Terraform stage 2: everything else" -ForegroundColor Cyan
   Invoke-Plan @() "tfplan"
 }
