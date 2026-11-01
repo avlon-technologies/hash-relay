@@ -1,0 +1,74 @@
+// Device decision grants: one-click native approvals without making a pairing token a human credential.
+//
+// Until now DecideApproval had exactly one authority: a signed-in person's interactive session. One-click
+// native approvals add a second path: a paired desktop agent submits the decision on behalf of the person
+// who explicitly granted that device the right to, after an interactive sign-in. That is a new authority
+// over a human-only command and a new durable store, so it belongs in the model rather than in code alone.
+//
+// What changes:
+// 1. A DecisionGrant record and a DecisionGrantStore. A grant names one person, one workspace and one paired
+//    device credential. It is active, expired or revoked; only its verifier is stored.
+// 2. Two commands, GrantDeviceDecisions and RevokeDeviceDecisions, handled by ApprovalService, which owns
+//    the store. Granting follows the existing device-authorization pattern of pairing: the device requests,
+//    the person approves in the browser, the device collects the secret once.
+// 3. ApprovalApi operations EnrollDevice and RevokeDevice.
+// 4. Requirement DeviceDecisionAuthority, which ApprovalService satisfies: the conditions under which a
+//    device-submitted decision is the person's decision.
+//
+// Not changed: DecideApproval, its payload, the lifecycle, the outcome event. A device-submitted decision is
+// the same command decided by the same service under the same compare-and-set. No new bounded context, no
+// identity-platform change, no change to TenantIdentity or to the pairing credential.
+
+change DeviceDecisionGrants core adl/1.4 {
+  desc "Lets a person explicitly grant one paired device the right to submit their approval decisions, recorded in a revocable decision-grant store owned by ApprovalService, without giving the device pairing token any decision authority."
+
+  base package Avlon.HashRelay version "draft-1" state "sha256:36ec56ff234b6deac6a20bb6bd6d156bed45f7b0b2a28ade137a5984338b805e"
+
+  // 1. The grant and its store.
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+    record DecisionGrant v1 #a35ab5c0-579f-48b6-b27a-81b2ea764d4f { grantId: text, workspaceId: text, accountId: text, deviceCredentialId: text, status: text, expiresAt: text }
+  }
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+    resource DecisionGrantStore #cad19393-5a26-44be-8f35-02f4e3960ef4 [data-store] {
+      persistence[durable; strong; retention="grant lifecycle and audit policy"]
+    }
+  }
+
+  // 2. Granting and revoking.
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+    command GrantDeviceDecisions #bef797ed-e6ea-4be9-b11f-25de3ff9f24e {
+      payload = #a35ab5c0-579f-48b6-b27a-81b2ea764d4f
+    }
+  }
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+    command RevokeDeviceDecisions #629a27a5-b5d9-4095-809d-d9623906ad77 {
+      payload = #a35ab5c0-579f-48b6-b27a-81b2ea764d4f
+    }
+  }
+  link #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 handles #bef797ed-e6ea-4be9-b11f-25de3ff9f24e
+  link #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 handles #629a27a5-b5d9-4095-809d-d9623906ad77
+  link #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 writes #cad19393-5a26-44be-8f35-02f4e3960ef4
+  link #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 reads #cad19393-5a26-44be-8f35-02f4e3960ef4
+
+  // 3. The API surface.
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1012 {
+    operation EnrollDevice #a5bfefc3-4121-4e7f-9ab6-a74ec33746bb {
+      in = #a35ab5c0-579f-48b6-b27a-81b2ea764d4f
+      out = #a35ab5c0-579f-48b6-b27a-81b2ea764d4f
+    }
+  }
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1012 {
+    operation RevokeDevice #46ebc799-6c9b-4dc4-b381-af1d467edf8c {
+      in = #a35ab5c0-579f-48b6-b27a-81b2ea764d4f
+      out = #a35ab5c0-579f-48b6-b27a-81b2ea764d4f
+    }
+  }
+
+  // 4. When a device-submitted decision is the person's decision.
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1002 {
+    requirement DeviceDecisionAuthority #f8c9062d-d840-4c17-bb33-c6994f644ca4 {
+      desc "A device may submit DecideApproval only together with an active decision grant that the person it names gave explicitly, after interactive sign-in, to that paired device's credential in that workspace, and only that person may grant it. The pairing token alone never decides, and a device decides only from the approval's own notification as delivered to that device. At decision time the grant must be unrevoked and unexpired, its device credential still active, the approval in the grant's workspace, and the person still a member and a designated approver. Grants are revocable by the person and by the device."
+    }
+  }
+  link #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 satisfies #f8c9062d-d840-4c17-bb33-c6994f644ca4
+}

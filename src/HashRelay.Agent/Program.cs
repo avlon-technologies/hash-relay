@@ -29,10 +29,14 @@ internal static class Program
         }
 
         // Toast activation (click) relaunches us via COM; the toolkit routes it to OnActivated in the running instance.
+        // When the agent was not running, Windows starts this process just for the click: wait for the click to be
+        // handled (a one-click decision included, up to its own HTTP timeout) instead of exiting after a fixed delay.
         if (ToastNotificationManagerCompat.WasCurrentProcessToastActivated())
         {
-            ToastNotificationManagerCompat.OnActivated += e => ToastActivation.Handle(e.Argument);
-            Thread.Sleep(1500);
+            var started = new ManualResetEventSlim();
+            Task? work = null;
+            ToastNotificationManagerCompat.OnActivated += e => { work = Task.Run(() => ToastActivation.HandleAsync(e.Argument)); started.Set(); };
+            if (started.Wait(TimeSpan.FromSeconds(10))) work?.Wait(TimeSpan.FromSeconds(60));
             return 0;
         }
 

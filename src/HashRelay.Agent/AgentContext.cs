@@ -16,6 +16,8 @@ internal sealed class AgentContext : ApplicationContext
     private readonly ToolStripMenuItem _statusItem;
     private readonly ToolStripMenuItem _startupItem;
     private readonly ToolStripMenuItem _pairItem;
+    private readonly ToolStripMenuItem _oneClickItem;
+    private bool _oneClickBusy;
     private readonly FileSystemWatcher? _configWatcher;
     private readonly System.Windows.Forms.Timer _debounce;
     /// <summary>Live deliveries toast at once; the backlog replayed on reconnect becomes one catch-up summary. Also de-duplicates by notification id.</summary>
@@ -50,6 +52,7 @@ internal sealed class AgentContext : ApplicationContext
 
         _statusItem = new ToolStripMenuItem("Starting…") { Enabled = false };
         _pairItem = new ToolStripMenuItem("Pair this device…", null, (_, _) => ShowPairing());
+        _oneClickItem = new ToolStripMenuItem("Enable one-click approvals…", null, async (_, _) => await ToggleOneClickAsync());
         _startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => { Startup.Toggle(); RefreshMenu(); }) { CheckOnClick = false };
         var menu = new ContextMenuStrip();
         menu.Items.Add(_statusItem);
@@ -58,6 +61,7 @@ internal sealed class AgentContext : ApplicationContext
         menu.Items.Add(new ToolStripMenuItem("Manage subscriptions…", null, (_, _) => OpenUrl("dashboard/devices")));
         menu.Items.Add(new ToolStripMenuItem("Send test notification", null, async (_, _) => await SendTestAsync()));
         menu.Items.Add(_pairItem);
+        menu.Items.Add(_oneClickItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_startupItem);
         menu.Items.Add(new ToolStripMenuItem("Open log folder", null, (_, _) => OpenFolder(ConfigStore.LogDirectory)));
@@ -70,7 +74,7 @@ internal sealed class AgentContext : ApplicationContext
 
         Toasts.EnsureRegistered();
         ImageCache.Prune();
-        ToastNotificationManagerCompat.OnActivated += e => ToastActivation.Handle(e.Argument);
+        ToastNotificationManagerCompat.OnActivated += e => _ = ToastActivation.HandleAsync(e.Argument);
         _presenter = new NotificationPresenter(ShowToast, ShowCatchUp);
 
         _debounce = new System.Windows.Forms.Timer { Interval = 600 };
@@ -339,6 +343,8 @@ internal sealed class AgentContext : ApplicationContext
     {
         _startupItem.Checked = Startup.IsEnabled();
         _pairItem.Text = _config.IsLoggedIn ? "Pair with a different workspace…" : "Pair this device…";
+        _oneClickItem.Enabled = _config.IsLoggedIn && !_oneClickBusy;
+        _oneClickItem.Text = OneClick.IsEnrolled(_config) ? "Disable one-click approvals" : "Enable one-click approvals…";
     }
 
     private void ShowPairing()
@@ -349,6 +355,32 @@ internal sealed class AgentContext : ApplicationContext
         _pairForm.FormClosed += (_, _) => _pairForm = null;
         _pairForm.Show();
         _pairForm.Activate();
+    }
+
+    /// <summary>
+    /// Enabling opens the website, where the person who paired this PC signs in, reads the unlocked-PC warning and grants
+    /// it. Disabling revokes on the server and removes the sealed grant from this PC.
+    /// </summary>
+    private async Task ToggleOneClickAsync()
+    {
+        if (!_config.IsLoggedIn || _oneClickBusy) return;
+        _oneClickBusy = true;
+        RefreshMenu();
+        try
+        {
+            if (OneClick.IsEnrolled(_config)) await OneClick.DisableAsync(_config, _cts.Token);
+            else await OneClick.EnableAsync(_config, _cts.Token);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("One-click approvals", ex);
+            Toasts.ShowInfo("One-click approvals", ex is HashRelayApiException api ? api.Message : "Couldn't reach HashRelay. Try again in a moment.");
+        }
+        finally
+        {
+            _oneClickBusy = false;
+            Invoke(RefreshMenu);
+        }
     }
 
     private async Task SendTestAsync()

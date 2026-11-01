@@ -219,6 +219,8 @@ public static class AuditActions
     public const string ServiceAccountDisabled = "service_account.disabled";
     public const string KeyIssued = "key.issued";
     public const string KeyRevoked = "key.revoked";
+    public const string DecisionGrantCreated = "decision_grant.created";
+    public const string DecisionGrantRevoked = "decision_grant.revoked";
     public const string Published = "notification.published";
     public const string PublishRefused = "notification.refused";
     public const string SubscriptionsChanged = "subscriptions.changed";
