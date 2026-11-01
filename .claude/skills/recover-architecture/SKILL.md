@@ -87,6 +87,67 @@ is a gap rather than an inference.
 is an element. Sparse is acceptable; below the architectural floor, more
 elements is worse. Produce the flat inventory (`author-architecture` §2) first.
 
+### Semantic reconstruction checks (required before authoring)
+
+Inspect **execution paths, not only declarations**. Build a compact working
+evidence matrix for the architecturally significant behaviors and interfaces:
+claim → source locations → observed implementation → confidence/uncertainty.
+This is a reasoning aid, not a replacement for the recovery evidence sidecar or
+the compiler's verdict. Apply these checks proportionately to the repository:
+
+1. **Ownership and boundaries.** Trace HTTP handlers, jobs, events and other
+   entry points to the module that actually performs each write. Distinguish
+   entry points, code modules, logical responsibilities, deployment units and
+   separately owned services. Multiple callers do **not** establish multiple
+   writers/owners; a table grouping does **not** establish a separate physical
+   database or transaction boundary. Before reporting shared-write coupling,
+   identify the concrete write implementations and the transaction owner.
+2. **Transactions and side effects.** Follow call chains into database
+   transactions, external payment/messaging calls, and subsequent callbacks.
+   Claim shared atomicity only when one demonstrable transaction encompasses
+   the operations. Sequential calls that each open a transaction are **not**
+   one transaction. Separate observed atomicity from intended consistency.
+3. **State machines and exceptional paths.** Read the actual transition
+   guards and privileged mutations. Enumerate allowed and forbidden transitions
+   by actor/path. Trace cancellation, expiry, retries, asynchronous webhooks,
+   and failure handlers before summarizing a business rule. Do not conflate
+   "can be marked paid by payment code" with a general unpaid→paid transition.
+4. **Public contracts.** Determine request/response shapes from serializers,
+   response construction, schema validators and tests—not merely internal
+   domain types or names. Check nesting, field names, nullability, omitted
+   values, arrays, deleted-reference behavior, and nested view/quote fields.
+   If no source establishes the exact wire shape, mark it uncertain rather
+   than asserting a convenient DTO.
+5. **Operational and security behavior.** Inspect effective configuration and
+   tests for API-wide and per-route rate limits, headers/CSP, authorization,
+   secrets handling and retention. Quote exact thresholds with their windows;
+   do not invent retention or deployment policies. If tests assert a
+   requirement not otherwise expressed, record the tested behavior and its
+   evidential limits.
+6. **Storage topology.** Distinguish physical databases from logical table
+   groups; follow foreign keys and cross-table transactions before claiming
+   independent data stores. A conceptual partition must not be described as a
+   physically isolated store.
+
+**Evidence and uncertainty:** Classify each consequential statement as
+*observed*, *inferred*, or *unknown* in working notes and report contested
+interpretations explicitly. Source citations prove that referenced bytes
+exist; they do not prove the interpretation is semantically correct. Do not
+label speculative architecture as implemented fact. Architectural diagrams
+may still be completeness-first and include clearly identifiable inferred
+or speculative elements; do not constrain diagram composition to only
+verified boxes. The recovered **as-is model** must remain faithful to the
+implementation and separate proposed redesigns from recovered facts.
+
+**Adversarial pass:** Before declaring the recovery complete, attempt to
+falsify each high-impact claim using a second reading of the actual call
+path/response construction. Specifically ask: "Am I mistaking an entry point
+for an owner, a sequence for a transaction, a proposed boundary for an actual
+deployment, or an internal type for wire JSON?" Correct wrong claims in
+place, preserving identities; move unresolved questions into gaps. Do not
+reinterpret a compiler warning alone as proof of an implementation defect:
+first test whether the recovered boundary caused it.
+
 ## 3. Identity continuity — the judgment the tools cannot make
 
 Element ids are the architecture's stable identity; churn them and every later
@@ -160,6 +221,14 @@ the range that establishes the element (guide §5).
 nobody looked. A gap says what could not be established, what you looked at,
 and what would close it (guide §4). **Recovery is not architecture review**: do
 not fix implementation defects unless asked.
+
+**Semantic fidelity gate:** After compiling and checking evidence, compare
+the model's architecture boundaries, business rules, transactional claims,
+public DTOs, and operational limits against the evidence matrix above.
+Correct discrepancies and recompile/check evidence. Record unresolved
+interpretations as gaps. A mechanically valid citation does not excuse an
+incorrect description. Report the scope of this semantic review without
+claiming tool-certified semantic verification.
 
 ## 7. Recovery completion — the end of the skill
 
