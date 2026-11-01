@@ -1,0 +1,48 @@
+@page "/privacy"
+@model HashRelay.Server.Pages.PrivacyModel
+@{
+    ViewData["Title"] = "Privacy policy";
+}
+<div class="container container-narrow" style="padding-top:48px;padding-bottom:64px">
+    <div class="section-title" style="text-align:left;margin-left:0">
+        <h1 style="font-size:2.2rem">Privacy policy</h1>
+        <p>HashRelay delivers notifications to the devices you register in a workspace. This page describes what the service, the Windows agent and the mobile app store, why, and how to remove it. Last updated 31 October 2026.</p>
+    </div>
+
+    <article class="docs-body">
+        <h2 id="who">Who runs the service</h2>
+        <p>HashRelay is operated by Avlon Technologies Inc. Questions about this policy go to <a href="mailto:privacy@avlon.ca">privacy@avlon.ca</a>.</p>
+
+        <h2 id="collect">What we store</h2>
+        <table class="table">
+            <tr><th>Account</th><td>Email address, display name and a password hash. Used to sign in to the dashboard and to identify who owns a workspace.</td></tr>
+            <tr><th>Workspace</th><td>Workspace name, members and their roles, API keys and service accounts. Keys are stored as SHA-256 hashes with a short hint for display; the full secret is shown once and never stored.</td></tr>
+            <tr><th>Devices</th><td>For each registered device: the endpoint id the client generates, the device name you choose, the platform (Windows, Android or iOS), the client version, when it was registered and last seen, and for phones a push token from Firebase Cloud Messaging. The push token lets the service hand a notification to Google or Apple for delivery while the app is closed.</td></tr>
+            <tr><th>Subscriptions</th><td>The hashtags each device subscribes to.</td></tr>
+            <tr><th>Notifications</th><td>The title, body, tags, link, optional image or diagram and priority of each notification published to the workspace, plus a delivery record per device (queued, delivered, pushed, acknowledged) so the dashboard and the inbox can show what reached where.</td></tr>
+            <tr><th>Audit log</th><td>Workspace actions such as publishing, key creation and device approval, with the acting account, the source (dashboard, API or MCP) and the IP address the request came from.</td></tr>
+        </table>
+
+        <h2 id="use">How it is used</h2>
+        <p>Only to run the service: routing notifications to the devices subscribed to their hashtags, showing activity in the dashboard, and securing the workspace. We do not sell data, show advertising, or use the content of notifications for anything other than delivering it.</p>
+
+        <h2 id="share">Who it is shared with</h2>
+        <ul>
+            <li><strong>Firebase Cloud Messaging (Google)</strong> receives the push token and the notification title and body for phones that have background push enabled. For iPhones Firebase relays the message to Apple Push Notification service.</li>
+            <li><strong>Microsoft Azure</strong> hosts the service and its database.</li>
+        </ul>
+        <p>No other third parties receive data. Nothing crosses workspace boundaries.</p>
+
+        <h2 id="mobile">The mobile app</h2>
+        <p>The app stores its endpoint id, device name and workspace credential in the phone's secure storage. It asks for the notification permission to show notifications and, when the build includes Firebase, registers a push token so notifications arrive while the app is closed. It does not access contacts, location, photos or other apps. Revoking the device in the dashboard invalidates the credential.</p>
+
+        <h2 id="retain">Retention and deletion</h2>
+        <p>Notifications and delivery records are kept for the life of the workspace so the inbox and activity views stay complete. Revoking a device removes its push token and subscriptions. Deleting a workspace removes everything in it. To delete your account and the workspaces you own, email <a href="mailto:privacy@avlon.ca">privacy@avlon.ca</a>; deletion completes within 30 days.</p>
+
+        <h2 id="security">Security</h2>
+        <p>All traffic uses HTTPS. Passwords are hashed, API keys and device credentials are stored only as hashes, and publishers never receive device credentials. Service accounts can be restricted to specific hashtags and link hosts.</p>
+
+        <h2 id="changes">Changes</h2>
+        <p>Updates to this policy are published on this page with a new date above.</p>
+    </article>
+</div>
