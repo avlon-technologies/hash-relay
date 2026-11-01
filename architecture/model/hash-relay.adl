@@ -7,7 +7,7 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
     desc "A signed-up user who can administer one or more tenant workspaces through a dashboard."
   }
   actor Publisher #22222222-2222-4222-8222-222222222222 [system] {
-    desc "An authorized application or agent publishing notifications."
+    desc "An authorized credential holder publishing notifications: an application, a service, an AI agent or a person at a paired device. Its type is declared at registration and is otherwise unknown; nothing about the transport decides it."
   }
   actor Subscriber #33333333-3333-4333-8333-333333333333 [person] {
     desc "A person receiving notifications through registered endpoints."
@@ -81,9 +81,9 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
         persistence[durable; strong; retention="endpoint lifecycle"]
       }
       service DeliveryService #18181818-1818-4818-8818-181818181818 {
-        desc "Fans out accepted notifications to eligible endpoint transports: the realtime connection for connected agents and foreground apps, Firebase Cloud Messaging for mobile endpoints holding a provider token. Transport selection is an implementation binding."
+        desc "Fans out accepted notifications to eligible endpoint transports: the realtime connection for connected agents and foreground apps, Firebase Cloud Messaging for mobile endpoints holding a provider token. Replays unacknowledged deliveries to a reconnecting endpoint, flagged as replayed and bounded in attempts. Transport selection is an implementation binding."
         reads: ::HashRelay.Notifications.Delivery.EndpointStore
-        satisfies: ::HashRelay.Notifications.HashtagDelivery.OncePerEndpoint, ::HashRelay.Notifications.HashtagDelivery.DeliveryEvidence
+        satisfies: ::HashRelay.Notifications.HashtagDelivery.OncePerEndpoint, ::HashRelay.Notifications.HashtagDelivery.DeliveryEvidence, ::HashRelay.Notifications.HashtagDelivery.CatchUpWithoutInterruption
         subscribesTo: ::HashRelay.Notifications.Routing.NotificationAccepted
         dependsOn: ::HashRelay.FirebaseMessaging
       }
@@ -118,12 +118,12 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
         persistence[durable; strong; retention="notification and subscription policy"]
       }
       service RoutingService #12121212-1212-4212-8212-121212121212 {
-        desc "Authorizes publications and subscriptions and owns hashtag matching."
+        desc "Authorizes publications and subscriptions, owns hashtag matching and stamps each accepted notification with the attribution of the credential that published it."
         handles: ::HashRelay.Notifications.Routing.PublishNotification, ::HashRelay.Notifications.Routing.SubscribeTag
         publishes: ::HashRelay.Notifications.Routing.NotificationAccepted
         reads: ::HashRelay.Notifications.Routing.RoutingStore
         realizes: ::HashRelay.Notifications.HashtagDelivery
-        satisfies: ::HashRelay.Notifications.HashtagDelivery.WorkspaceIsolation
+        satisfies: ::HashRelay.Notifications.HashtagDelivery.WorkspaceIsolation, ::HashRelay.Notifications.HashtagDelivery.ForwardOnlySubscription, ::HashRelay.Notifications.HashtagDelivery.PublisherAttribution
         writes: ::HashRelay.Notifications.Routing.RoutingStore
 
         api PublicationApi #50505050-5050-4050-8050-505050505050 {
@@ -151,6 +151,15 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
       }
       requirement DeliveryEvidence #4b83047e-c625-485c-8330-1a6a171bd029 {
         desc "Provider acceptance of a push is recorded as provider acceptance and never reported as display or user acknowledgement; display is known only when the endpoint acknowledges the delivery."
+      }
+      requirement CatchUpWithoutInterruption #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb {
+        desc "Deliveries that accumulate while an endpoint is away are replayed on reconnect, flagged as replayed and retained until acknowledged, so the endpoint can record them without presenting each one; live deliveries are presented at once. Acknowledgement means received, not shown."
+      }
+      requirement ForwardOnlySubscription #49ca33cb-df60-4ef4-9280-7807328ea2d5 {
+        desc "A subscription applies to notifications published after it exists. Earlier notifications are never replayed into a new subscription; they remain readable through the workspace's history."
+      }
+      requirement PublisherAttribution #abb41875-38c1-4a85-a377-293012ad4b3d {
+        desc "Every notification records who published it: a stable publisher id, a display name, a publisher type (agent, application, service, human or unknown) and the entry channel. All four are established by the routing service from the authenticated credential and its registration; none is taken from the message body or inferred from the transport. A type that was never declared is unknown."
       }
     }
   }
