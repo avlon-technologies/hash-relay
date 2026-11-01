@@ -20,6 +20,28 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
     public DbSet<OAuthCode> OAuthCodes => Set<OAuthCode>();
     public DbSet<OAuthRefreshToken> OAuthRefreshTokens => Set<OAuthRefreshToken>();
     public DbSet<PasswordReset> PasswordResets => Set<PasswordReset>();
+    public DbSet<Approval> Approvals => Set<Approval>();
+    public DbSet<ApprovalAudit> ApprovalAudits => Set<ApprovalAudit>();
+    public DbSet<ApprovalOutbox> ApprovalOutbox => Set<ApprovalOutbox>();
+
+    /// <summary>Approval audit entries are append-only: an update or delete through the context is a programming error.</summary>
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        GuardAppendOnly();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        GuardAppendOnly();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    private void GuardAppendOnly()
+    {
+        if (ChangeTracker.Entries<ApprovalAudit>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Approval audit entries are immutable.");
+    }
 
     /// <summary>SQLite cannot compare DateTimeOffset text; store every timestamp as UTC ticks (INTEGER) instead.</summary>
     protected override void ConfigureConventions(ModelConfigurationBuilder b)
@@ -178,6 +200,52 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Property(x => x.Status).HasMaxLength(8);
             e.HasOne(x => x.Notification).WithMany(x => x.Deliveries).HasForeignKey(x => x.NotificationId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Endpoint).WithMany().HasForeignKey(x => x.EndpointRef).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Approval>(e =>
+        {
+            // Idempotent creation: one approval per (workspace, requesting credential, Idempotency-Key).
+            e.HasIndex(x => new { x.TenantId, x.RequesterCredentialId, x.IdempotencyKey }).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.Status, x.ExpiresAt });
+            e.HasIndex(x => x.NotificationId).IsUnique();
+            e.Property(x => x.RequesterName).HasMaxLength(80);
+            e.Property(x => x.RequesterType).HasMaxLength(16);
+            e.Property(x => x.IdempotencyKey).HasMaxLength(Contracts.ApprovalLimits.IdempotencyKeyMax);
+            e.Property(x => x.PayloadHash).HasMaxLength(64);
+            e.Property(x => x.RequesterCorrelationId).HasMaxLength(Contracts.ApprovalLimits.CorrelationIdMax);
+            e.Property(x => x.Subject).HasMaxLength(Contracts.ApprovalLimits.SubjectMax);
+            e.Property(x => x.Description).HasMaxLength(Contracts.ApprovalLimits.DescriptionMax);
+            e.Property(x => x.ApproverIdsCsv).HasMaxLength(400);
+            e.Property(x => x.TagsCsv).HasMaxLength(700);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.ResolutionCause).HasMaxLength(16);
+            e.Property(x => x.DecidedByName).HasMaxLength(80);
+            e.Property(x => x.DecisionNote).HasMaxLength(Contracts.ApprovalLimits.NoteMax);
+            e.Property(x => x.DecisionIdempotencyKey).HasMaxLength(Contracts.ApprovalLimits.IdempotencyKeyMax);
+            e.Property(x => x.DetailUrl).HasMaxLength(2048);
+            e.Ignore(x => x.ApproverIds);
+            e.Ignore(x => x.Tags);
+        });
+
+        b.Entity<ApprovalAudit>(e =>
+        {
+            e.HasIndex(x => new { x.ApprovalId, x.At });
+            e.HasIndex(x => new { x.TenantId, x.At });
+            e.Property(x => x.Action).HasMaxLength(32);
+            e.Property(x => x.ActorKind).HasMaxLength(16);
+            e.Property(x => x.CorrelationId).HasMaxLength(Contracts.ApprovalLimits.CorrelationIdMax);
+            e.Property(x => x.RequestId).HasMaxLength(64);
+            e.Property(x => x.Detail).HasMaxLength(300);
+        });
+
+        b.Entity<ApprovalOutbox>(e =>
+        {
+            // A transition enqueues its event once.
+            e.HasIndex(x => new { x.ApprovalId, x.Kind, x.Version }).IsUnique();
+            e.HasIndex(x => new { x.ProcessedAt, x.NextAttemptAt });
+            e.Property(x => x.Kind).HasMaxLength(32);
+            e.Property(x => x.Payload).HasMaxLength(2000);
+            e.Property(x => x.LastError).HasMaxLength(500);
         });
 
         b.Entity<DevicePairing>(e =>

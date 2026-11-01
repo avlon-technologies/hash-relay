@@ -273,7 +273,9 @@ public static class ServiceScopes
     public const string Endpoints = "endpoints:read";
     public const string Subscriptions = "subscriptions:write";
     public const string Images = "images:write";
-    public static readonly string[] All = [Publish, Read, Endpoints, Subscriptions, Images];
+    /// <summary>Create approval requests and read or cancel the ones this account created. Never confers the authority to decide one: deciding is a signed-in person's act.</summary>
+    public const string ApprovalsCreate = "approvals:create";
+    public static readonly string[] All = [Publish, Read, Endpoints, Subscriptions, Images, ApprovalsCreate];
     public static readonly IReadOnlyDictionary<string, string> Descriptions = new Dictionary<string, string>
     {
         [Publish] = "Publish notifications to the allowed hashtags",
@@ -281,6 +283,7 @@ public static class ServiceScopes
         [Endpoints] = "List devices and their subscriptions",
         [Subscriptions] = "Change device subscriptions",
         [Images] = "Upload images for notifications",
+        [ApprovalsCreate] = "Request approvals from workspace members and read their outcome (cannot approve)",
     };
 
     /// <summary>The legacy scope claims ("publish", "subscribe") implied by a set of service scopes.</summary>
