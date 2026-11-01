@@ -17,12 +17,16 @@ namespace HashRelay.Server.Api;
 /// <c>approvals:create</c>. Device tokens cannot request: a paired device is a person's receiver, not an application.</item>
 /// <item>The decision route takes only a signed-in person's session cookie plus an antiforgery token. No API key,
 /// service key, OAuth token or device token is accepted there, whatever its scopes.</item>
+/// <item>One-click decisions (<c>/device-decision</c>) take a paired device token AND that device's decision grant
+/// secret (<c>HashRelay-Decision-Grant</c>), which only the person who paired it can issue after signing in. The
+/// device token alone never decides (ADL requirement DeviceDecisionAuthority).</item>
 /// </list>
 /// </summary>
 public static class ApprovalEndpoints
 {
     public const string PolicyRequester = "api:approvals";
     public const string IdempotencyHeader = "Idempotency-Key";
+    public const string PolicyDevice = "api:device-decisions";
 
     public static bool MayRequestApprovals(ClaimsPrincipal user) => user.CredentialKind() switch
     {
@@ -76,6 +80,23 @@ public static class ApprovalEndpoints
             }
             return Results.Ok(await approvals.DecideAsync(accountId.Value, id, req, ctx.Request.Headers[IdempotencyHeader].ToString(), ctx.TraceIdentifier, ct));
         }).AllowAnonymous().RequireRateLimiting("decide");
+
+        api.MapPost("/{id:guid}/device-decision", async (Guid id, [FromBody] DeviceDecisionRequest req, HttpContext ctx, ApprovalService approvals, CancellationToken ct) =>
+            Results.Ok(await approvals.DecideFromDeviceAsync(ctx.User.TenantId(), ctx.User.CredentialId(), ctx.User.BoundEndpointRef(), ctx.Request.Headers[DecisionGrants.Header].ToString(),
+                id, req, ctx.Request.Headers[IdempotencyHeader].ToString(), ctx.TraceIdentifier, ct)))
+            .RequireAuthorization(PolicyDevice).RequireRateLimiting("decide");
+
+        // Enrolment (EnrollDevice) and revocation (RevokeDevice) of one-click approvals, from the device side.
+        var grants = app.MapGroup("/api/v1/decision-grants").AddEndpointFilter<ApiExceptionFilter>().RequireAuthorization(PolicyDevice);
+        grants.MapPost("", async (HttpContext ctx, ApprovalService approvals, CancellationToken ct) =>
+            Results.Ok(await approvals.BeginDecisionGrantAsync(ctx.User.TenantId(), ctx.User.CredentialId(), ct))).RequireRateLimiting("pairing");
+        grants.MapPost("/poll", async (DecisionGrantPollRequest req, HttpContext ctx, ApprovalService approvals, CancellationToken ct) =>
+            Results.Ok(await approvals.PollDecisionGrantAsync(ctx.User.TenantId(), ctx.User.CredentialId(), req.PollCode, ct)));
+        grants.MapDelete("/current", async (HttpContext ctx, ApprovalService approvals, CancellationToken ct) =>
+        {
+            await approvals.RevokeDecisionGrantFromDeviceAsync(ctx.User.TenantId(), ctx.User.CredentialId(), ctx.Request.Headers[DecisionGrants.Header].ToString(), ct);
+            return Results.NoContent();
+        });
 
         return app;
     }

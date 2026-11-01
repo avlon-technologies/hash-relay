@@ -1,0 +1,96 @@
+@page "/approvals/devices"
+@model HashRelay.Server.Pages.ApprovalDevicesModel
+@{
+    ViewData["Title"] = "One-click approvals";
+}
+<div class="auth">
+    <div class="card" style="max-width:560px">
+        <div class="card-body">
+            @if (Model.Granted)
+            {
+                <div data-grant-done style="text-align:center">
+                    <h1>One-click approvals on</h1>
+                    <p><strong>@Model.DeviceName</strong> can now record your Approve or Reject straight from its notification. You can close this tab; the agent finishes on its own.</p>
+                </div>
+            }
+            else if (Model.Denied)
+            {
+                <h1>Not enabled</h1>
+                <p data-grant-denied>Nothing was granted. Approval notifications on that device keep opening this site to decide.</p>
+            }
+            else if (Model.Request is not null && !Model.NotYours)
+            {
+                <h1>Approve from notifications on this device?</h1>
+                <p class="sub">Request code <span class="mono"><strong>@Model.Request.Grant.UserCode</strong></span></p>
+                <div class="device-card mb-2">
+                    <div>
+                        <div><strong>@Model.Request.Grant.DeviceName</strong> <span class="badge">Agent</span></div>
+                        <div class="small muted">Workspace @Model.Request.WorkspaceName</div>
+                    </div>
+                </div>
+                <div class="alert alert-warn" data-grant-warning>
+                    <strong>Anyone who can use this computer while it is unlocked will be able to approve or reject as you,</strong>
+                    by pressing a button on a notification, without signing in again. Only turn this on for a computer that only you use
+                    and that locks when you step away. Each decision is still recorded under your name, and only for approvals where you
+                    are a designated approver in @Model.Request.WorkspaceName.
+                </div>
+                <p class="small muted">It lasts 90 days. Turn it off any time from the HashRelay tray menu or from this page.</p>
+                @if (Model.Error is not null)
+                {
+                    <div class="alert alert-danger">@Model.Error</div>
+                }
+                <form method="post">
+                    <input type="hidden" name="grantId" value="@Model.Request.Grant.Id" />
+                    <input type="hidden" name="code" value="@Model.Request.Grant.UserCode" />
+                    <label class="check mb-2"><input type="checkbox" name="understood" value="true" /> I understand that anyone at this unlocked computer can decide approvals as me.</label>
+                    <div class="flex" style="justify-content:flex-end">
+                        <button class="btn btn-ghost" type="submit" asp-page-handler="Deny">Don't allow</button>
+                        <button class="btn btn-primary" type="submit" asp-page-handler="Grant">Allow one-click approvals</button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <h1>One-click approvals</h1>
+                @if (Model.NotYours)
+                {
+                    <div class="alert alert-danger" data-grant-notyours>Only the person who paired <strong>@Model.Request!.Grant.DeviceName</strong> can let it approve on their behalf. Sign in as that person, or pair the device yourself first.</div>
+                }
+                else if (Model.CodeNotFound)
+                {
+                    <div class="alert alert-danger">That request wasn't found or has expired. Start again from the HashRelay tray menu: <em>Enable one-click approvals…</em></div>
+                }
+                @if (Model.Revoked is not null)
+                {
+                    <div class="alert alert-success" data-grant-revoked>One-click approvals turned off for <strong>@Model.Revoked</strong>.</div>
+                }
+                <p class="sub">Devices that can record your approval decisions from a notification button.</p>
+            }
+
+            @if (Model.Grants.Count > 0)
+            {
+                <h2 class="mt-3" style="font-size:1rem">Your devices with one-click approvals</h2>
+                <table class="table" data-grant-list>
+                    <tbody>
+                    @foreach (var g in Model.Grants)
+                    {
+                        <tr>
+                            <td><strong>@g.DeviceName</strong><div class="small muted">until <time datetime="@g.ExpiresAt.ToString("o")">@g.ExpiresAt.ToString("yyyy-MM-dd")</time>@(g.LastUsedAt is { } u ? $" · last used {u:yyyy-MM-dd}" : "")</div></td>
+                            <td style="text-align:right">
+                                <form method="post" asp-page-handler="Revoke">
+                                    <input type="hidden" name="grantId" value="@g.Id" />
+                                    <button class="btn btn-ghost" type="submit">Turn off</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            }
+            else if (!Model.Granted && Model.Request is null)
+            {
+                <p class="small muted">None yet. Turn it on from the HashRelay agent's tray menu.</p>
+            }
+        </div>
+    </div>
+</div>
