@@ -35,9 +35,13 @@
                         <input type="hidden" name="Key" value="@Model.DecisionKey" />
                         <label for="Note">Note (optional)</label>
                         <input id="Note" name="Note" maxlength="@ApprovalLimits.NoteMax" />
+                        @if (Model.IntendsApprove || Model.IntendsReject)
+                        {
+                            <p data-intended="@(Model.IntendsReject ? "reject" : "approve")"><strong>Confirm that you want to @(Model.IntendsReject ? "reject" : "approve") this request.</strong> Nothing has been recorded yet.</p>
+                        }
                         <p class="muted small">HashRelay records your decision; the requesting system performs the operation itself.</p>
-                        <button class="btn btn-primary" type="submit" asp-page-handler="Approve">Approve</button>
-                        <button class="btn" type="submit" asp-page-handler="Reject">Reject</button>
+                        <button class="btn @(Model.IntendsReject ? "" : "btn-primary")" type="submit" asp-page-handler="Approve">@(Model.IntendsApprove ? "Confirm approval" : "Approve")</button>
+                        <button class="btn @(Model.IntendsReject ? "btn-primary" : "")" type="submit" asp-page-handler="Reject">@(Model.IntendsReject ? "Confirm rejection" : "Reject")</button>
                     </form>
                 }
             </div>
