@@ -9,18 +9,14 @@ description: Gate implementation on an explicit model decision - classify a requ
 diagnostics and evidence discipline live there. This skill adds one thing to
 it: **a decision boundary that code must not cross unasked.**
 
-It orchestrates and delegates. It authors no change format, runs no
-compiler and defines no rule of its own:
-
-```
-this skill              WHETHER the model must move, and WHEN to stop
-understand-architecture reading and explaining the model
-change-architecture     authoring an .adl-change and proving apply(A, Δ) = B
-development-package     turning an accepted architecture into an implementable handoff
-reconcile-architecture  what to do when the guard says the two have drifted
-the MCP tools           every mechanical answer
-you                     the architecture judgment, and the implementation
-```
+It orchestrates and delegates: it authors no change format, runs no compiler
+and defines no rule of its own. Reading and explaining the model is
+`understand-architecture`; authoring an `.adl-change` and proving
+`apply(A, Δ) = B` is `change-architecture`; turning an accepted architecture
+into an implementable handoff is `development-package`; drift is
+`reconcile-architecture`. What is left here — whether the model must move, and
+when to stop — is this skill's, and the implementation and the architecture
+judgment are yours.
 
 ## 0. The rule this exists for
 
@@ -28,19 +24,15 @@ you                     the architecture judgment, and the implementation
 > nobody approved, nobody can find, and the next reader has to reverse-engineer
 > from code.**
 
-Implementation that quietly assumes a new service, a new message, a new owner,
-a new dependency or a new business rule has moved the architecture without
-moving the model. That is the failure this skill prevents — not by forbidding
-change, but by making it explicit and approved *before* it is encoded in code.
-
-Two prohibitions, and they are absolute:
-
-- **Never edit the authoritative model to unblock yourself.** Not
-  `continuum/model/`, not a `.bdl` source, not "just to make it compile". The
-  model moves by an approved change, and by nothing else.
-- **Never treat "it compiles" or "it applies" as approval.** `continuum_apply`
-  returns state B; it does not adopt it. A mechanically valid change can be a
-  bad idea, and that judgment is the user's.
+Implementation that quietly assumes a new service, message, owner, dependency
+or business rule has moved the architecture without moving the model. That is
+the failure this skill prevents — not by forbidding change, but by making it
+explicit and approved *before* it is encoded in code. Two absolute
+prohibitions: **never edit the authoritative model to unblock yourself** (not
+`continuum/model/`, not a `.bdl` source, not "just to make it compile" — the
+model moves by an approved change and by nothing else), and **never treat "it
+compiles", "it applies" or "it attained a level" as approval** — each is a
+mechanical fact, and whether the change is a good idea is the user's judgment.
 
 ## 1. Classify the request — four outcomes
 
@@ -58,31 +50,49 @@ so the user can disagree with it cheaply.
 
 Read the model before answering — `continuum_query` for one element,
 `continuum_text_projection` for a bounded slice, `continuum_process_graph` for
-anything causal. Do **not** classify from the repository's code, its file
-layout or its README: those are the implementation, and the question is whether
-the *intent* covers what is being asked.
+anything causal. Do **not** classify from the repository's code, its layout or
+its README: those are the implementation, and the question is whether the
+*intent* covers what is being asked.
 
-**It needs an ADL change if the request adds, removes, renames, moves or
-re-owns any of:** an element (service, actor, resource, capability, message,
-workflow, bounded context, domain), an edge (`dependsOn`, `publishes`,
-`consumes`, `reads`, `writes`, `owns`, `realizes`, `deployedAs`), a constraint,
-a requirement, or a policy. Also if it changes *who* is responsible for
-something the model already declares.
-
-**It needs a BDL change if the request changes what the business means** — a
-capability's purpose, a policy or rule, a value definition, a term, an outcome,
-a modality (is this *stated*, *required*, *observed*?), or the provenance of an
-assertion. A business model answers "what does the organization do and mean",
-independent of any system that realizes it.
-
-**It is neither if** the change is entirely inside something the model already
-declares: an algorithm, a data structure, error handling, performance, logging,
-refactoring that preserves every declared element and edge, a test, a fix that
-makes code match what the model *already* says.
+- **ADL** if the request adds, removes, renames, moves or re-owns an element
+  (service, actor, resource, capability, message, workflow, bounded context,
+  domain), an edge (`dependsOn`, `publishes`, `consumes`, `reads`, `writes`,
+  `owns`, `realizes`, `deployedAs`), a constraint, a requirement or a policy —
+  or changes *who* is responsible for something already declared.
+- **BDL** if it changes what the business means: a capability's purpose, a
+  policy or rule, a value definition, a term, an outcome, a modality
+  (*stated*, *required*, *observed*?), or an assertion's provenance. A business
+  model answers what the organization does and means, independent of any
+  system realizing it.
+- **neither** if it is entirely inside something already declared: an
+  algorithm, a data structure, error handling, performance, logging, a
+  refactor preserving every declared element and edge, a test, or a fix making
+  code match what the model *already* says.
 
 **When the answer is genuinely unclear, say so and ask.** An honest "this could
 be read two ways, and they lead to different work" costs one question. Guessing
 costs a wrong model or a silent divergence.
+
+### 1a. Assess the starting model — before the work, never instead of it
+
+Whatever the classification, assess the **authoritative** model the work will
+be built against — `continuum conformance assess <package dir> [--baseline
+<file>] --json`, or `continuum_assess_model {manifestPath}` — and record what
+the `continuum` skill §5a lists. Then split what came back, because the halves
+lead to different work:
+
+- **Blocking** — a level not attained for a reason this work will not fix: a
+  `FAIL` carrying an `error` diagnostic, an unresolved reference,
+  `policy/unresolved` from an unreadable baseline, a warning class the
+  baseline in force makes policy-relevant. Say so *before* building; some are
+  themselves an architecture change, which is §3.
+- **Obligations this work is meant to satisfy** — the `UNKNOWN`s whose
+  evidence does not exist yet because the implementation does not.
+  `precondition/no-correspondence-map` in a repository with no citations is
+  the work, not a defect in the model.
+
+**No minimum level, no new approval.** The level is a fact you report;
+whether it is good enough is the owner's judgment. Do not gate on it.
 
 ## 2. Neither — implement
 
@@ -94,82 +104,65 @@ inside them.
 classification was wrong — stop and go to §8.** "Neither" is a finding about the
 model, not a commitment to finish without one.
 
-At the end, confirm conformance rather than assuming it — §7.
+At the end, confirm conformance rather than assuming it — §7 step 3, then §7a.
 
 ## 3. ADL — the change artifact path
 
-This is where `change-architecture` does the work. Delegate to it; do not
-re-derive its steps here. What this skill adds is the **stop**.
+`change-architecture` does this work — establishing state A, deciding the
+architecture in concepts, authoring the `.adl-change` against the repository's
+change record, and proving `apply(A, Δ) = B`. Delegate to it rather than
+re-deriving its steps here. What this skill adds is the **stop**, and three
+rules it will not relax:
 
-1. **Establish state A.** `continuum_compile` with state semantics. Keep the
-   three digest domains apart — attestation, change-state, content — and never
-   substitute one for another.
-2. **Decide the architecture in concepts first**, not in ADL syntax. What
-   exists, what it owns, what it depends on, what it may not do.
-3. **Author the `.adl-change`** into the repository's change record (in this
-   workspace, `architecture/changes/`). A population or correction is a
-   *change*, never a rewrite — that is what keeps element identity stable so a
-   later `continuum_diff` reports a rename as a rename.
-4. **Prove it mechanically**: `continuum_apply` to establish
-   `apply(A, Δ) = B`, and compile B. Only `VERIFIED` and `INTENDED` claims may
-   be declared; an `INTENDED` claim says so in its `desc`. `PROPOSED`,
-   `UNKNOWN` and `CONFLICT` are not declared at all — they are gaps.
-5. **Adding an element, edge, owner or reaction to silence a warning is not a
-   change and is never permitted** — it is a lie with a digest behind it. An
-   unrealized-intent warning can be the honest finding; explain it instead.
+- a population or correction is a **change**, never a rewrite — that is what
+  keeps element identity stable, so a later `continuum_diff` reports a rename
+  as a rename;
+- **adding an element, edge, owner or reaction to silence a warning is not a
+  change and is never permitted** — it is a lie with a digest behind it. An
+  unrealized-intent warning can be the honest finding; explain it instead;
+- where the change records claims, only `VERIFIED` and `INTENDED` may be
+  declared, and an `INTENDED` claim says so in its `desc`. `PROPOSED`,
+  `UNKNOWN` and `CONFLICT` are not declared at all — they are gaps.
 
 Then **§6 — present and stop.**
 
 ## 4. BDL — the source-diff path
 
-**There is no `.bdl-change`, and you must not invent one.** BDL's own `ABSENT`
-record is explicit:
-
-> *"BDL change semantics do not exist yet — no diff, no apply, no change
-> artifact, no change source. They are absent rather than stubbed, so that
-> nothing downstream can depend on a shape that has not been designed."*
-
-The MCP contract mirrors this in `BUSINESS_ABSENT`, which names each business
-capability that deliberately does not exist and why — a BDL diff and a BDL
-apply among them. **Read that record rather than guessing, do not emulate what
-it says is absent, and do not describe a BDL change as if it were proved the way
-an ADL change is.** The two paths are asymmetric because the languages are.
+**There is no `.bdl-change`, and you must not invent one.** BDL change
+semantics are deliberately ABSENT rather than stubbed — no diff, no apply, no
+change artifact, no change source — and the MCP contract's `BUSINESS_ABSENT`
+names each capability that does not exist and why. Read that record rather
+than guessing, never emulate what it says is absent, and never describe a BDL
+change as if it were proved the way an ADL change is: the two paths are
+asymmetric because the languages are. The authority, the interfaces and what
+BDL does not do: `docs/guides/BDL-CONSUMER.md`.
 
 So the proposal is a **source diff plus a compile result**:
 
-1. **Read the current business model.**
-   `continuum_business_inspect` — `view` is a CLOSED set, `elements` or
-   `worklist`, and there is no filter to pass because BDL has fixed
-   projections rather than a query language. `continuum_business_text_projection`
-   for the readable form.
-2. **Write the proposed `.bdl` source as a candidate**, beside the
-   authoritative document — never over it. `continuum_business_parse` answers
-   whether it can be read as a BDL model at all.
-3. **Compile the candidate.** `continuum_business_compile`. Its diagnostics
-   carry `rule` and `jurisdiction` and travel with the result; nothing resolves
-   a BDL rule id to a registry, so quote the rendered diagnostic rather than
-   inventing a catalogue lookup.
-4. **Diff the CANONICAL source, not your draft.** `continuum_business_emit`
-   returns the model as authored `.bdl` source, so emitting both the current
-   document and your compiled candidate gives two canonical forms to compare.
-   Diffing your hand-written draft instead shows your formatting choices as if
-   they were changes, and hides a real change that happens to reformat.
-5. **Show the behavioural delta** — this is the part no tool will do for you,
-   and it is why this step is prose rather than a digest:
-   - the **source diff**, canonical form against canonical form;
-   - the **projection comparison**: the `elements` view before and after, and
-     the `worklist` view before and after;
-   - the **validity comparison**: valid/invalid and every diagnostic that
-     appeared or disappeared;
-   - in words: which business rule, policy, term or outcome now means something
-     different, and what follows for anyone relying on the old meaning.
-6. **BDL never mints identity** (rule R3, identity stability). If a new element
-   needs an id, the id is authored by a human, deliberately. Do not generate
-   one, and do not reuse one.
-7. If the repository carries both languages, `continuum-bdl`'s
-   business-to-architecture correspondence checkers are the thing that says
-   whether the business model and the ADL model still agree. Use them; do not
-   assert correspondence by reading.
+1. **Read the current model** — `continuum_business_inspect` (`view` is the
+   closed set `elements` | `worklist`; there is no filter, because BDL has
+   fixed projections rather than a query language) and
+   `continuum_business_text_projection` for the readable form.
+2. **Write the proposed `.bdl` as a candidate** beside the authoritative
+   document, never over it; `continuum_business_parse` says whether it reads
+   as a BDL model at all.
+3. **Compile it** — `continuum_business_compile`. Diagnostics carry `rule`
+   and `jurisdiction`, and nothing resolves a BDL rule id to a registry:
+   quote the rendered diagnostic, never invent a lookup.
+4. **Diff the CANONICAL source, not your draft** — `continuum_business_emit`
+   returns each model as authored `.bdl`, so emit both and compare those.
+   Diffing a draft shows your formatting as change and hides a real change
+   that reformats.
+5. **Show the behavioural delta**, which no tool derives: the canonical
+   diff; the `elements` and `worklist` views before and after; valid/invalid
+   with every diagnostic that appeared or disappeared; and in words, which
+   rule, policy, term or outcome now means something different and what
+   follows for anyone relying on the old meaning.
+6. **BDL never mints identity** (R3): a new element's id is authored by a
+   human, deliberately. Do not generate one; do not reuse one.
+7. Where both languages are present, `continuum-bdl`'s
+   business-to-architecture correspondence checkers say whether the two still
+   agree. Use them; never assert correspondence by reading.
 
 Then **§6 — present and stop.**
 
@@ -196,16 +189,15 @@ Then **§6 — present and stop.**
 
 **Present, then stop. Do not continue into implementation in the same breath.**
 
-What a reviewer needs, and nothing more:
-
-- **what changes**, in architecture or business concepts — not in syntax;
-- **why**, and what it makes possible that is not possible now;
-- **the proof, labelled for what it is**: for ADL, `apply(A, Δ) = B` with the
-  state digests; for BDL, the compile result and the projection comparison. Say
-  which is which — a BDL proposal has no `apply` proof and must not appear to;
-- **what it does not settle** — every question left open, as a gap rather than
-  as an omission. A missing claim is a missing claim, not evidence of absence;
-- **what you will implement** once it is accepted.
+What a reviewer needs, and nothing more: **what changes**, in architecture or
+business concepts rather than syntax; **why**, and what it makes possible that
+is not possible now; **the proof, labelled for what it is** — for ADL,
+`apply(A, Δ) = B` with the state digests; for BDL, the compile result and the
+projection comparison, and say which is which, because a BDL proposal has no
+`apply` proof and must not appear to; the **assessment of the proposed
+target** as an observation, never an endorsement (§7 step 1); **what it does
+not settle**, as gaps rather than omissions; and **what you will implement**
+once it is accepted.
 
 Then ask for approval, explicitly, and wait. Approval of the *model change* is
 not approval of an implementation plan you have not shown, and approval of one
@@ -213,89 +205,119 @@ half of a coordinated change is not approval of the other.
 
 ## 7. After approval — implement, then check
 
-For ADL in a client repository the change is a **transition**, and its
-sequence is not yours to reconstruct: drive it with the readiness loop
-(`continuum` skill §1b). In the order readiness will show it — the person
-**approves** (one command, from readiness); you **materialize** the sanctioned
-target; you **implement** against `result/`, make the complete resulting suite
-pass and **commit**; the person **accepts** (one command); you **adopt**.
-Implementation begins only once the approval fact exists — an approval asked
-for after the code is written does not authorize that code (§7.2 of the
-lifecycle). Adoption comes last, after acceptance, never before implementation.
+For ADL in a client repository the change is a **transition**, and neither its
+order nor who performs each act is yours to reconstruct or restate:
+`continuum icp ready <transition>` is the authority, driven with the readiness
+loop (`continuum` skill §1b). Two rules hold independently of any sequence:
+**implementation begins only once the approval fact exists** — an approval
+asked for after the code is written does not authorize that code (§7.2 of the
+lifecycle) — and **nothing you ran is a lifecycle fact**: a passing suite, a
+clean guard and an attained level are evidence a person weighs, never an act
+they performed.
 
 1. **Prepare the approved target.** For ADL, read readiness and perform the
-   agent steps it awaits — at this point, materialize; the `.adl-change` stays
-   as the explanation of the transition. For BDL, edit the authoritative
-   `.bdl` source, then recompile and re-inspect to confirm the source is the
-   source that was approved.
-2. **Implement against the accepted model**, not against your memory of the
-   proposal. Re-read it if the work is long. **The moment the work needs an
-   answer the accepted model does not carry, stop and go to §8** — including
-   when the missing piece looks like a small extension of what was just
-   approved. That is the case this skill exists for, and it is the one most
-   easily walked past while there is momentum.
+   agent steps it awaits; the `.adl-change` stays as the transition's
+   explanation. Assess the target you will build against — the resulting
+   package's model, not state A — and carry its actionable findings into the
+   work: the reason code verbatim, the element ids from `warnings[].elements`,
+   what evidence would remove it, and which implementation or verification
+   task produces that evidence (`docs/guides/CONFORMANCE-ASSESSMENT.md` §4.2,
+   §5). Keep **observed**, **proposed** and **approved** apart in words: an
+   assessment of a proposed target is an observation about a proposal, and
+   approval stays the person's. For BDL, edit the authoritative `.bdl` source,
+   then recompile and re-inspect to confirm it is the source that was
+   approved.
+2. **Implement against the accepted model**, not your memory of the proposal.
+   Re-read it if the work is long. **The moment the work needs an answer the
+   accepted model does not carry, stop and go to §8** — including when the
+   missing piece looks like a small extension of what was just approved. That
+   is the case this skill exists for, and the one most easily walked past
+   while there is momentum.
 3. **Check conformance rather than assuming it.** `continuum_guard` for what
    the Architecture Guard would say on this evidence; `continuum_package_check`
-   where a development package is built; `continuum_icp_check` for an
-   incremental change package. If the guard reports drift, `reconcile-architecture`
-   owns what to do — do not hand-repair state it is built to reason about.
+   where a package is built; `continuum_icp_check` for a transition;
+   `continuum_workflow_verify {packageDir}` for whether the record those facts
+   live in verifies at all — when it does not, no state read from it is
+   trustworthy. On drift, `reconcile-architecture` owns what to do: never
+   hand-repair state it is built to reason about.
 
-   **Read the lifecycle before you reason about it, and never write it by
-   hand.** The loop, who performs each act, and the one-command-at-a-time rule
-   are the `continuum` skill §1b — follow it there rather than from here.
-   `continuum_workflow_verify {packageDir}` says whether the workflow record
-   itself verifies; when it does not, no state read from it is trustworthy.
-
-   **"The check did not run" is not "the check passed", and you must not report
-   it as one.** A guard invocation can come back without a judgment for reasons
-   that have nothing to do with the architecture: no credential, an unreachable
-   Host, a route the deployment does not implement, or a package that was never
-   built (`package check` needs a `PACKAGE.json`, and a repository laid out
-   exactly as documented but never packaged has none). A git hook may well let a
-   commit through in that state, and locally that is deliberate. It is still not
-   evidence of conformance.
-
-   So read the guard's answer for WHICH outcome it is — PASS, FAIL, INDETERMINATE (exit 2,
-   or 3 where a judgment was required) or NOT APPLICABLE; never report an absent answer — and say which one you got. If it is the third, the
-   honest report is "conformance was not established, because X", and X belongs
-   in the report next to whatever you built.
+   **"The check did not run" is not "the check passed."** A guard invocation
+   can come back without a judgment for reasons unrelated to the
+   architecture: no credential, an unreachable Host, a route the deployment
+   does not implement, a package never built (`package check` needs a
+   `PACKAGE.json`). A git hook may let the commit through, and locally that is
+   deliberate — it is still not evidence of conformance. So read the answer
+   for WHICH outcome it is — PASS, FAIL, INDETERMINATE (exit 2, or exit 3
+   where a judgment was required) or NOT APPLICABLE — say which you got, never
+   report an absent answer. For an indeterminate one the honest report is
+   "conformance was not established, because X", with X beside what you built.
 4. **Report what was approved, what was built, and what still differs.** A
    difference you can name is a finding; one you cannot is a divergence.
+
+### 7a. After implementation — verify, reassess, report
+
+Run what actually exercises the implementation — the repository's own tests,
+`continuum package run`, `continuum conformance check`, `continuum evidence
+check --anchored-at <rev>`, `continuum package check`, `continuum guard ci`
+(step 3 for reading its outcome) — and name each result as itself, at the
+revision it was obtained at. What each establishes:
+`docs/guides/CONFORMANCE-ASSESSMENT.md` §4.3.
+
+Then reassess the model, report the level again, and say what keeps it honest:
+
+> A reassessment of the same model establishes model conformance again. It
+> establishes nothing about the implementation.
+
+So **never** report L2, L3 or L4 because the same model was reassessed after
+the code was written, however green the suite. No Continuum surface carries
+this implementation evidence into an assessment today, and L3/L4 are a
+*verifier capability* limit rather than a missing-evidence one — that guide's
+§6. Report verification results **beside** the assessment: never blended into
+one verdict, never described as a level.
+
+Report in one place: the **assessed subject** and digest; the
+**implementation revision**; the **attained level** with its specification,
+profile, policy-baseline and evaluator identities; the **verification
+results**; the **unresolved obligations** with their reason codes; the **blind
+spots**; and the **lifecycle state** (`continuum icp ready <transition>`, else
+`continuum ledger current`) — which no assessment changes.
 
 ## 8. When implementation outruns the model
 
 This is the case the whole skill exists for, and it will happen: you are
-building, and you find the model does not answer something the code must
-answer. A name it does not declare. An owner it does not name. A message with
-no publisher. A rule the business model leaves open.
+building and the model does not answer something the code must answer. A name
+it does not declare. An owner it does not name. A message with no publisher. A
+rule the business model leaves open.
 
 **Stop. Return to §1 and re-classify.** Then:
 
 - **Do not** infer the answer and encode it in code.
 - **Do not** edit the model to match what you were about to build.
-- **Do not** widen the change already approved on the grounds that it is
-  "nearly the same change". It was approved as what it was.
-- **Do** say precisely what is missing, what the code needs from it, and what
+- **Do not** widen the approved change because the addition is "nearly the
+  same change". It was approved as what it was.
+- **Do** say precisely what is missing, what the code needs from it and what
   the candidate answers are — then take it back through the gate.
 
-Partial work is fine and should be kept: implement everything that does *not*
-depend on the missing decision, and say exactly what you left out and why.
-Scaling the work down is the user's call, not yours.
-
-If the gap is real but nobody is ready to decide it, **record it as a gap**
-rather than leaving it in your head. An open question with a name is an asset;
-the same question inside an implementation is a defect waiting to be found.
+Keep partial work: implement everything that does *not* depend on the missing
+decision and say exactly what you left out and why. Scaling the work down is
+the user's call. If the gap is real but nobody is ready to decide it, **record
+it as a gap** rather than leaving it in your head — an open question with a
+name is an asset; the same question inside an implementation is a defect
+waiting to be found.
 
 ## 9. What this skill never does
 
-- Writes code that depends on an unapproved model change.
+- Writes code that depends on an unapproved model change, or implements a
+  semantic change before an approval fact binds its transition.
 - Edits `continuum/model/` or an authoritative `.bdl` source to unblock itself.
-- Calls a change adopted because it compiled, applied, or passed a test.
+- Claims an implementation, behavioural or runtime level from a model
+  reassessment, or presents a compiler attestation, a green suite or a
+  `conformance check` row as a conformance level.
+- Treats an attained level as an approval, or a level as a gate on
+  implementation.
 - Hands a person a chain of lifecycle commands, or any command readiness does
   not name as the awaited human step.
-- Implements a semantic change before an approval fact binds its transition.
-- Invents a `.bdl-change`, a BDL diff, or a BDL apply.
-- Mints a BDL identity.
+- Invents a `.bdl-change`, a BDL diff, a BDL apply, or a BDL identity.
 - Adds an element, edge, owner or reaction to silence a compiler warning — not
   once, not to get a clean run, not ever.
 - Infers technology. A `Resource [data-store]` is not a product name.
