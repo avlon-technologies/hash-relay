@@ -97,6 +97,19 @@ Shipped: three tools on the existing MCP endpoint (`/mcp`, stateless Streamable 
 | `request_approval` | `subject`, `targetUserIds[]`, `expiresAt`, `idempotencyKey` (required); `description`, `tags[]`, `requesterCorrelationId` (optional) | `approvalId`, `status` (`pending`), `proceed` (false), `version`, `expiresAt`, `requesterCorrelationId`, `approvalUrl`, `notificationId`, `created` (false on an idempotent replay), `next` (what the agent should do) | `POST /api/v1/approvals` (`ApprovalApi.Request`); `idempotencyKey` is the `Idempotency-Key` header |
 | `get_approval` | `approvalId` | `approval`: the full `ApprovalResource` (status, proceed, version, timestamps, resolution with cause, decider and note), plus `guidance` and an untrusted-content `note` | `GET /api/v1/approvals/{id}` (`ApprovalApi.Retrieve`) |
 
+| `publish_notification` with `approval` | the usual `tags`, `title`, `body`/`markdown`, `notificationId`, plus `approval: { targetUserIds?, expiresInSeconds? (default 900), requesterCorrelationId? }` | the usual publish outcome plus `approvalId`, `approvalStatus`, `approvalExpiresAt`, `approvalUrl` | The same create path as `request_approval`: title → subject, markdown or body → description, `notificationId` → idempotency key (a retry keeps the original deadline). At least one hashtag is required. |
+
+`targetUserIds` is optional in both creating tools. When it is omitted, the approver is the person who created this credential's service account (for an OAuth connector, the person who connected it), resolved on the server. A credential with no such person, such as a plain API key, must name approvers.
+
+**Windows toast actions.** The desktop agent adds **Approve…** and **Reject…** buttons to any notification whose link is `{its own server}/approvals/{id}` (`HashRelay.Client.ApprovalLink`). The buttons open that first-party page with `?decision=approve|reject` pre-selected. The page shows "Confirm approval" or "Confirm rejection" and records nothing until the signed-in person submits the form, which carries the antiforgery token and the per-render idempotency key. So:
+
+- The device token never decides. A pairing alone cannot approve, as this contract requires.
+- A forged approval link in an ordinary notification gains nothing: the page enforces sign-in, membership and designation.
+- Toasts that come back after an agent restart, or are replayed to an offline device on reconnect, still lead to the live page. That page shows the current state: confirmable while Pending and before expiry, otherwise the final outcome.
+- A double submit records one decision. A conflicting later decision gets "already resolved".
+
+A one-click decision recorded straight from the toast would need the device to hold an interactive identity for the person. It remains out of scope.
+
 Rules, all inherited from Milestone 1 rather than re-implemented:
 
 - **Who may call.** A service key with `approvals:create`, or an API key with `publish`. Device tokens and subscribe-only keys are refused. The service account's hashtag allowlist bounds `tags`. Approvers must be eligible members of the caller's workspace.

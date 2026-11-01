@@ -23,6 +23,11 @@ public sealed class ApprovalModel(ApprovalService approvals, TimeProvider clock)
     public string DecisionKey { get; private set; } = "";
     public bool CanDecide => Item.Status == ApprovalStatuses.Pending && clock.GetUtcNow() < Item.ExpiresAt;
 
+    /// <summary>The choice pre-selected by a toast button (<c>?decision=approve|reject</c>). It only changes emphasis: nothing is recorded until the form is posted.</summary>
+    [BindProperty(SupportsGet = true, Name = "decision")] public string? Intended { get; set; }
+    public bool IntendsReject => string.Equals(Intended, ApprovalDecisions.Reject, StringComparison.OrdinalIgnoreCase);
+    public bool IntendsApprove => string.Equals(Intended, ApprovalDecisions.Approve, StringComparison.OrdinalIgnoreCase);
+
     [BindProperty] public string? Note { get; set; }
     [BindProperty] public string? Key { get; set; }
 
