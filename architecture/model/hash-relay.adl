@@ -18,6 +18,9 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
   deployable DesktopAgent #20202020-2020-4020-8020-202020202020 {
     desc "Installable user-session client displaying native notifications."
   }
+  deployable MobileApp #016836e1-a201-4cfd-9e8b-3c114c612ee3 {
+    desc "First-party HashRelay app for iOS and Android. Pairs as a subscriber endpoint, registers its Firebase push token, manages its subscriptions and shows notifications: by push when backgrounded, live over the realtime transport while in the foreground."
+  }
   domain Access #30303030-3030-4030-8030-303030303030 {
     classification = supporting
 
@@ -82,10 +85,10 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
       }
       service DeliveryService #18181818-1818-4818-8818-181818181818 {
         desc "Fans out accepted notifications to eligible endpoint transports: the realtime connection for connected agents and foreground apps, Firebase Cloud Messaging for mobile endpoints holding a provider token. Replays unacknowledged deliveries to a reconnecting endpoint, flagged as replayed and bounded in attempts. Transport selection is an implementation binding."
-        reads: ::HashRelay.Notifications.Delivery.EndpointStore
-        satisfies: ::HashRelay.Notifications.HashtagDelivery.OncePerEndpoint, ::HashRelay.Notifications.HashtagDelivery.DeliveryEvidence, ::HashRelay.Notifications.HashtagDelivery.CatchUpWithoutInterruption
-        subscribesTo: ::HashRelay.Notifications.Routing.NotificationAccepted
         dependsOn: ::HashRelay.FirebaseMessaging
+        reads: ::HashRelay.Notifications.Delivery.EndpointStore
+        satisfies: ::HashRelay.Notifications.HashtagDelivery.DeliveryEvidence, ::HashRelay.Notifications.HashtagDelivery.OncePerEndpoint, ::HashRelay.Notifications.HashtagDelivery.CatchUpWithoutInterruption
+        subscribesTo: ::HashRelay.Notifications.Routing.NotificationAccepted
       }
       service EndpointService #17171717-1717-4717-8717-171717171717 {
         desc "Registers desktop agents and mobile apps as endpoints. A mobile registration carries the Firebase push token (providerToken) and is re-sent whenever the platform rotates it."
@@ -123,7 +126,7 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
         publishes: ::HashRelay.Notifications.Routing.NotificationAccepted
         reads: ::HashRelay.Notifications.Routing.RoutingStore
         realizes: ::HashRelay.Notifications.HashtagDelivery
-        satisfies: ::HashRelay.Notifications.HashtagDelivery.WorkspaceIsolation, ::HashRelay.Notifications.HashtagDelivery.ForwardOnlySubscription, ::HashRelay.Notifications.HashtagDelivery.PublisherAttribution
+        satisfies: ::HashRelay.Notifications.HashtagDelivery.ForwardOnlySubscription, ::HashRelay.Notifications.HashtagDelivery.WorkspaceIsolation, ::HashRelay.Notifications.HashtagDelivery.PublisherAttribution
         writes: ::HashRelay.Notifications.Routing.RoutingStore
 
         api PublicationApi #50505050-5050-4050-8050-505050505050 {
@@ -143,23 +146,23 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
     capability HashtagDelivery #88888888-8888-4888-8888-888888888888 {
       desc "An authorized publisher addresses one or more hashtags and subscribed endpoints receive matching notifications."
 
-      requirement OncePerEndpoint #aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa {
-        desc "A notification matching multiple tags is logically delivered at most once per endpoint, with idempotent processing."
-      }
-      requirement WorkspaceIsolation #99999999-9999-4999-8999-999999999999 {
-        desc "Subscriptions, publishers and notifications are isolated by workspace."
+      requirement CatchUpWithoutInterruption #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb {
+        desc "Deliveries that accumulate while an endpoint is away are replayed on reconnect, flagged as replayed and retained until acknowledged, so the endpoint can record them without presenting each one; live deliveries are presented at once. Acknowledgement means received, not shown."
       }
       requirement DeliveryEvidence #4b83047e-c625-485c-8330-1a6a171bd029 {
         desc "Provider acceptance of a push is recorded as provider acceptance and never reported as display or user acknowledgement; display is known only when the endpoint acknowledges the delivery."
       }
-      requirement CatchUpWithoutInterruption #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb {
-        desc "Deliveries that accumulate while an endpoint is away are replayed on reconnect, flagged as replayed and retained until acknowledged, so the endpoint can record them without presenting each one; live deliveries are presented at once. Acknowledgement means received, not shown."
-      }
       requirement ForwardOnlySubscription #49ca33cb-df60-4ef4-9280-7807328ea2d5 {
         desc "A subscription applies to notifications published after it exists. Earlier notifications are never replayed into a new subscription; they remain readable through the workspace's history."
       }
+      requirement OncePerEndpoint #aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa {
+        desc "A notification matching multiple tags is logically delivered at most once per endpoint, with idempotent processing."
+      }
       requirement PublisherAttribution #abb41875-38c1-4a85-a377-293012ad4b3d {
         desc "Every notification records who published it: a stable publisher id, a display name, a publisher type (agent, application, service, human or unknown) and the entry channel. All four are established by the routing service from the authenticated credential and its registration; none is taken from the message body or inferred from the transport. A type that was never declared is unknown."
+      }
+      requirement WorkspaceIsolation #99999999-9999-4999-8999-999999999999 {
+        desc "Subscriptions, publishers and notifications are isolated by workspace."
       }
     }
   }
@@ -173,8 +176,60 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
   external-system FirebaseMessaging #55555555-5555-4555-8555-555555555555 {
     desc "Firebase Cloud Messaging: the single push provider for mobile endpoints. Delivers to Android directly and relays iOS messages to Apple Push with the project's APNs key."
   }
-  deployable MobileApp #016836e1-a201-4cfd-9e8b-3c114c612ee3 {
-    desc "First-party HashRelay app for iOS and Android. Pairs as a subscriber endpoint, registers its Firebase push token, manages its subscriptions and shows notifications: by push when backgrounded, live over the realtime transport while in the foreground."
+  domain Approvals #5bd1be10-b48e-4b77-a7c6-9e57f06d1001 {
+    classification = supporting
+
+    capability HumanDecision #5bd1be10-b48e-4b77-a7c6-9e57f06d1002 {
+      desc "Authorized users decide time-bound requests; requesting systems remain responsible for executing approved operations."
+
+      requirement DecisionIntegrity #5bd1be10-b48e-4b77-a7c6-9e57f06d1003 {
+        desc "A decision is tenant-isolated, authorized against the designated approvers, committed at most once from Pending, and durably retrievable by the requester."
+      }
+    }
+    bounded-context DecisionManagement #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+      realizes: ::HashRelay.Approvals.HumanDecision
+
+      record ApprovalRequest v1 #5bd1be10-b48e-4b77-a7c6-9e57f06d1005 { approvalId: text, workspaceId: text, requesterId: text, subject: text, expiresAt: text }
+      record ApprovalDecision v1 #5bd1be10-b48e-4b77-a7c6-9e57f06d1006 { approvalId: text, decision: text, decidedBy: text, decidedAt: text }
+      command RequestApproval #5bd1be10-b48e-4b77-a7c6-9e57f06d1007 {
+        payload = ::HashRelay.Approvals.DecisionManagement.ApprovalRequest
+      }
+      command DecideApproval #5bd1be10-b48e-4b77-a7c6-9e57f06d1008 {
+        payload = ::HashRelay.Approvals.DecisionManagement.ApprovalDecision
+      }
+      event ApprovalResolved #5bd1be10-b48e-4b77-a7c6-9e57f06d1009 {
+        payload = ::HashRelay.Approvals.DecisionManagement.ApprovalDecision
+      }
+      service ApprovalOutcomeReader #5bd1be10-b48e-4b77-a7c6-9e57f06d1015 {
+        desc "Reacts to resolved approvals to make durable completion available to originating systems through authenticated retrieval. No workflow execution in HashRelay."
+        subscribesTo: ::HashRelay.Approvals.DecisionManagement.ApprovalResolved
+        reads: ::HashRelay.Approvals.DecisionManagement.ApprovalStore
+      }
+      resource ApprovalStore #5bd1be10-b48e-4b77-a7c6-9e57f06d1010 [data-store] {
+        persistence[durable; strong; retention="approval lifecycle and audit policy"]
+      }
+      service ApprovalService #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 {
+        desc "Creates and atomically resolves authorized approvals; publishes committed decisions for requesting applications to observe. Does not execute approved operations."
+        handles: ::HashRelay.Approvals.DecisionManagement.RequestApproval, ::HashRelay.Approvals.DecisionManagement.DecideApproval
+        publishes: ::HashRelay.Approvals.DecisionManagement.ApprovalResolved
+        dependsOn: ::HashRelay.Notifications.Routing.RoutingService, ::HashRelay.Access.TenantIdentity.TenantAdministrationService
+        reads: ::HashRelay.Approvals.DecisionManagement.ApprovalStore
+        writes: ::HashRelay.Approvals.DecisionManagement.ApprovalStore
+        realizes: ::HashRelay.Approvals.HumanDecision
+        satisfies: ::HashRelay.Approvals.HumanDecision.DecisionIntegrity
+
+        api ApprovalApi #5bd1be10-b48e-4b77-a7c6-9e57f06d1012 {
+          operation Request #5bd1be10-b48e-4b77-a7c6-9e57f06d1013 {
+            in = ::HashRelay.Approvals.DecisionManagement.ApprovalRequest
+            out = ::HashRelay.Approvals.DecisionManagement.ApprovalRequest
+          }
+          operation Decide #5bd1be10-b48e-4b77-a7c6-9e57f06d1014 {
+            in = ::HashRelay.Approvals.DecisionManagement.ApprovalDecision
+            out = ::HashRelay.Approvals.DecisionManagement.ApprovalDecision
+          }
+        }
+      }
+    }
   }
 }
 }
