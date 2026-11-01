@@ -37,7 +37,7 @@ This is a checked Continuum Diagram rendering of the earlier pinned ADL architec
 
 **Status:** development-ready proposal; not yet implemented or accepted as authoritative architecture.
 **Detailed implementation contract:** [Actionable approvals](ACTIONABLE-APPROVALS.md).
-**Continuum draft:** [architecture/model/hash-relay.adl](../architecture/model/hash-relay.adl), compiled using adl/1.4, attestation `sha256:260afc5be54aeddcadaad953d6b08256efdc63f167434104b0f1e317ae84ad8a`.
+**Continuum draft:** [architecture/model/hash-relay.adl](../architecture/model/hash-relay.adl), compiled using adl/1.4, attestation `sha256:840751f090d4cfd371c41e6f40c78b675532e91c863a7918ab1788c64ddd1ba8`.
 
 ### Vision
 A publisher may request a human decision and address it to an authorized approver. HashRelay persistently tracks one approval request independently of its notification deliveries; a subscriber can approve or reject through an authenticated client. The original publisher can reliably observe the terminal result and decide what to execute. This is useful for automated services and human workflows as well as AI agents; MCP is a transport, not evidence that a publisher is an agent.
@@ -58,6 +58,6 @@ Create/list/read approval requests; authorized approve/reject; expiry/cancellati
 
 ### Actionable approval architecture diagram
 
-![Continuum Diagram — actionable approval architecture](diagrams/hashrelay-actionable-approvals.svg)
+![Continuum Diagram — actionable approval round trip](diagrams/hashrelay-approval-roundtrip.svg)
 
-This is a Continuum Diagram C3 view from the proposed ADL, not a diagram of implemented approval functionality. See [Actionable approvals](ACTIONABLE-APPROVALS.md#continuum-diagram--approval-architecture-in-context) for the detailed state flow and gaps still to be declared.
+This is a Continuum Diagram view of approval round-trip architectural relationships from the proposed ADL, not a claim of implemented approval functionality. See [Actionable approvals](ACTIONABLE-APPROVALS.md#continuum-diagram--approval-architecture-in-context) for the detailed state flow and gaps still to be declared.
