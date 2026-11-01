@@ -78,7 +78,10 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiAuth.PolicySubscribe, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireClaim(ApiAuth.ClaimScope, Scopes.Subscribe))
     .AddPolicy(ApiAuth.PolicyRead, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireAssertion(c => !c.User.ServiceAccountLacks(ServiceScopes.Read)))
     .AddPolicy(ApiAuth.PolicyEndpoints, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireAssertion(c => !c.User.ServiceAccountLacks(ServiceScopes.Endpoints)))
-    .AddPolicy(ApiAuth.PolicyImages, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireClaim(ApiAuth.ClaimScope, Scopes.Publish).RequireAssertion(c => !c.User.ServiceAccountLacks(ServiceScopes.Images)));
+    .AddPolicy(ApiAuth.PolicyImages, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireClaim(ApiAuth.ClaimScope, Scopes.Publish).RequireAssertion(c => !c.User.ServiceAccountLacks(ServiceScopes.Images)))
+    // Requesting approvals: an application credential (API key with publish, or service key with approvals:create).
+    // Deciding is not here: it accepts only a person's session (ApprovalEndpoints).
+    .AddPolicy(ApprovalEndpoints.PolicyRequester, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireAssertion(c => ApprovalEndpoints.MayRequestApprovals(c.User)));
 
 builder.Services.AddRateLimiter(o =>
 {
@@ -93,6 +96,9 @@ builder.Services.AddRateLimiter(o =>
         ctx.User.FindFirst(ApiAuth.ClaimCredentialId)?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = perMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.AddPolicy("pairing", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    o.AddPolicy("decide", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
@@ -140,6 +146,11 @@ builder.Services.AddScoped<DevicePairingService>();
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<ServiceAccountService>();
 builder.Services.AddScoped<OAuthService>();
+builder.Services.AddScoped<HashRelay.Server.Services.Approvals.ApprovalService>();
+builder.Services.AddScoped<HashRelay.Server.Services.Approvals.ApprovalOutboxProcessor>();
+builder.Services.AddScoped<HashRelay.Server.Services.Approvals.ApprovalOutcomeReader>();
+builder.Services.AddScoped<HashRelay.Server.Services.Approvals.IApprovalNotificationPublisher, HashRelay.Server.Services.Approvals.RoutingApprovalNotificationPublisher>();
+builder.Services.AddHostedService<HashRelay.Server.Services.Approvals.ApprovalMaintenanceService>();
 // OAuth metadata/token endpoints are called cross-origin by browser-based MCP clients (e.g. MCP Inspector); they carry no cookies.
 builder.Services.AddCors(o => o.AddPolicy(OAuthEndpoints.CorsPolicy, p => p.AllowAnyOrigin().AllowAnyHeader().WithMethods("GET", "POST")));
 
@@ -245,6 +256,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHashRelayApi();
+app.MapApprovalApi();
 app.MapOAuth();
 app.MapDashboardEndpoints();
 app.MapHub<NotificationsHub>(HubMethods.Path);

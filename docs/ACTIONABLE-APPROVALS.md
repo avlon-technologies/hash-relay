@@ -1,7 +1,7 @@
 # Actionable approvals — implementation contract
 
-Status: **Development-ready design proposal, not implementation.** Date: 2026-11-01.
-Source architecture: `architecture/model/hash-relay.adl` (Continuum ADL 1.4 draft; compile attestation `sha256:44127a98aa3fa1f667c2f57ef2ac9e3a5c4664b703aac6f73c3cecad4e4d56ea`). Compiler result: 0 errors / 15 warnings; approval-specific warnings include unverified DecisionIntegrity and missing BC ownership; ApprovalResolved now has a declared subscriber. Acceptance and implementation verification remain separate gates.
+Status: **Milestone 1 (backend vertical slice) implemented**; see [Milestone 1 implementation](#milestone-1-implementation) for what shipped and how it resolves this contract's open points. Date: 2026-11-01.
+Source architecture: `architecture/model/hash-relay.adl` (Continuum ADL 1.4 draft). Designed against changeState `sha256:44127a98aa3fa1f667c2f57ef2ac9e3a5c4664b703aac6f73c3cecad4e4d56ea`; Milestone 1 applied `architecture/changes/2026-11-01-approval-outcome-contracts.adl-change`, giving changeState `sha256:36ec56ff234b6deac6a20bb6bd6d156bed45f7b0b2a28ade137a5984338b805e` (0 errors / 16 warnings). Acceptance and implementation verification remain separate gates.
 
 ## Bounded-context responsibility
 `Approvals.DecisionManagement.ApprovalService` owns approval state, authorized transitions and durable result publication. `ApprovalStore` is the authoritative transactional store. Existing `Notifications.Routing` publishes an ordinary notification referencing an approval, and `Notifications.Delivery` transports it with the existing at-most-once logical endpoint fanout. `Access.TenantIdentity` supplies verified tenant and human identity. Requesting systems execute their own actions after reading/validating the decision. A toast, webhook, SignalR event or MCP response is not the decision source of truth.
@@ -63,6 +63,29 @@ Multi-person quorum, delegation, hierarchical policies, escalation, approval exe
 
 ## Remaining implementation gates
 ADL is an unaccepted draft; review/adopt against repo lifecycle rules. Continuum warnings must be evaluated (not silently ignored), particularly the approval event consumer, verification and ownership bindings. Validate schema against existing database migrations, identity policies and deployment conventions before implementation. No code/tests were executed by this design-only artifact.
+
+## Milestone 1 implementation
+
+Shipped: `POST /api/v1/approvals`, `GET /api/v1/approvals/{id}`, `POST /api/v1/approvals/{id}/decision`, `POST /api/v1/approvals/{id}/cancel`, the decision page `/approvals/{id}`, the approver's pending list `/approvals`, the transactional outbox with its dispatcher and sweep, and `ApprovalOutcomeReader`. Code: `src/HashRelay.Server/Services/Approvals/`, `Api/ApprovalEndpoints.cs`, `Data/ApprovalEntities.cs`, `Pages/Approval*.cshtml`; contracts in `src/HashRelay.Contracts/Approvals.cs`; tests in `tests/HashRelay.Server.Tests/ApprovalTests.cs`.
+
+How this contract's open points were resolved:
+
+| Point | Contract said | Milestone 1 does | Why |
+|---|---|---|---|
+| ApprovalResolved payload | ADL: `payload ApprovalDecision` (a human's decision) | ADL change: payload `ApprovalOutcome {approvalId, workspaceId, requesterId, correlationId, status, cause, version, resolvedAt, decidedBy?}` | Expiry and cancellation also resolve an approval; an event typed as a decision would claim a person decided. `cause` is `decision`, `expiry` or `cancellation`; `decidedBy` is set only for `decision`. |
+| Cancel and retrieval in the model | Not declared | ADL change: command `CancelApproval` (payload `ApprovalReference`), operations `ApprovalApi.Retrieve` and `ApprovalApi.Cancel`, requirement `OutcomeLifecycle` | The HTTP surface had no counterpart in the model. |
+| Requester credential | "`approvals:create` (service account), or equivalent publish-side authority" | Service key needs new scope `approvals:create`. API key needs `publish`. Device tokens are refused whatever their scopes. | `approvals:create` lets a service account request but never decide. |
+| Decider authority (`approvals:decide`) | Scope on a human | No new scope. Authority = signed-in session cookie + current membership (re-read at decision time) + listed in `targetUserIds`. All roles may be designated in v1. | People do not hold scopes in HashRelay; designation by the requester, bounded to members, is the grant. |
+| Decision transport | "interactive human only" | `POST …/decision` authenticates **only** the `hr_session` cookie scheme and validates the antiforgery token (`RequestVerificationToken` header). API, service, OAuth and device bearer tokens get `401`. The page's form posts to the same service. | Bearer tokens never reach the decision path, so no machine credential can approve. |
+| `GET` by a designated approver | Allowed | Approvers read through `/approvals/{id}` (session). `GET /api/v1/approvals/{id}` is for the requester only: the creating credential, or any key of the same service account. | Keeps the API surface for machines and the human view on the session. |
+| Who may cancel | Requester or expressly authorised admin | Requester only | Admin cancellation deferred. |
+| Notification | One ordinary notification | Published through the unchanged routing path only when `tags` are given, with a notification id reserved at creation (retries are idempotent), title `Approval requested: <subject>`, link to the decision page, priority high, and **no description** (that is shown only after sign-in). Skipped if the approval left Pending first. | Publication failure never changes approval state; the intent is retried with backoff (up to 10 attempts). |
+| Decision idempotency | `Idempotency-Key` on decision | Optional on decision. The same key from the same person returns the prior outcome; the same key for a different decision is `409`. The page sends a per-render key. | |
+| Lifetime bounds | — | `expiresAt` 1 minute to 30 days from now; 1–10 approvers; subject ≤ 120, description ≤ 4000, note ≤ 500. | |
+
+Lifecycle and consistency as built: `Pending` leaves exactly once. Every transition is one `UPDATE … WHERE id, tenantId, status = 'pending', version = v` with `expiresAt > now` for a decision or cancellation, or `expiresAt <= now` for expiry. It runs in one SQLite write transaction (`BEGIN IMMEDIATE`) with the audit row and the `approval.resolved` outbox row; the outbox is unique per `(approvalId, kind, version)`. A loser rolls back and receives `409` with `details.status` and `details.version`. Expiry is materialised lazily on read, decide and cancel, and by `ApprovalMaintenanceService` (`HashRelay:Approvals:SweepIntervalSeconds`, default 15; 0 disables it). `ApprovalAudit` is append-only: the DbContext refuses updates and deletes.
+
+Not in Milestone 1: `GET /api/v1/approvals` (list), MCP `request_approval` / `get_approval`, native toast or mobile action buttons, admin cancellation, webhook or callback delivery of `approval.resolved` (the outcome is read by `GET`), and quorum, delegation and escalation (unchanged deferrals).
 
 ## Approval round trip — who records and returns the decision
 
