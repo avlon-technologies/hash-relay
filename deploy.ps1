@@ -92,7 +92,7 @@ if (-not $SkipImage) {
   Write-Host "`n== Build image $loginServer/${repository}:$tag (az acr build)" -ForegroundColor Cyan
   # az writes progress warnings to stderr; keep them from becoming terminating errors when stderr is redirected.
   $eap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-  az acr build --registry $registry --image "${repository}:$tag" --image "${repository}:latest" --file (Join-Path $ctx "Dockerfile") $ctx 2>&1 | ForEach-Object { "$_" }
+  az acr build --registry $registry --image "${repository}:$tag" --image "${repository}:latest" --build-arg "BUILD_LABEL=$tag" --file (Join-Path $ctx "Dockerfile") $ctx 2>&1 | ForEach-Object { "$_" }
   $acrExit = $LASTEXITCODE
   Remove-Item $ctx -Recurse -Force -ErrorAction SilentlyContinue
   $ErrorActionPreference = $eap
