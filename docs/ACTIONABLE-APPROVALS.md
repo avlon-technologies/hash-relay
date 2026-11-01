@@ -63,3 +63,34 @@ Multi-person quorum, delegation, hierarchical policies, escalation, approval exe
 
 ## Remaining implementation gates
 ADL is an unaccepted draft; review/adopt against repo lifecycle rules. Continuum warnings must be evaluated (not silently ignored), particularly the approval event consumer, verification and ownership bindings. Validate schema against existing database migrations, identity policies and deployment conventions before implementation. No code/tests were executed by this design-only artifact.
+
+## Continuum Diagram — approval architecture in context
+
+![Continuum Diagram C3: actionable approvals](diagrams/hashrelay-actionable-approvals.svg)
+
+Generated with Continuum Diagram from the draft ADL at attestation `sha256:260afc5be54aeddcadaad953d6b08256efdc63f167434104b0f1e317ae84ad8a` (run `ecfbf24c-2999-4a86-9a06-5bd8bb36def5`). The reconstructed editable SVG passed geometric, semantic fidelity, and containment checks. It is **not** a claim that the draft architecture is accepted or its proposed cross-context integrations already implemented. The Routing-to-Delivery route is deliberately drawn with a weaker dotted grade by the renderer, although Routing publishes and Delivery subscribes to `NotificationAccepted` in the ADL.
+
+### Existing behavior versus proposed approval behavior
+
+| Concern | Existing HashRelay | Actionable approval enhancement |
+| --- | --- | --- |
+| Submission | An authorized publisher sends a notification to `POST /api/v1/notifications` or MCP `publish_notification` | Authorized requester creates a separate `Approval` resource and an ordinary linked notification is issued |
+| Routing | `RoutingService` authorizes workspace/tag matching and emits `NotificationAccepted` | Reuse RoutingService for attention/hashtag addressing; it does not own approval state |
+| Delivery | `DeliveryService` fans out to eligible endpoints by realtime/FCM and records delivery status | Multiple endpoint presentations refer to **one approval ID**, never separate approvals |
+| Identity | Tenant and credential scopes already gate publishing and subscriptions | Existing tenant isolation is reused, but a real authenticated human's approver entitlement must also be checked |
+| Action | Notification may carry informational URL and can be acknowledged | Open a first-party authenticated detail page; Approve/Reject sends a decision command, not an acknowledgement |
+| Durable authority | Notification, subscription, delivery and endpoint persistence | `ApprovalStore` is the sole authority for Pending/Approved/Rejected/Expired/Cancelled; delivery status never changes approval state |
+| Completion | A notification can be read or acknowledged | `ApprovalResolved` and requester GET expose the terminal result; requester independently executes authorized business work |
+
+### Walkthrough: deployment requires approval
+
+1. A deployment publisher authenticates using its workspace-bound credential and calls `POST /api/v1/approvals`. `ApprovalService` verifies allowed approvers, writes **Pending** and a durable audit record, and associates the approval ID with a notification.
+2. Existing `RoutingService` receives the publication, matches its hashtags and emits `NotificationAccepted`. `DeliveryService` routes the normal notification to subscribed Windows/mobile endpoints. **Neither delivery nor toast presentation decides anything.**
+3. The user opens the linked HashRelay approval page. The page authenticates the interactive user and retrieves current approval status, verifies actor eligibility, and displays details and expiry. Clicking Approve POSTs `DecideApproval` to `ApprovalService`; clicking a stale Windows toast cannot bypass this check.
+4. `ApprovalService` atomically changes Pending to Approved, records actor/time/audit and a durable completion outbox entry. A competing Reject on another device loses, reads final state and cannot reverse it.
+5. The requester eventually receives `ApprovalResolved` or retrieves the authoritative result through GET, validates its own preconditions and performs its deployment. HashRelay never performs that deployment.
+6. If the device is offline, the notification can be synchronized later but the approval remains governed by its own expiry and final status. A late toast opens the current status; it does not offer a still-active button for an expired/resolved request.
+
+### Architecture relationships still needing explicit declaration
+
+The compiled ADL **already declares** `RoutingService publishes NotificationAccepted`, `DeliveryService subscribesTo NotificationAccepted`, and `ApprovalService publishes ApprovalResolved`. It does **not** yet declare the integration whereby creating an approval causes the associated notification to be published, the identity/authorization dependency from ApprovalService to TenantIdentity, or a modeled consumer for ApprovalResolved. Those are specified as implementation requirements above, **not falsely depicted as existing ADL relationships**. Before calling the architecture accepted, evolve the Continuum model to represent these relationships through valid constructs (without inventing a message type or workflow engine), verify compile, and examine the remaining warnings.
