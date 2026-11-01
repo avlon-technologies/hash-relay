@@ -4,14 +4,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const hasAndroidFirebase = fs.existsSync(path.join(__dirname, 'google-services.json'));
-const hasIosFirebase = fs.existsSync(path.join(__dirname, 'GoogleService-Info.plist'));
+// Locally the files sit next to this config (git-ignored). On EAS Build they arrive as secret file environment
+// variables, whose values are paths to the materialised files: GOOGLE_SERVICES_JSON and GOOGLE_SERVICE_INFO_PLIST.
+const local = (name) => (fs.existsSync(path.join(__dirname, name)) ? `./${name}` : null);
+const androidFirebaseFile = process.env.GOOGLE_SERVICES_JSON || local('google-services.json');
+const iosFirebaseFile = process.env.GOOGLE_SERVICE_INFO_PLIST || local('GoogleService-Info.plist');
+const hasAndroidFirebase = !!androidFirebaseFile;
+const hasIosFirebase = !!iosFirebaseFile;
 const firebase = hasAndroidFirebase || hasIosFirebase;
 
 module.exports = ({ config }) => ({
   ...config,
   name: 'HashRelay',
   slug: 'hashrelay',
+  owner: 'avlon-technologies-inc', // the Expo organisation that owns the EAS project and store builds
   version: '1.0.0',
   scheme: 'hashrelay',
   orientation: 'portrait',
@@ -21,7 +27,7 @@ module.exports = ({ config }) => ({
   ios: {
     bundleIdentifier: 'ca.avlon.hashrelay',
     supportsTablet: false,
-    ...(hasIosFirebase ? { googleServicesFile: './GoogleService-Info.plist' } : {}),
+    ...(hasIosFirebase ? { googleServicesFile: iosFirebaseFile } : {}),
     infoPlist: { UIBackgroundModes: ['remote-notification'] },
     entitlements: { 'aps-environment': 'production' },
   },
@@ -33,7 +39,7 @@ module.exports = ({ config }) => ({
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
     },
-    ...(hasAndroidFirebase ? { googleServicesFile: './google-services.json' } : {}),
+    ...(hasAndroidFirebase ? { googleServicesFile: androidFirebaseFile } : {}),
     permissions: ['android.permission.POST_NOTIFICATIONS'],
     predictiveBackGestureEnabled: false,
   },
@@ -48,6 +54,6 @@ module.exports = ({ config }) => ({
   extra: {
     defaultServerUrl: process.env.HASHRELAY_SERVER_URL || 'https://hashrelay.dev.avlon.ca',
     firebase,
-    ...(process.env.EAS_PROJECT_ID ? { eas: { projectId: process.env.EAS_PROJECT_ID } } : {}),
+    eas: { projectId: process.env.EAS_PROJECT_ID || 'fd639ff4-b880-4458-88ff-5ef8bb5675d6' }, // EAS project under avlon-technologies-inc
   },
 });
