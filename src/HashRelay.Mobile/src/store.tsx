@@ -5,7 +5,7 @@ import { api, ApiError, DeviceCodeResponse, EndpointDeliveryInfo, NotificationMe
 import { Identity, loadIdentity, loadPairing, normalizeServerUrl, Pairing, saveIdentity, savePairing } from './config';
 import {
   ackFromPushData, ensureNotificationPermission, getPushToken, onForegroundPush, onLocalNotificationOpened, onPushOpened, onPushTokenRefresh,
-  PushState, showLocalNotification,
+  APPROVE_ACTION, REJECT_ACTION, isApprovalUrl, PushState, showLocalNotification,
 } from './push';
 import { ConnectionState, Realtime } from './realtime';
 
@@ -187,7 +187,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       void refreshInbox();
     };
     const offOpened = onPushOpened((data) => openFromData(data as Record<string, unknown>));
-    const offLocal = onLocalNotificationOpened((data) => openFromData(data));
+    const offLocal = onLocalNotificationOpened((data, action) => {
+      // Native actions open the authenticated approval page; neither button commits a decision.
+      // A device token is not human authorization. Server-side decision and CSRF checks remain mandatory.
+      if ((action === APPROVE_ACTION || action === REJECT_ACTION) && isApprovalUrl(data.url)) {
+        const p = pairingRef.current;
+        const target = new URL(data.url);
+        if (p && target.origin === new URL(p.serverUrl).origin) {
+          void Linking.openURL(target.toString()).catch(fail);
+          return;
+        }
+      }
+      openFromData(data);
+    });
     return () => { offRefresh(); offForeground(); offOpened(); offLocal(); };
   }, [markAcked, refreshInbox, registerPushWith]);
 
