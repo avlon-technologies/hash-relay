@@ -1,0 +1,61 @@
+// Apply on the catch-up-and-attribution architecture baseline; proposal until accepted.
+change IntroduceActionableApprovals core adl/1.4 {
+  desc "Adds durable human approval state, notification routing dependency, and completion-event reader."
+  base package Avlon.HashRelay version "draft-1" state "sha256:5e21f905bc071e7aa68876c061a4ad76bdf55ff8ad4c1fa600c589a89dbce487"
+  add into #11111111-1111-4111-8111-111111111111 {
+  domain Approvals #5bd1be10-b48e-4b77-a7c6-9e57f06d1001 {
+    classification = supporting
+
+    capability HumanDecision #5bd1be10-b48e-4b77-a7c6-9e57f06d1002 {
+      desc "Authorized users decide time-bound requests; requesting systems remain responsible for executing approved operations."
+      requirement DecisionIntegrity #5bd1be10-b48e-4b77-a7c6-9e57f06d1003 {
+        desc "A decision is tenant-isolated, authorized against the designated approvers, committed at most once from Pending, and durably retrievable by the requester."
+      }
+    }
+    bounded-context DecisionManagement #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+      realizes: #5bd1be10-b48e-4b77-a7c6-9e57f06d1002
+
+      record ApprovalRequest v1 #5bd1be10-b48e-4b77-a7c6-9e57f06d1005 { approvalId: text, workspaceId: text, requesterId: text, subject: text, expiresAt: text }
+      record ApprovalDecision v1 #5bd1be10-b48e-4b77-a7c6-9e57f06d1006 { approvalId: text, decision: text, decidedBy: text, decidedAt: text }
+      command RequestApproval #5bd1be10-b48e-4b77-a7c6-9e57f06d1007 {
+        payload = #5bd1be10-b48e-4b77-a7c6-9e57f06d1005
+      }
+      command DecideApproval #5bd1be10-b48e-4b77-a7c6-9e57f06d1008 {
+        payload = #5bd1be10-b48e-4b77-a7c6-9e57f06d1006
+      }
+      event ApprovalResolved #5bd1be10-b48e-4b77-a7c6-9e57f06d1009 {
+        payload = #5bd1be10-b48e-4b77-a7c6-9e57f06d1006
+      }
+      service ApprovalOutcomeReader #5bd1be10-b48e-4b77-a7c6-9e57f06d1015 {
+        desc "Reacts to resolved approvals to make durable completion available to originating systems through authenticated retrieval. No workflow execution in HashRelay."
+        subscribesTo: #5bd1be10-b48e-4b77-a7c6-9e57f06d1009
+        reads: #5bd1be10-b48e-4b77-a7c6-9e57f06d1010
+      }
+      resource ApprovalStore #5bd1be10-b48e-4b77-a7c6-9e57f06d1010 [data-store] {
+        persistence[durable; strong; retention="approval lifecycle and audit policy"]
+      }
+      service ApprovalService #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 {
+        desc "Creates and atomically resolves authorized approvals; publishes committed decisions for requesting applications to observe. Does not execute approved operations."
+        handles: #5bd1be10-b48e-4b77-a7c6-9e57f06d1007, #5bd1be10-b48e-4b77-a7c6-9e57f06d1008
+        publishes: #5bd1be10-b48e-4b77-a7c6-9e57f06d1009
+        dependsOn: #12121212-1212-4212-8212-121212121212, #40404040-4040-4040-8040-404040404040
+        reads: #5bd1be10-b48e-4b77-a7c6-9e57f06d1010
+        writes: #5bd1be10-b48e-4b77-a7c6-9e57f06d1010
+        realizes: #5bd1be10-b48e-4b77-a7c6-9e57f06d1002
+        satisfies: #5bd1be10-b48e-4b77-a7c6-9e57f06d1003
+
+        api ApprovalApi #5bd1be10-b48e-4b77-a7c6-9e57f06d1012 {
+          operation Request #5bd1be10-b48e-4b77-a7c6-9e57f06d1013 {
+            in = #5bd1be10-b48e-4b77-a7c6-9e57f06d1005
+            out = #5bd1be10-b48e-4b77-a7c6-9e57f06d1005
+          }
+          operation Decide #5bd1be10-b48e-4b77-a7c6-9e57f06d1014 {
+            in = #5bd1be10-b48e-4b77-a7c6-9e57f06d1006
+            out = #5bd1be10-b48e-4b77-a7c6-9e57f06d1006
+          }
+        }
+      }
+    }
+  }
+  }
+}

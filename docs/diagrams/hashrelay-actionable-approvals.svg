@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024" font-family="Inter, 'Segoe UI', Arial, sans-serif">
+<title>HashRelay component overview</title>
+<desc>Four logical bounded contexts within HashRelay. DecisionManagement is separate from Notifications and Access. A speculative dotted NotificationAccepted route runs from Routing to Delivery. No connections to approvals or tenant identity are shown.</desc>
+<defs><marker id="arrow" orient="auto" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" refX="11" refY="6"><path d="M 1 1 L 11 6 L 1 11" fill="none" stroke="#7B9DBE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect x="0" y="0" width="1536" height="1024" fill="#FFFFFF"/>
+<text x="40" y="172" font-size="46" font-weight="750" fill="#09152C">HashRelay component overview</text>
+<text x="40" y="222" font-size="34" fill="#566780">Approvals alongside notification routing, delivery and tenant identity</text>
+<g class="domain" data-label="HashRelay" data-grade="declared">
+<rect x="31" y="273" width="1474" height="482" rx="16" fill="#F5F9FC" stroke="#94B0C5" stroke-width="3"/>
+<text x="59" y="326" font-size="38" font-weight="700" fill="#09152C">HashRelay</text>
+<text x="1474" y="322" text-anchor="end" font-size="21" fill="#536783">Logical component boundaries</text>
+<g class="domain" data-label="Approvals" data-grade="declared">
+<rect x="51" y="360" width="437" height="362" rx="12" fill="#EDF7F1" stroke="#99DFB8" stroke-width="1.6"/>
+<text x="73" y="411" font-size="32" font-weight="700" fill="#087147">Approvals</text>
+<g class="service" data-label="DecisionManagement" data-grade="declared">
+<rect x="70" y="442" width="399" height="249" rx="13" fill="#FFFFFF" stroke="#29B879" stroke-width="1.8"/>
+<circle cx="126" cy="496" r="35" fill="#32AE7B"/>
+<path d="M 112 480 L 134 480 L 134 493 M 112 480 L 112 513 L 125 513 M 118 488 L 129 488 M 118 495 L 126 495 M 125 504 L 132 511 L 145 496" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="181" y="493" font-size="22" font-weight="700" fill="#09152C">DecisionManagement</text>
+<text x="181" y="524" font-size="18" fill="#536783"><tspan x="181" dy="0">Creates and resolves authorized</tspan><tspan x="181" dy="24">approvals</tspan></text>
+<path d="M 94 572 L 446 572" stroke="#D5E1E9" stroke-width="1.5"/>
+<text x="94" y="603" font-size="17" fill="#536783">Handles RequestApproval · DecideApproval</text>
+<text x="94" y="633" font-size="18" fill="#536783">Publishes ApprovalResolved</text>
+<text x="94" y="663" font-size="18" fill="#536783">Does not execute approved operations</text>
+</g></g>
+<g class="domain" data-label="Notifications" data-grade="declared">
+<rect x="509" y="360" width="637" height="362" rx="12" fill="#EBF6FF" stroke="#94D0FF" stroke-width="1.6"/>
+<text x="531" y="411" font-size="32" font-weight="700" fill="#0752AD">Notifications</text>
+<g class="service" data-label="Routing" data-grade="declared">
+<rect x="527" y="442" width="227" height="233" rx="13" fill="#FFFFFF" stroke="#61BCFF" stroke-width="1.6"/>
+<circle cx="584" cy="496" r="35" fill="#278FE7"/><text x="584" y="516" text-anchor="middle" font-size="55" font-weight="700" fill="#FFFFFF">#</text>
+<text x="551" y="563" font-size="24" font-weight="700" fill="#09152C">Routing</text>
+<text x="551" y="594" font-size="18" fill="#536783"><tspan x="551" dy="0">Authorizes publications</tspan><tspan x="551" dy="24">and subscriptions;</tspan><tspan x="551" dy="24">matches hashtags</tspan></text>
+</g>
+<g class="service" data-label="Delivery" data-grade="declared">
+<rect x="904" y="442" width="224" height="233" rx="13" fill="#FFFFFF" stroke="#61BCFF" stroke-width="1.6"/>
+<circle cx="961" cy="496" r="35" fill="#7056B8"/>
+<path d="M 946 506 L 976 506 L 971 499 L 971 490 Q 971 480 961 480 Q 951 480 951 490 L 951 499 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="961" cy="513" r="4" fill="#FFFFFF"/>
+<text x="928" y="563" font-size="24" font-weight="700" fill="#09152C">Delivery</text>
+<text x="928" y="594" font-size="18" fill="#536783"><tspan x="928" dy="0">Registers endpoints</tspan><tspan x="928" dy="24">and fans out accepted</tspan><tspan x="928" dy="24">notifications</tspan></text>
+</g>
+<g class="edge" data-from="Routing" data-to="Delivery" data-kind="derived" data-grade="speculative">
+<path d="M 754 533 L 904 533" fill="none" stroke="#7B9DBE" stroke-width="1.8" stroke-dasharray="2 4" marker-end="url(#arrow)"/>
+<text x="829" y="509" text-anchor="middle" font-size="13" fill="#52799E" paint-order="stroke" stroke="#FFFFFF" stroke-width="6">NotificationAccepted</text>
+</g></g>
+<g class="domain" data-label="Access" data-grade="declared">
+<rect x="1166" y="360" width="321" height="362" rx="12" fill="#FFF5EC" stroke="#FFC698" stroke-width="1.6"/>
+<text x="1188" y="411" font-size="32" font-weight="700" fill="#D85A08">Access</text>
+<g class="service" data-label="TenantIdentity" data-grade="declared">
+<rect x="1185" y="442" width="283" height="238" rx="13" fill="#FFFFFF" stroke="#FFA14D" stroke-width="1.6"/>
+<circle cx="1242" cy="496" r="35" fill="#F3862B"/><circle cx="1242" cy="485" r="8" fill="#FFFFFF"/><circle cx="1228" cy="489" r="5" fill="#FFFFFF"/><circle cx="1256" cy="489" r="5" fill="#FFFFFF"/>
+<path d="M 1232 513 L 1232 504 Q 1232 496 1242 496 Q 1252 496 1252 504 L 1252 513 Z M 1228 497 Q 1221 497 1221 504 L 1221 512 L 1228 512 Z M 1256 497 Q 1263 497 1263 504 L 1263 512 L 1256 512 Z" fill="#FFFFFF"/>
+<text x="1209" y="563" font-size="24" font-weight="700" fill="#09152C">TenantIdentity</text>
+<text x="1209" y="595" font-size="19" fill="#536783"><tspan x="1209" dy="0">Creates tenants and</tspan><tspan x="1209" dy="25">issues tenant-bound</tspan><tspan x="1209" dy="25">API keys</tspan></text>
+</g></g></g></svg>
