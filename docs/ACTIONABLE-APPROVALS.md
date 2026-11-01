@@ -108,7 +108,7 @@ Shipped: three tools on the existing MCP endpoint (`/mcp`, stateless Streamable 
 - Toasts that come back after an agent restart, or are replayed to an offline device on reconnect, still lead to the live page. That page shows the current state: confirmable while Pending and before expiry, otherwise the final outcome.
 - A double submit records one decision. A conflicting later decision gets "already resolved".
 
-A one-click decision recorded straight from the toast would need the device to hold an interactive identity for the person. It remains out of scope.
+That remains the behaviour when one-click approvals are not enabled. With them enabled, the buttons decide directly; see the next section.
 
 Rules, all inherited from Milestone 1 rather than re-implemented:
 
@@ -121,6 +121,57 @@ Rules, all inherited from Milestone 1 rather than re-implemented:
 Not added: `list_approvals`. Requesters have no list query in the service yet (`GET /api/v1/approvals` is still deferred). Adding a list only for MCP would create a second read path. The MCP endpoint has no request rate limit of its own. REST create uses the `publish` limiter, and over MCP creation is bounded by idempotency and the authenticated credential.
 
 Architecture: no ADL change. The tools are a second entry channel onto the existing `ApprovalApi.Request` and `ApprovalApi.Retrieve` operations, the same way MCP `publish_notification` uses `PublicationApi.Publish`. Membership lookup is covered by `ApprovalService`'s declared `dependsOn` on `TenantAdministrationService`. The model compiles unchanged at changeState `sha256:36ec56ff…805e` (attestation `sha256:7f19ee3517699ea7bbb01ac0b29c91fb492471d70e0243c6db727502f54d6c0c`, 0 errors, 16 warnings, 73/73 checks passed).
+
+## One-click native approvals (Windows agent)
+
+Shipped on branch `feature/one-click-approvals`. With one-click approvals enabled, the toast shows plain **Approve** and **Reject** buttons. A click is submitted by the agent straight to the API, with no browser and no second click. The toast changes to *Approving…* or *Rejecting…*, then shows only what the server confirmed: **Approved**, **Rejected**, **Expired**, **Cancelled**, **Already resolved**, **Can't decide from here**, or **Unable to submit** with Retry and Open HashRelay buttons.
+
+The device-pairing token never authorizes a decision. One-click needs a separate, person-granted **decision grant**:
+
+1. **Enrolment.** The tray menu item *Enable one-click approvals…* sends `POST /api/v1/decision-grants` with the device token. It gets a poll code and a short user code, and opens `/approvals/devices?code=XXXX-XXXX`. This is the same device-authorization pattern as pairing; there is no second identity protocol.
+2. **The person grants it, interactively.** The page requires a signed-in session. Only the person who paired this device may grant it, and only while they are a member of its workspace. The page states the risk before anything is granted: *anyone who can use this computer while it is unlocked will be able to approve or reject as you*. Granting needs a ticked acknowledgement, and the form carries the antiforgery token. Another member gets "Only the person who paired … can let it approve on their behalf".
+3. **Collection.** The agent polls `POST /api/v1/decision-grants/poll` with its device token and the poll code. It receives the `hr_dg_…` secret exactly once; the server keeps only its SHA-256. The agent seals the secret with **DPAPI (current user)** in `%APPDATA%\HashRelay\decision-grant.bin`, separate from `config.json`. The secret never appears in toast arguments.
+4. **Deciding.** `POST /api/v1/approvals/{id}/device-decision` requires the device token (policy `api:device-decisions`), the `HashRelay-Decision-Grant` header and a body `{decision, deliveryId}`. The server checks, in order:
+   - the grant is active and unexpired (90 days), and is bound to this very device credential and workspace;
+   - `deliveryId` is this device's delivery of **the approval's own notification**;
+   - then the same `DecideAsync` the page uses: current membership, designated approver, Pending and before expiry, idempotency, compare-and-set, and audit (`via: one-click on {device}`).
+
+   The decision is recorded as the grant holder's.
+5. **Revocation.** *Disable one-click approvals* in the tray revokes the grant on the server (`DELETE /api/v1/decision-grants/current`) and deletes the sealed file. The page `/approvals/devices` lists the person's grants, each with a *Turn off* button. Granting again replaces the device's earlier grant. Re-pairing the device issues a new device credential, which invalidates the grant. Grant creation and revocation are audited (`decision_grant.created`, `decision_grant.revoked`).
+
+Why the delivery binding: anyone who may publish to a hashtag can send a look-alike toast that links a real pending approval and says "Tap Approve to dismiss". That toast's delivery belongs to a different notification, so the server refuses it with `403`. The page flow never needed this check, because there the person reads the real request before confirming.
+
+Repeated clicks: the Idempotency-Key is deterministic per toast button (`toast-{approvalId}-{decision}`). A double click, a Retry, or the same click handled by both a running and a relaunched agent records one decision. The other button afterwards gets "Already resolved". Within one process, a click on an approval that is already being submitted is ignored.
+
+Activation: in a running agent, `OnActivated` handles the click. When the agent was closed, Windows starts the process for the click. That process now waits for the decision to finish, up to the HTTP timeout, instead of exiting after a fixed 1.5 s. Both paths use only the sealed grant and the toast arguments, so they behave the same.
+
+The website flow is unchanged and stays the fallback. `POST /api/v1/approvals/{id}/decision` still accepts only a session cookie with antiforgery. Without a grant, the buttons are still **Approve…** and **Reject…** and open the confirmation page.
+
+Code: `Services/Approvals/DecisionGrants.cs` (`ApprovalService` partial), `Pages/ApprovalDevices.cshtml`, `Api/ApprovalEndpoints.cs`, `HashRelay.Client/OneClickApprovals.cs`, `HashRelay.Agent/OneClick.cs`, `Toasts.cs` and `Program.cs`. Tests: `tests/HashRelay.Server.Tests/OneClickApprovalTests.cs`, covering:
+- authorized approve and reject;
+- the device token alone, a guessed secret, another device's token, and an API key;
+- the pairer-only grant, the acknowledgement and the signed-out redirect;
+- a non-designated approver;
+- a look-alike notification;
+- revocation from the web, from the device and by replacement;
+- grant expiry and approval expiry;
+- concurrent one-click and page decisions, and repeated clicks;
+- offline and 5xx failures that never report success;
+- the browser flow;
+- a fresh process deciding from the sealed grant and the toast arguments alone;
+- cross-workspace.
+
+Limits:
+- A toast is not updated when the approval is resolved elsewhere; a later click reports the current state.
+- Other platforms (macOS, iOS, Android) can reuse the same grant endpoints with their own secure storage (Keychain, Android Keystore), but they are not implemented.
+
+Architecture: `architecture/changes/2026-11-01-device-decision-grants.adl-change` adds:
+- record `DecisionGrant` and store `DecisionGrantStore`, owned by `ApprovalService`;
+- commands `GrantDeviceDecisions` and `RevokeDeviceDecisions`;
+- `ApprovalApi` operations `EnrollDevice` and `RevokeDevice`;
+- requirement `DeviceDecisionAuthority`, satisfied by `ApprovalService`.
+
+Applied to `36ec56ff…805e`, it gives changeState `sha256:1f7eab6fb7d82773ef781ce4ce7750147d49f708b92fceeaa2f464234e4b2900`. The authored model compiles to that state (EQUIVALENT, 0 errors). `DecideApproval`, its payload and the lifecycle are unchanged.
 
 ## Approval round trip — who records and returns the decision
 

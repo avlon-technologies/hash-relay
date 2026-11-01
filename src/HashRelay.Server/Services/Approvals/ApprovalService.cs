@@ -25,7 +25,7 @@ public sealed record EligibleApprover(Guid AccountId, string DisplayName, string
 /// </list>
 /// HashRelay never performs the approved operation.
 /// </summary>
-public sealed class ApprovalService(RelayDbContext db, TimeProvider clock, PublicBase publicBase, IServiceScopeFactory scopes,
+public sealed partial class ApprovalService(RelayDbContext db, TimeProvider clock, PublicBase publicBase, IServiceScopeFactory scopes, AuditService audit,
     ILogger<ApprovalService> log)
 {
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -208,7 +208,10 @@ public sealed class ApprovalService(RelayDbContext db, TimeProvider clock, Publi
         return rows.Where(a => a.ApproverIds.Contains(accountId)).ToList();
     }
 
-    public async Task<ApprovalResource> DecideAsync(Guid accountId, Guid id, ApprovalDecisionRequest req, string? idempotencyKey, string? requestId, CancellationToken ct)
+    /// <param name="tenantScope">When the decision arrives under a device decision grant: the grant's workspace. An approval in any other workspace is not found.</param>
+    /// <param name="via">Audit detail naming the channel, e.g. the device a one-click decision came from.</param>
+    public async Task<ApprovalResource> DecideAsync(Guid accountId, Guid id, ApprovalDecisionRequest req, string? idempotencyKey, string? requestId, CancellationToken ct,
+        Guid? tenantScope = null, string? via = null)
     {
         var key = ValidateIdempotencyKey(idempotencyKey, required: false);
         var decision = (req.Decision ?? "").Trim().ToLowerInvariant();
@@ -223,7 +226,7 @@ public sealed class ApprovalService(RelayDbContext db, TimeProvider clock, Publi
         // Membership is read live, not from the session: a person removed from the workspace sees nothing.
         var role = a is null ? null : await db.Memberships.AsNoTracking()
             .Where(m => m.TenantId == a.TenantId && m.AccountId == accountId).Select(m => m.Role).FirstOrDefaultAsync(ct);
-        if (a is null || role is null) throw ApiException.NotFound("No such approval.");
+        if (a is null || role is null || (tenantScope is not null && a.TenantId != tenantScope)) throw ApiException.NotFound("No such approval.");
         if (!RoleMayDecide(role) || !a.ApproverIds.Contains(accountId))
             throw ApiException.Forbidden("You are not a designated approver of this request.");
 
@@ -245,7 +248,7 @@ public sealed class ApprovalService(RelayDbContext db, TimeProvider clock, Publi
         var name = await db.Accounts.AsNoTracking().Where(x => x.Id == accountId).Select(x => x.DisplayName).FirstAsync(ct);
         var won = await TransitionAsync(a, target, ApprovalCauses.Decision, now, beforeExpiry: true, decider: (accountId, name), note, key,
             Audit(a, target == ApprovalStatuses.Approved ? ApprovalAuditActions.Approved : ApprovalAuditActions.Rejected,
-                ApprovalActorKinds.Account, accountId, requestId, null), ct);
+                ApprovalActorKinds.Account, accountId, requestId, via), ct);
         var current = await LoadAsync(id, ct);
         if (won) return ToResource(current);
         // Lost: never revert, report the winner. If nobody won, the boundary passed; expiry is the outcome.

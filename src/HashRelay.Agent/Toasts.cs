@@ -65,11 +65,26 @@ internal static class Toasts
         if (!string.IsNullOrWhiteSpace(open)) builder.AddArgument("url", open);
         if (File.Exists(IconPath)) builder.AddAppLogoOverride(new Uri(IconPath), ToastGenericAppLogoCrop.None);
         if (imagePath is not null && File.Exists(imagePath)) builder.AddInlineImage(new Uri(imagePath));
+        var tag = m.DeliveryId.ToString("n")[..16];
         if (ApprovalPage(m) is { } approval)
         {
-            // Opens the signed-in approval page with the choice pre-selected; the person confirms it there.
-            builder.AddButton(new ToastButton().SetContent("Approve…").AddArgument("action", "url").AddArgument("url", ApprovalLink.WithDecision(approval, ApprovalDecisions.Approve).ToString()));
-            builder.AddButton(new ToastButton().SetContent("Reject…").AddArgument("action", "url").AddArgument("url", ApprovalLink.WithDecision(approval, ApprovalDecisions.Reject).ToString()));
+            if (OneClickEnabled() && ApprovalLink.IdOf(approval) is { } approvalId)
+            {
+                // One-click: the agent submits the decision with this device's grant. Arguments carry ids only, never a credential.
+                foreach (var (label, decision) in new[] { ("Approve", ApprovalDecisions.Approve), ("Reject", ApprovalDecisions.Reject) })
+                {
+                    var button = new ToastButton().SetContent(label);
+                    foreach (var (k, v) in ApprovalToastArgs.For(approvalId, decision, m.DeliveryId)) button.AddArgument(k, v);
+                    button.AddArgument("tag", tag).AddArgument("subject", m.Title.Length > 120 ? m.Title[..120] : m.Title);
+                    builder.AddButton(button);
+                }
+            }
+            else
+            {
+                // Not enrolled: open the signed-in approval page with the choice pre-selected; the person confirms it there.
+                builder.AddButton(new ToastButton().SetContent("Approve…").AddArgument("action", "url").AddArgument("url", ApprovalLink.WithDecision(approval, ApprovalDecisions.Approve).ToString()));
+                builder.AddButton(new ToastButton().SetContent("Reject…").AddArgument("action", "url").AddArgument("url", ApprovalLink.WithDecision(approval, ApprovalDecisions.Reject).ToString()));
+            }
         }
         else if (m.Rich && !string.IsNullOrWhiteSpace(m.Url) && open != m.Url)
             builder.AddButton(new ToastButton().SetContent("Open link").AddArgument("action", "url").AddArgument("url", m.Url));
@@ -79,10 +94,16 @@ internal static class Toasts
 
         builder.Show(toast =>
         {
-            toast.Tag = m.DeliveryId.ToString("n")[..16];
+            toast.Tag = tag;
             toast.Group = "hashrelay";
             toast.ExpirationTime = DateTimeOffset.Now.AddDays(3);
         });
+    }
+
+    private static bool OneClickEnabled()
+    {
+        try { return OneClick.IsEnrolled(Client.ConfigStore.Load()); }
+        catch (Exception ex) { Log.Warn($"One-click state: {ex.Message}"); return false; }
     }
 
     private static Uri? ApprovalPage(NotificationMessage m)
@@ -124,12 +145,24 @@ internal static class Toasts
 
 internal static class ToastActivation
 {
-    public static void Handle(string argument)
+    /// <summary>
+    /// Routes a toast click. One-click decisions are submitted by the agent and answered with a result toast; no
+    /// browser opens for them. Everything else opens its URL as before. Completes only when the work is done, so a
+    /// process Windows started just for this click can wait for it before exiting.
+    /// </summary>
+    public static async Task HandleAsync(string argument)
     {
         try
         {
             var args = ToastArguments.Parse(argument);
-            var url = args.TryGetValue("url", out var u) && !string.IsNullOrWhiteSpace(u) ? u : null;
+            var map = args.ToDictionary(kv => kv.Key, kv => kv.Value ?? "");
+            if (map.TryGetValue("action", out var action) && action == "none") return;
+            if (ApprovalToastArgs.TryParse(map, out var approvalId, out var decision, out var deliveryId))
+            {
+                await OneClick.DecideAsync(approvalId, decision, deliveryId, map.GetValueOrDefault("tag"), map.GetValueOrDefault("subject"));
+                return;
+            }
+            var url = map.TryGetValue("url", out var u) && !string.IsNullOrWhiteSpace(u) ? u : null;
             url ??= new Uri(Client.ConfigStore.Load().ServerUri, "dashboard/activity").ToString();
             if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
                 Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true });

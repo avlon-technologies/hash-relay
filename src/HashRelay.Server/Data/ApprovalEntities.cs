@@ -109,3 +109,40 @@ public sealed class ApprovalOutbox
     public DateTimeOffset? FailedAt { get; set; }
     public string? LastError { get; set; }
 }
+
+/// <summary>
+/// DecisionGrantStore (ADL HashRelay.Approvals.DecisionManagement): a person's explicit, revocable grant letting one
+/// paired device submit that person's approval decisions in one workspace. Requested by the device, granted by the
+/// signed-in person who paired it, collected once by the device. Only verifiers of the poll code and the grant secret
+/// are kept, except <see cref="IssuedSecret"/>, held between granting and the device's next poll, then cleared.
+/// </summary>
+public sealed class DecisionGrant
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    /// <summary>The paired device credential this grant is bound to; it must still be active at decision time.</summary>
+    public Guid DeviceCredentialId { get; set; }
+    public required string DeviceName { get; set; }
+    /// <summary>The person whose decisions the device may submit. Set at grant time; must be the person who paired the device.</summary>
+    public Guid? AccountId { get; set; }
+    public required string Status { get; set; }
+    public required string PollCodeHash { get; set; }
+    public required string UserCode { get; set; }
+    public string? SecretHash { get; set; }
+    public string? IssuedSecret { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>Until granted: when the request lapses. Once granted: when the grant itself expires.</summary>
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? GrantedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public DateTimeOffset? LastUsedAt { get; set; }
+}
+
+public static class DecisionGrantStatuses
+{
+    public const string Pending = "pending";
+    public const string Granted = "granted";   // granted; the device has not collected the secret yet
+    public const string Active = "active";     // collected and usable
+    public const string Denied = "denied";
+    public const string Revoked = "revoked";
+}

@@ -94,3 +94,30 @@ public sealed record ApprovalOutcome(
     int Version,
     DateTimeOffset ResolvedAt,
     Guid? DecidedBy);
+
+// One-click decisions from a paired device (ADL DecisionGrant / DeviceDecisionAuthority). A person explicitly grants
+// one paired device the right to submit their decisions; the device sends its own token AND the grant secret. The
+// pairing token alone never decides.
+
+public static class DecisionGrants
+{
+    /// <summary>Request header carrying the grant secret on device-decision and revoke calls. Never a URL or toast argument.</summary>
+    public const string Header = "HashRelay-Decision-Grant";
+    public const string SecretPrefix = "hr_dg_";
+    public static readonly TimeSpan RequestLifetime = TimeSpan.FromMinutes(15);
+    public static readonly TimeSpan GrantLifetime = TimeSpan.FromDays(90);
+    public const int PollIntervalSeconds = 3;
+    /// <summary><c>details.grant</c> on a 401 from the device-decision route: the device should forget its grant.</summary>
+    public const string Invalid = "invalid";
+}
+
+/// <summary><c>POST /api/v1/decision-grants</c> (device token): open the browser at <see cref="VerificationUri"/> and poll with <see cref="PollCode"/>.</summary>
+public sealed record DecisionGrantStart(string PollCode, string UserCode, string VerificationUri, int ExpiresInSeconds, int IntervalSeconds);
+
+/// <summary>A one-click decision. <paramref name="DeliveryId"/> is the delivery of the approval's own notification to this device; the server checks it, so a look-alike notification cannot carry working buttons.</summary>
+public sealed record DeviceDecisionRequest(string Decision, Guid DeliveryId, string? Note = null);
+
+public sealed record DecisionGrantPollRequest(string PollCode);
+
+/// <summary>Status is pending, granted (with <see cref="Grant"/>, returned exactly once), denied or expired.</summary>
+public sealed record DecisionGrantPoll(string Status, string? Grant = null, string? AccountName = null, DateTimeOffset? ExpiresAt = null);
