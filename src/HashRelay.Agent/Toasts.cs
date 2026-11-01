@@ -65,6 +65,19 @@ internal static class Toasts
         if (!string.IsNullOrWhiteSpace(open)) builder.AddArgument("url", open);
         if (File.Exists(IconPath)) builder.AddAppLogoOverride(new Uri(IconPath), ToastGenericAppLogoCrop.None);
         if (imagePath is not null && File.Exists(imagePath)) builder.AddInlineImage(new Uri(imagePath));
+        // Approval buttons are navigation intents, never approval decisions. The server's
+        // interactive human session, antiforgery token and eligibility checks remain authoritative.
+        if (IsFirstPartyApprovalLink(open))
+        {
+            builder.AddButton(new ToastButton()
+                .SetContent("Review / Approve")
+                .AddArgument("action", "approval-review")
+                .AddArgument("url", open));
+            builder.AddButton(new ToastButton()
+                .SetContent("Review / Reject")
+                .AddArgument("action", "approval-review")
+                .AddArgument("url", open));
+        }
         if (m.Rich && !string.IsNullOrWhiteSpace(m.Url) && open != m.Url)
             builder.AddButton(new ToastButton().SetContent("Open link").AddArgument("action", "url").AddArgument("url", m.Url));
 
@@ -84,6 +97,24 @@ internal static class Toasts
     /// Activity page where every one of them can be read. Tagged so a later catch-up replaces it in Notification Center
     /// instead of stacking.
     /// </summary>
+    internal static bool IsFirstPartyApprovalLink(string? url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps
+            || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query)
+            || !string.IsNullOrEmpty(uri.Fragment))
+            return false;
+        var segments = uri.AbsolutePath.Trim('/').Split('/');
+        if (segments.Length != 2 || segments[0] != "approvals" || !Guid.TryParseExact(segments[1], "D", out _))
+            return false;
+        try
+        {
+            var server = Client.ConfigStore.Load().ServerUri;
+            return uri.Scheme == server.Scheme && uri.IdnHost.Equals(server.IdnHost, StringComparison.OrdinalIgnoreCase)
+                && uri.Port == server.Port;
+        }
+        catch { return false; }
+    }
+
     public static void ShowCatchUp(CatchUpSummary summary, string activityUrl)
     {
         var b = new ToastContentBuilder()
@@ -118,6 +149,12 @@ internal static class ToastActivation
         {
             var args = ToastArguments.Parse(argument);
             var url = args.TryGetValue("url", out var u) && !string.IsNullOrWhiteSpace(u) ? u : null;
+            if (args.TryGetValue("action", out var action) && action == "approval-review"
+                && !Toasts.IsFirstPartyApprovalLink(url))
+            {
+                Log.Warn("Rejected approval toast activation: not a first-party approval URL.");
+                return;
+            }
             url ??= new Uri(Client.ConfigStore.Load().ServerUri, "dashboard/activity").ToString();
             if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
                 Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true });
