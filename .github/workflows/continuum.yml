@@ -4,9 +4,15 @@
 # and no credential to a private repository — the semantics live in Host and this
 # job asks it.
 #
-# Two settings, both yours:
-#   vars.CONTINUUM_HOST           your Continuum Host, e.g. https://continuum.example
-#   secrets.CONTINUUM_HOST_TOKEN  a Host credential for CI
+# Three settings, all yours:
+#   vars.CONTINUUM_HOST            your Continuum Host, e.g. https://continuum.example
+#   secrets.CONTINUUM_HOST_API_KEY the Host's automation API key — the CI credential
+#                                  (or secrets.CONTINUUM_HOST_TOKEN, a bearer — never both;
+#                                  the one left unset arrives empty and is ignored)
+#   secrets.AZURE_ARTIFACTS_TOKEN  read access (Packaging: Read) to the Avlon feed
+#
+# The CLI is published to the Avlon Azure Artifacts feed ONLY — never npmjs — so
+# the install needs a feed credential. It goes to a userconfig OUTSIDE the checkout.
 #
 # FIVE OUTCOMES, FOUR EXITS (DEVELOPMENT-LIFECYCLE 12.1.3). `guard ci` exits
 #   0  PASS            Host judged yes
@@ -35,11 +41,26 @@ jobs:
         with:
           node-version: 24
 
+      - name: Authenticate to the Avlon feed
+        shell: bash
+        env:
+          AZURE_ARTIFACTS_TOKEN: ${{ secrets.AZURE_ARTIFACTS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_ARTIFACTS_TOKEN" || { echo "::error::AZURE_ARTIFACTS_TOKEN is not set — the CLI is only on the Avlon feed"; exit 1; }
+          umask 077
+          {
+            echo "@avlon:registry=https://pkgs.dev.azure.com/avlon/_packaging/continuum/npm/registry/"
+            echo "//pkgs.dev.azure.com/avlon/_packaging/continuum/npm/registry/:_authToken=$AZURE_ARTIFACTS_TOKEN"
+          } > "$RUNNER_TEMP/.npmrc"
+          echo "npm_config_userconfig=$RUNNER_TEMP/.npmrc" >> "$GITHUB_ENV"
+
       - name: Install the Continuum CLI
         run: npm install -g @avlon/continuum-cli
 
       - name: Check the architecture against Host
         env:
           CONTINUUM_HOST: ${{ vars.CONTINUUM_HOST }}
+          CONTINUUM_HOST_API_KEY: ${{ secrets.CONTINUUM_HOST_API_KEY }}
           CONTINUUM_HOST_TOKEN: ${{ secrets.CONTINUUM_HOST_TOKEN }}
         run: continuum guard ci

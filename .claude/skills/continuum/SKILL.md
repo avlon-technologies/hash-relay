@@ -24,30 +24,41 @@ Where this file and the contract could be read as disagreeing, the
 contract wins; where the contract and the specification suite could be
 read as disagreeing, the suite wins.
 
-## 0. Setup — what is available
+## 0. Setup — what is available, and what it can reach
 
-1. **MCP first.** If the `continuum` MCP server is connected, use it: the
+1. **MCP first.** If a `continuum` MCP server is connected, use it: the
    tools are the engine and the resources are the knowledge. Check by
    listing tools once; do not probe repeatedly.
 2. **No MCP, but the `continuum` CLI**: every mechanical answer is a command
    against a Host — `continuum compile`, `apply`, `diff`, `guard`,
-   `evidence check`, `recover`, `package check`. The CLI carries no compiler
-   and relays the Host's verdict, so it is as authoritative as the MCP tools.
-   It needs the API (`$CONTINUUM_API`, or the configured one) and a credential
-   (`continuum login`; `continuum auth status` says which you have).
+   `evidence check`, `recover`, `package check`, `conformance assess`. The CLI
+   carries no compiler and relays the Host's verdict, so it is as
+   authoritative as the MCP tools. It needs a Host (`$CONTINUUM_HOST`, else
+   `continuum/host.json`, else what `continuum login` configured), an auth API
+   (`$CONTINUUM_API` or that same file) and a credential (`continuum login`;
+   `continuum auth status` says which you have).
 3. **Neither**: see §6. You still have the contract and whatever knowledge
    you were given — but **you have no compiler**, and nothing you produce
    may be called valid.
 
+**Three surfaces, and the filesystem boundary between them decides which
+questions can be asked at all.** The local **CLI** reads your working tree by
+path — the only surface that can judge a repository (a commit, a dirty tree, a
+cited module's imports). The local **MCP bridge** reads your filesystem too:
+it resolves the paths you pass into disclosed content and forwards the
+content. The **hosted MCP** reads nothing of yours — content travels with the
+call, or lives in a hosted workspace — so a path means nothing there,
+`continuum_find` is local-only, and a working-tree question cannot be asked
+at all.
+
+Where a skill says `continuum_find` and the surface does not serve it,
+substitute a glob for `continuum/model/*.adl-manifest.json`: nothing
+downstream depends on the tool, only on having found the manifest. With
+neither, say the location is unknown rather than assuming there is no model.
+
 Node ≥ 24. A repository's development package lives in **`continuum/` at its
 root** and its ADL model in **`continuum/model/`** — one layout, standalone or
-in a repository; `continuum_find` checks there first.
-
-**`continuum_find` is local-only** — a hosted server's filesystem is not
-yours, so it does not offer it. Where a skill says to call it, substitute a
-glob for `continuum/model/*.adl-manifest.json`: nothing downstream depends on
-the tool, only on having found the manifest. With neither, say the model's
-location is unknown rather than assuming there is none.
+in a repository.
 
 ## 1. Classify the task, then take the cheapest route
 
@@ -63,9 +74,12 @@ location is unknown rather than assuming there is none.
 | a view or diagram | `understand-architecture` §views |
 | what changed between two states | `change-architecture` |
 | a handoff / development package for an implementation agent | `development-package` |
+| build / change / extend / refactor code in a repository carrying `continuum/` | `implement-against-architecture` — the model decision comes before the code |
+| implementation has outrun the model: it needs an answer the model does not carry | `implement-against-architecture` §8 |
+| what conformance has been established / what level is attained / assess this | §5a, then the owning workflow's assessment step |
 | "create a development package", "verify it", "export it", "run its scenarios" | §1a — the package lifecycle in plain words |
 | a change to a client's `continuum/` package as a transition | `change-architecture` §7 |
-| which checkpoint introduced X, what changed between checkpoints | `understand-architecture` §8 |
+| which checkpoint introduced X, what changed between checkpoints | `understand-architecture` §9 |
 | the guard blocked, drift.json exists, a transition no longer pins the state | `reconcile-architecture` |
 | what a diagnostic means / fix errors | §4 diagnostics |
 
@@ -172,10 +186,14 @@ only when you need the evidence. Quote the tool's classification rather than
 translating it, and never strengthen a hop (the contract's CAUSALITY rule;
 `understand-architecture` §3 is its working form).
 
-Without MCP, each row has an `adlc` equivalent (`--query`,
-`--trace`/`--impact`/`--dependencies`/`--explain`, `--applicable`, `--diff`,
-`--apply`, `--json`); ids from `node -e "console.log(crypto.randomUUID())"`;
-knowledge from reading the catalogued file.
+Without MCP, each row is a `continuum compile <manifest>` option — `--query`,
+`--trace` / `--impact` / `--dependencies` / `--paths` / `--explain`,
+`--applicable`, `--diff <B>`, `--apply <change>`, `--state`, `--detail
+summary|full`, `--json` — plus `continuum preview` and `continuum conformance
+assess`. (`adlc` is the Continuum repository's own compiler driver, not a
+command a client has.) Ids from
+`node -e "console.log(crypto.randomUUID())"`; knowledge from the catalogued
+file.
 
 ## 4. Diagnostics
 
@@ -217,6 +235,42 @@ Four kinds of statement, kept apart in so many words:
 Across all four: **never fabricate architecture** — not an element, edge,
 consumer or causal consequence; not to complete a model, close a gap or
 tidy an answer. Where you inferred something, say so and from what.
+
+### 5a. Conformance assessment — a level is read, never inferred
+
+*What conformance has been established*, over named subjects, under a named
+specification. Ask it with `continuum conformance assess [<dir>] [--baseline
+<file>]`, `continuum compile <manifest> --assess [--policy-baseline <path>]`,
+`continuum_assess_model {manifestPath}` or `continuum_compile {manifestPath,
+assess:"evaluate"}` — the two MCP calls taking content rather than a path on a
+hosted surface (§0). All four assess the **model** and establish no source
+revision, so all four decide **L1**, model conformance, of four: L2
+implementation, L3 behavioural, L4 runtime.
+
+- **A compile is not a level.** The attestation is *evidence toward* L1 and
+  never an L1 result; without `--assess` the result says *not-requested*,
+  which is an absence. Zero errors routinely attains **L0**. No decorated
+  levels ("L2 partial", "L2*").
+- **`FAIL` is not `UNKNOWN`, and an evidence limit is not a capability
+  limit.** Quote `levels[].verdict`, `levels[].reason` and `decidable[].kind`
+  (`evidence` = suppliable; `capability` = no evidence will ever move it).
+- **Never claim L2, L3 or L4 because the same model was reassessed**, however
+  green the tests. Report verification results beside the assessment, as
+  themselves.
+- **Assessment decides nothing** — not approval, acceptance, adoption, nor a
+  gate — and there is no minimum level to clear.
+
+Record what makes the claim checkable by someone else: the subject and its
+digest, `assessedLevel`, the specification id **and** digest, the profile, the
+policy baseline (name/version/digest/selection), the evaluator version and
+calibration digest, the findings with their element ids, every
+`unknownInventory` reason code, the blind spots.
+
+That list in full, the reason-code→evidence→task map and what the surfaces
+cannot establish: `docs/guides/CONFORMANCE-ASSESSMENT.md`
+(`continuum://guides/conformance-assessment`). Each workflow owns its step:
+`implement-against-architecture` §1a/§7a, `development-package` §1a/§6,
+`change-architecture` §1a/§6, `understand-architecture` §5.
 
 Pin substantive answers to the state they rest on: the `attestation`, plus
 the `changeState` digest when versions are compared. Continuum holds no

@@ -24,8 +24,8 @@ restate it.
    skill §0). No model ⇒ do not answer architecture questions from code as
    if one existed: say the repository has no Continuum model and offer
    `recover-architecture`.
-2. `continuum_compile` (MCP) or `adlc <manifest> --state`. Errors stop the
-   reading — report them and offer to repair or rebuild; never summarize
+2. `continuum_compile` (MCP) or `continuum compile <manifest> --state`. Errors
+   stop the reading — report them and offer to repair or rebuild; never summarize
    from a broken model, and never fall back to its `.adl.txt` (the
    projection is derived from the same broken state). Resolve every
    diagnostic id with `continuum_diagnostics`.
@@ -143,14 +143,13 @@ declaring a Reaction to close a gap nobody established.
 Use this flow when the ask is a review. The verdict is yours — Continuum
 has no review tool and must not acquire one.
 
-**Conformance assessment is declared, and is not your verdict.**
-`continuum_assess_model {manifestPath}` returns an AACS assessment — an
-attained level, the evaluator and specification identities, and the blind
-spots it could not see. `continuum_compile {manifestPath,
-assess:"evaluate"}` asks for it during a compile; without `assess` it
-answers `not-requested`, which is an absence, never a pass. Report the
-level and blind spots as DERIVED, name the evaluator, and keep it apart
-from the judgment you are forming.
+**Conformance assessment is DERIVED, and is not your verdict.** Ask for it
+(`continuum` skill §5a) and report the attained level, the identities it
+rests on, the findings with their element ids, the `UNKNOWN` reasons and the
+blind spots — all as DERIVED, kept apart from the judgment you are forming.
+Never present a level as a review verdict, or a review verdict as a level.
+For L3 and L4 the answer is a *verifier capability* limit, not something a
+reviewer's evidence can remove.
 
 Gather evidence first: compile + every diagnostic resolved;
 the shape (projection or scoped queries); ownership and intent coverage
@@ -229,7 +228,7 @@ nobody declared is a fabrication with better graphics.
 Exact citations; declared / derived / absent separated in words; a
 mechanical check where one exists; the limits stated; the state pinned.
 
-## 8. Ledger questions (a client repository)
+## 9. Ledger questions (a client repository)
 
 "Which checkpoint introduced this?", "what changed between DP002 and
 DP003?", "is the live package recorded?", "is this transition
@@ -238,7 +237,7 @@ answered mechanically and never from memory:
 
 ```
 continuum ledger history continuum                       the checkpoints, their transitions, the verified-against commits
-continuum ledger show continuum <n>                      one checkpoint's digests and transition
+continuum ledger show <n>                                one checkpoint's digests and transition
 continuum diff continuum/history/000<n>-*/<m> continuum/history/000<n+1>-*/<m>   the VERIFIED change between two checkpoints
 continuum ledger verify continuum                       lineage; whether the live package is the last checkpoint
 continuum icp check <transition> --base continuum       whether a transition is verified against the current state

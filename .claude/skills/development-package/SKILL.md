@@ -59,19 +59,44 @@ transition (§5a). You run these and relay the verdicts; the runnable proof is
 | a manifest + `.adl` | **existing model** | that model, compiled — identities preserved, nothing re-minted |
 | a model + `.adl-change` | **change** | **state B = apply(A, Δ)** — never A |
 
-Establish the state mechanically before authoring anything else:
+Establish the state mechanically before authoring anything else — and
+establish it for the state the package will rest on, which in change mode is
+**B**:
 
 ```
-continuum package resolve <manifest> [--change <file>] [--out <dir>] --json
+continuum compile <manifest> --state --json                                  A
+continuum compile <manifest> --apply <change> --emit-source <dir> --state --json   B, materialized
 ```
 
-It compiles (or applies, then re-compiles the emitted source and proves
-it is B), and answers the **attestation** and **changeState** every
-binding and the package must pin, plus the Environment ids. In change
-mode `--out` materializes B as authored `.adl` + manifest; a change whose
-base does not pin A is refused as `stale` — report that, never build
-from A. Errors stop here; warnings are carried into the package and
-explained (`continuum_diagnostics` for each id), never silenced.
+`--state` answers the **attestation** and the **changeState** every binding
+and the package must pin; the Environment ids come from the same compile.
+`--emit-source` writes B as authored `.adl` + manifest, which is what you then
+author and build against — a change whose base does not pin A is refused as
+`stale`, and that is reported, never built around. Errors stop here; warnings
+are carried into the package and explained (`continuum_diagnostics` for each
+id), never silenced. Over MCP the same answer is `continuum_resolve_state
+{manifestPath, changePath?}`. (`continuum package resolve` is **toolchain-owned**
+and is not a verb the client CLI serves — it refuses with that in so many
+words.)
+
+### 1a. Assess the state the package rests on
+
+Assess it (`continuum` skill §5a) and carry the result into the package's
+delivery, not into the model:
+
+- assess **A** to know what you are starting from, and **B** — the
+  materialized target — to know what you are handing over;
+- separate findings that **block** (a level not attained for a reason this
+  package will not fix) from the obligations **this build is meant to
+  satisfy** (the `UNKNOWN`s whose evidence is the implementation, the
+  citations, or the executed suite);
+- for each actionable finding carried into the handoff, give the reason code
+  verbatim, the element ids from `warnings[].elements`, the evidence that
+  would remove it, **which task produces that evidence**, and what the
+  evaluator cannot establish at all —
+  `docs/guides/CONFORMANCE-ASSESSMENT.md` §4.2, §5, §6;
+- a level is **not** a build gate and **not** an approval. There is no
+  minimum to clear, and `package build` does not consult one.
 
 ## 2. Author the Goal
 
@@ -179,26 +204,27 @@ continuum ledger record continuum --verified-against HEAD                   the 
 
 **A resulting package after a transition** is never assembled by hand:
 `continuum icp materialize continuum/transitions/<id> --base continuum`
-builds it through the full pipeline into the transition's own
-`result/` (the next state stages inside its transition, never at a
-repository-root sibling) and executes the complete suite — as the
-sanctioned target only once a person has approved the transition
-(`--analysis` builds the same package for inspection before that) — and
-adoption — `continuum icp adopt <transition> --verified-against HEAD`,
-after the person has accepted the completed implementation — makes that
-result current, carries `ledger.json`, `history/`, `transitions/` and
-`gaps/`, and records the checkpoint with its transition in one atomic
-swap; there is no adoption without the record. The order of those acts and who performs each is
-`continuum icp ready <transition>`'s answer: drive it with the readiness
-loop (`continuum` skill §1b), and hand the person one command at a time. Say which checkpoint the package now is
-(`continuum ledger current continuum`) — the sequence is a label; the
-digests are the identity.
+builds it through the full pipeline into the transition's own `result/` (the
+next state stages inside its transition, never at a repository-root sibling)
+and executes the complete suite — as the sanctioned target only once a person
+has approved the transition, with `--analysis` building the same package for
+inspection before that. Adoption (`continuum icp adopt <transition>
+--verified-against HEAD`, when readiness says it is the awaited act) makes
+that result current, carries `ledger.json`, `history/`, `transitions/` and
+`gaps/`, and records the checkpoint with its transition in one atomic swap;
+there is no adoption without the record. **Which act may happen next, and who performs it, is
+`continuum icp ready <transition>`'s answer and never a sequence restated
+here** — drive it with the readiness loop (`continuum` skill §1b) and hand
+the person one command at a time. Say which checkpoint the package now is
+(`continuum ledger current`) — the sequence is a label; the digests are the
+identity.
 
 With the MCP server connected, the same verdicts are one call away and
 read-only: `continuum_package_check {packageDir, changePath?}` and
 `continuum_resolve_state {manifestPath, changePath?}` relay the CLI's
-`--json` verbatim (the server names the paths on its own machine, like
-`continuum_find`).
+`--json` verbatim. A path argument means the machine the surface reads — which
+is yours on the local bridge and not yours on a hosted one (`continuum` skill
+§0).
 
 ## 6. Deliver
 
@@ -212,6 +238,12 @@ read-only: `continuum_package_check {packageDir, changePath?}` and
   `build` returned ok; without a toolchain, label everything **UNCOMPILED**;
 - the attestation and changeState, the environment, the scenario count
   and execution result, the warnings explained;
+- **the assessment of the state being handed over** (§1a): the subject
+  digest, the attained level, and the specification / profile / policy /
+  evaluator identities — plus the obligations the implementer's work is
+  expected to satisfy, each with its reason code and producing task. Say
+  plainly that this is **model** conformance and establishes nothing about an
+  implementation that does not yet exist;
 - the behavioural projection, read before handing off — `BEHAVIOUR.md`,
   or `continuum preview <spec>` for a state not yet built (and
   `--change <file>` for a proposed change): walk the owner through the
