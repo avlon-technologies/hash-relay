@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using HashRelay.Client;
 using HashRelay.Contracts;
 using Microsoft.Toolkit.Uwp.Notifications;
 using Microsoft.Win32;
@@ -33,13 +34,25 @@ internal static class Toasts
     }
 
     /// <summary>Builds and shows the toast. Fetches the image first (bounded), then shows; never throws for image trouble.</summary>
-    public static async Task ShowAsync(NotificationMessage m, CancellationToken ct = default)
+    /// <param name="fromBacklog">True for an item received while the device was away that still earns its own toast (high priority, or the only one).</param>
+    public static async Task ShowAsync(NotificationMessage m, bool fromBacklog = false, CancellationToken ct = default)
     {
         var image = m.ImageUrl is null ? null : await ImageCache.GetAsync(m.ImageUrl, ct);
-        Show(m, image);
+        Show(m, image, fromBacklog);
     }
 
-    public static void Show(NotificationMessage m, string? imagePath = null)
+    /// <summary>The attribution line: who published it (as verified by the server), the hashtags and the workspace.</summary>
+    public static string Attribution(NotificationMessage m, bool fromBacklog = false)
+    {
+        var parts = new List<string>(4);
+        if (m.Publisher?.IsKnown == true) parts.Add(m.Publisher.Name!);
+        parts.Add(Tags.DisplayAll(m.Tags));
+        parts.Add(m.TenantName);
+        if (fromBacklog) parts.Add("while you were away");
+        return string.Join(" · ", parts);
+    }
+
+    public static void Show(NotificationMessage m, string? imagePath = null, bool fromBacklog = false)
     {
         // Click target: the web page when there is more to see than the toast can show, else the publisher's link.
         var open = m.Rich && !string.IsNullOrWhiteSpace(m.DetailUrl) ? m.DetailUrl : (m.Url ?? m.DetailUrl);
@@ -47,7 +60,7 @@ internal static class Toasts
             .AddArgument("action", "open")
             .AddArgument("deliveryId", m.DeliveryId.ToString())
             .AddText(m.Title, hintMaxLines: 2)
-            .AddAttributionText($"{Tags.DisplayAll(m.Tags)} · {m.TenantName}");
+            .AddAttributionText(Attribution(m, fromBacklog));
         if (!string.IsNullOrWhiteSpace(m.Body)) builder.AddText(m.Body, hintMaxLines: 2);
         if (!string.IsNullOrWhiteSpace(open)) builder.AddArgument("url", open);
         if (File.Exists(IconPath)) builder.AddAppLogoOverride(new Uri(IconPath), ToastGenericAppLogoCrop.None);
@@ -61,6 +74,28 @@ internal static class Toasts
         builder.Show(toast =>
         {
             toast.Tag = m.DeliveryId.ToString("n")[..16];
+            toast.Group = "hashrelay";
+            toast.ExpirationTime = DateTimeOffset.Now.AddDays(3);
+        });
+    }
+
+    /// <summary>
+    /// One toast for a whole backlog: "47 notifications while you were away" with a neutral breakdown, opening the
+    /// Activity page where every one of them can be read. Tagged so a later catch-up replaces it in Notification Center
+    /// instead of stacking.
+    /// </summary>
+    public static void ShowCatchUp(CatchUpSummary summary, string activityUrl)
+    {
+        var b = new ToastContentBuilder()
+            .AddArgument("action", "url").AddArgument("url", activityUrl)
+            .AddText(summary.Title)
+            .AddText(summary.Describe(), hintMaxLines: 2)
+            .AddAttributionText(Tags.DisplayAll(summary.Hashtags.Take(5)) + (summary.Hashtags.Count > 5 ? " …" : ""))
+            .AddAudio(new ToastAudio { Silent = true });
+        if (File.Exists(IconPath)) b.AddAppLogoOverride(new Uri(IconPath), ToastGenericAppLogoCrop.None);
+        b.Show(toast =>
+        {
+            toast.Tag = "catchup";
             toast.Group = "hashrelay";
             toast.ExpirationTime = DateTimeOffset.Now.AddDays(3);
         });

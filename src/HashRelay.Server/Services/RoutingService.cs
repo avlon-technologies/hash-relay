@@ -19,6 +19,10 @@ public sealed class HashRelayOptions
     /// <summary>Self-service "forgot password" pages and the link on the sign-in page. Off by default; needs outbound email (HashRelay:Email) to be useful.</summary>
     public bool AllowPasswordReset { get; set; } = false;
     public int ReplayWindowHours { get; set; } = 24;
+    /// <summary>How many backlog deliveries one Hello replays at most; anything beyond waits for the next Hello.</summary>
+    public int ReplayBatchSize { get; set; } = 500;
+    /// <summary>How many times a delivery is handed to a connection without an acknowledgement before replay gives up on it.</summary>
+    public int MaxSendAttempts { get; set; } = 3;
     public int PublishRateLimitPerMinute { get; set; } = 120;
     /// <summary>Host name that serves only the MCP endpoint (e.g. mcp.hashrelay.dev.avlon.ca). Empty = /mcp is served on every host.</summary>
     public string McpHost { get; set; } = "";
@@ -33,12 +37,19 @@ public sealed class HashRelayOptions
 /// never as display (DeliveryEvidence). Other offline endpoints keep a queued delivery that is replayed on their next
 /// Hello, within the replay window.
 /// </summary>
+/// <remarks>
+/// Attribution: every notification is stamped with the <see cref="PublisherIdentity"/> the authentication layer derived
+/// from the credential. The request body carries no publisher fields and none would be honoured.
+/// </remarks>
 public sealed class RoutingService(RelayDbContext db, TimeProvider clock, ConnectionRegistry registry, IHubContext<NotificationsHub> hub,
     IOptions<HashRelayOptions> options, IDiagramRenderer diagrams, ImageStore images, PublicBase publicBase, AuditService audit,
     IPushSender push, EndpointService endpoints, ILogger<RoutingService> log)
 {
     /// <param name="policy">The service-account policy when the caller is a service key; enforced before anything is persisted and audited either way.</param>
-    public async Task<PublishResult> PublishAsync(Guid tenantId, Guid credentialId, PublishRequest req, CancellationToken ct, ServicePolicy? policy = null)
+    /// <param name="publisher">Server-verified publisher of the notification (from the credential's claims); null only for callers without an authenticated principal, recorded as unknown.</param>
+    /// <param name="channel">A <see cref="Channels"/> value for the entry point the request came through.</param>
+    public async Task<PublishResult> PublishAsync(Guid tenantId, Guid credentialId, PublishRequest req, CancellationToken ct, ServicePolicy? policy = null,
+        PublisherIdentity? publisher = null, string? channel = null)
     {
         var v = Validate(req);
         var payloadHash = Secrets.Sha256Hex(JsonSerializer.Serialize(new { v.Tags, v.Title, v.Body, v.Url, v.Priority, v.Markdown, v.ImageUrl, v.Diagram }));
@@ -75,6 +86,8 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
             Id = id, TenantId = tenantId, TagsCsv = string.Join(',', v.Tags), Title = v.Title, Body = v.Body, Url = v.Url,
             Priority = v.Priority, Markdown = v.Markdown, ImageUrl = v.ImageUrl, Diagram = v.Diagram, DiagramImageUrl = diagramImageUrl,
             PayloadHash = payloadHash, PublishedByCredentialId = credentialId, PublishedAt = now,
+            PublisherId = publisher?.Id, PublisherName = publisher?.Name, PublisherType = publisher?.Type ?? PublisherTypes.Unknown,
+            Channel = channel is not null && Channels.All.Contains(channel) ? channel : Channels.Rest,
             MatchedEndpoints = endpointRefs.Count,
         };
         var deliveries = endpointRefs.Select(ep => new Delivery
@@ -117,7 +130,7 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
         var pushed = await PushAsync(notification, deliveries.Where(d => d.Status == DeliveryStatus.Queued).ToList(), tenantName, now, ct);
         if (policy is not null)
             audit.Add(tenantId, AuditActions.Published, policy.ServiceAccountId, credentialId, target: id.ToString(),
-                detail: $"{Tags.DisplayAll(v.Tags)} “{v.Title}” → {endpointRefs.Count} device(s), {live} live, {pushed} pushed");
+                detail: $"{Tags.DisplayAll(v.Tags)} “{v.Title}” → {endpointRefs.Count} device(s), {live} live, {pushed} pushed; via {notification.Channel}");
         if (live > 0 || pushed > 0 || policy is not null) await db.SaveChangesAsync(ct);
 
         log.LogInformation("Published {NotificationId} to {Tags} in tenant {TenantId}: {Matched} matched, {Live} live, {Pushed} pushed",
@@ -193,7 +206,7 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
             .OrderByDescending(d => d.CreatedAt).Take(limit).ToListAsync(ct);
         return rows.Select(d => new EndpointDeliveryInfo(d.Id, d.Status, d.NotificationId, d.Notification.Tags, d.Notification.Title, d.Notification.Body,
             d.Notification.Url, d.Notification.Priority, d.Notification.PublishedAt, ToastImage(d.Notification), DetailUrl(d.Notification),
-            IsRich(d.Notification), d.AckedAt)).ToList();
+            IsRich(d.Notification), d.AckedAt, PublisherOf(d.Notification))).ToList();
     }
 
     private async Task<PublishResult> DuplicateAsync(Notification existing, Guid tenantId, string payloadHash, CancellationToken ct)
@@ -283,21 +296,35 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
     private static bool IsHttpUrl(string url)
         => url.Length <= Limits.UrlMax && Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme is "http" or "https";
 
-    /// <summary>Replays queued deliveries to a freshly connected endpoint; expires those outside the replay window.</summary>
+    /// <summary>
+    /// Replays the endpoint's backlog to a freshly connected endpoint, oldest first, every message flagged
+    /// <c>Replayed</c> so the client folds them into one catch-up summary instead of a toast each. The backlog is what
+    /// was queued while it was offline plus what was handed to an earlier connection but never acknowledged (an
+    /// interrupted synchronisation), bounded by <see cref="HashRelayOptions.MaxSendAttempts"/> so a client that never
+    /// acks does not receive the same delivery forever. Queued deliveries older than the replay window expire. Clients
+    /// de-duplicate by notification id, so a repeat of an unacknowledged delivery is never shown twice.
+    /// </summary>
     public async Task<int> ReplayAsync(Guid tenantId, Guid endpointRef, string connectionId, CancellationToken ct)
     {
         var now = clock.GetUtcNow();
-        var cutoff = now.AddHours(-Math.Max(0, options.Value.ReplayWindowHours));
-        var queued = await db.Deliveries.Include(d => d.Notification)
-            .Where(d => d.EndpointRef == endpointRef && d.TenantId == tenantId && d.Status == DeliveryStatus.Queued)
-            .OrderBy(d => d.CreatedAt).Take(200).ToListAsync(ct);
-        if (queued.Count == 0) return 0;
+        var o = options.Value;
+        var cutoff = now.AddHours(-Math.Max(0, o.ReplayWindowHours));
+        var maxAttempts = Math.Max(1, o.MaxSendAttempts);
+        var backlog = await db.Deliveries.Include(d => d.Notification)
+            .Where(d => d.EndpointRef == endpointRef && d.TenantId == tenantId
+                && (d.Status == DeliveryStatus.Queued || (d.Status == DeliveryStatus.Sent && d.AckedAt == null && d.Attempts < maxAttempts)))
+            .OrderBy(d => d.CreatedAt).Take(Math.Clamp(o.ReplayBatchSize, 1, 2000)).ToListAsync(ct);
+        if (backlog.Count == 0) return 0;
 
         var tenantName = await db.Tenants.Where(t => t.Id == tenantId).Select(t => t.Name).FirstAsync(ct);
         var replayed = 0;
-        foreach (var d in queued)
+        foreach (var d in backlog)
         {
-            if (d.CreatedAt < cutoff) { d.Status = DeliveryStatus.Expired; continue; }
+            if (d.CreatedAt < cutoff)
+            {
+                if (d.Status == DeliveryStatus.Queued) d.Status = DeliveryStatus.Expired; // a sent-but-unacked one simply stops being retried
+                continue;
+            }
             await hub.Clients.Client(connectionId).SendAsync(HubMethods.NotificationReceived, ToMessage(d.Notification, d, tenantName, replayed: true), ct);
             d.Status = DeliveryStatus.Sent;
             d.SentAt = now;
@@ -319,9 +346,13 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
     public static string? ToastImage(Notification n) => n.ImageUrl ?? n.DiagramImageUrl;
     public string DetailUrl(Notification n) => publicBase.Absolute($"/n/{n.Id}");
 
+    /// <summary>The stored attribution; rows from before attribution existed read as unknown rather than being guessed at.</summary>
+    public static PublisherInfo PublisherOf(Notification n)
+        => n.PublisherName is null ? PublisherInfo.Unknown with { Channel = n.Channel } : new PublisherInfo(n.PublisherId, n.PublisherName, PublisherTypes.Normalize(n.PublisherType), n.Channel);
+
     private NotificationMessage ToMessage(Notification n, Delivery d, string tenantName, bool replayed)
         => new(n.Id, n.TenantId, n.Tags, n.Title, n.Body, n.PublishedAt, d.Id, n.Url, n.Priority, tenantName, replayed,
-            ToastImage(n), DetailUrl(n), IsRich(n));
+            ToastImage(n), DetailUrl(n), IsRich(n), PublisherOf(n));
 
     public async Task<List<NotificationSummary>> RecentAsync(Guid tenantId, int limit, CancellationToken ct)
     {
@@ -332,11 +363,13 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
                 n.Id, n.TagsCsv, n.Title, n.Body, n.Url, n.Priority, n.PublishedAt, n.MatchedEndpoints,
                 Delivered = n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued),
                 HasMarkdown = n.Markdown != null, HasDiagram = n.Diagram != null, n.ImageUrl, n.DiagramImageUrl,
+                n.PublisherId, n.PublisherName, n.PublisherType, n.Channel,
             })
             .ToListAsync(ct);
         var baseUrl = publicBase.Url;
         return rows.Select(n => new NotificationSummary(n.Id, n.TagsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries), n.Title, n.Body, n.Url, n.Priority,
-            n.PublishedAt, n.MatchedEndpoints, n.Delivered, n.HasMarkdown, n.HasDiagram, n.ImageUrl ?? n.DiagramImageUrl, $"{baseUrl}/n/{n.Id}")).ToList();
+            n.PublishedAt, n.MatchedEndpoints, n.Delivered, n.HasMarkdown, n.HasDiagram, n.ImageUrl ?? n.DiagramImageUrl, $"{baseUrl}/n/{n.Id}",
+            n.PublisherName is null ? PublisherInfo.Unknown with { Channel = n.Channel } : new PublisherInfo(n.PublisherId, n.PublisherName, PublisherTypes.Normalize(n.PublisherType), n.Channel))).ToList();
     }
 
     /// <summary>A notification for the detail page: only members of its tenant may see it.</summary>

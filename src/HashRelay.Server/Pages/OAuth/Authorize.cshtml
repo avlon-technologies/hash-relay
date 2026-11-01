@@ -71,6 +71,13 @@
                         </div>
                     </div>
                     <p class="hint consent-hint"><code>*</code> allows every hashtag; <code>agent-*</code> keeps the app in its own lane. You can tighten this later on the service account.</p>
+                    <div class="field">
+                        <label for="publisherType">What is @c.Name?</label>
+                        <select class="input" id="publisherType" name="publisherType">
+                            @foreach (var t in PublisherTypes.Declarable) { <option value="@t">@PublisherTypes.Labels[t]</option> }
+                        </select>
+                        <p class="hint">Recorded as the publisher type on notifications it sends. Leave it unspecified if you are not sure; connecting through MCP says nothing about what it is.</p>
+                    </div>
                     <div class="modal-actions" style="justify-content:flex-end">
                         <button type="submit" class="btn btn-ghost" asp-page-handler="Deny" formnovalidate>Cancel</button>
                         <button type="submit" class="btn btn-primary" asp-page-handler="Approve" disabled="@(Model.Memberships.Count == 0)">Connect</button>

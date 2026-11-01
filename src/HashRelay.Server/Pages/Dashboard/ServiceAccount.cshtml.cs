@@ -35,12 +35,12 @@ public sealed class ServiceAccountModel(CurrentTenant current, IOptions<HashRela
         return Page();
     }
 
-    public async Task<IActionResult> OnPostUpdateAsync(string name, string? description, string[] scopes, string allowedTags, string? allowedUrlHosts, int hourlyLimit, CancellationToken ct)
+    public async Task<IActionResult> OnPostUpdateAsync(string name, string? description, string[] scopes, string allowedTags, string? allowedUrlHosts, int hourlyLimit, string? publisherType, CancellationToken ct)
     {
         if (!CanManage) return Flash("danger", "Only workspace owners and admins can change service accounts.");
         try
         {
-            var draft = ServiceAccountService.Validate(name, description, scopes, allowedTags, allowedUrlHosts, hourlyLimit);
+            var draft = ServiceAccountService.Validate(name, description, scopes, allowedTags, allowedUrlHosts, hourlyLimit, publisherType);
             await accounts.UpdateAsync(Current.TenantId, Id, Current.Account!.Id, draft, ct);
             return Flash("success", "Service account updated. Keys pick up the new policy on their next request.");
         }

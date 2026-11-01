@@ -26,10 +26,12 @@ public sealed class CredentialService(RelayDbContext db, TimeProvider clock, Con
     }
 
     /// <summary>Issues a tenant publisher API key. Returns the row and the plaintext secret (shown once, never stored).</summary>
-    public async Task<(Credential Credential, string Secret)> IssueApiKeyAsync(Guid tenantId, Guid createdBy, string label, IEnumerable<string> scopes, DateTimeOffset? expiresAt, CancellationToken ct)
+    /// <param name="publisherType">The <see cref="PublisherTypes"/> value the admin declares for what will hold this key; anything else is stored as unknown.</param>
+    public async Task<(Credential Credential, string Secret)> IssueApiKeyAsync(Guid tenantId, Guid createdBy, string label, IEnumerable<string> scopes, DateTimeOffset? expiresAt, CancellationToken ct, string? publisherType = null)
     {
         var secret = Secrets.NewApiKey();
         var cred = NewCredential(tenantId, CredentialKinds.Api, ValidateLabel(label), NormalizeScopes(scopes), secret, createdBy, null, expiresAt);
+        cred.PublisherType = PublisherTypes.Normalize(publisherType);
         db.Credentials.Add(cred);
         await db.SaveChangesAsync(ct);
         log.LogInformation("Issued API key {CredentialId} for tenant {TenantId}", cred.Id, tenantId);

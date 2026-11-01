@@ -60,6 +60,7 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Property(x => x.Hash).HasMaxLength(64);
             e.Property(x => x.Hint).HasMaxLength(32);
             e.Property(x => x.Scopes).HasMaxLength(200);
+            e.Property(x => x.PublisherType).HasMaxLength(16);
             e.HasIndex(x => x.ServiceAccountId);
             e.Ignore(x => x.ScopeList);
         });
@@ -72,6 +73,7 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Property(x => x.Scopes).HasMaxLength(200);
             e.Property(x => x.AllowedTags).HasMaxLength(700);
             e.Property(x => x.AllowedUrlHosts).HasMaxLength(700);
+            e.Property(x => x.PublisherType).HasMaxLength(16);
             e.Ignore(x => x.ScopeList);
             e.Ignore(x => x.AllowedTagList);
             e.Ignore(x => x.AllowedUrlHostList);
@@ -163,6 +165,9 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Property(x => x.Url).HasMaxLength(2048);
             e.Property(x => x.Priority).HasMaxLength(8);
             e.Property(x => x.PayloadHash).HasMaxLength(64);
+            e.Property(x => x.PublisherName).HasMaxLength(80);
+            e.Property(x => x.PublisherType).HasMaxLength(16);
+            e.Property(x => x.Channel).HasMaxLength(16);
             e.Ignore(x => x.Tags);
         });
 

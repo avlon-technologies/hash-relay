@@ -56,7 +56,7 @@ export function InboxScreen() {
                 <Muted>{when(d.publishedAtUtc)}</Muted>
               </View>
               {d.body ? <Muted style={{ fontSize: 14, color: t.text }}>{d.body}</Muted> : null}
-              <Muted>{d.tags.map(displayTag).join(' ')} · {statusLabel(d)}{d.rich ? ' · open for the full page' : d.url ? ' · opens link' : ''}</Muted>
+              <Muted>{d.publisher?.name ? `${d.publisher.name} · ` : ''}{d.tags.map(displayTag).join(' ')} · {statusLabel(d)}{d.rich ? ' · open for the full page' : d.url ? ' · opens link' : ''}</Muted>
             </Card>
           </Pressable>
         );

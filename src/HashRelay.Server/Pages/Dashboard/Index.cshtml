@@ -40,7 +40,7 @@
                 {
                     <li>
                         <div>
-                            <div class="t">@n.Title</div>
+                            <div class="t">@n.Title@if (n.Publisher?.IsKnown == true) { <span class="small muted"> — @n.Publisher.Name</span> }</div>
                             @if (!string.IsNullOrEmpty(n.Body)) { <div class="b">@n.Body</div> }
                             <div class="tags mt-1">@foreach (var t in n.Tags) { <span class="tag">#@t</span> }</div>
                         </div>

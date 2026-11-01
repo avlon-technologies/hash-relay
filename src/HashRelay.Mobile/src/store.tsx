@@ -51,7 +51,7 @@ export function useStore(): Store {
 
 const fromLive = (m: NotificationMessage): EndpointDeliveryInfo => ({
   deliveryId: m.deliveryId, status: 'sent', notificationId: m.notificationId, tags: m.tags, title: m.title, body: m.body, url: m.url,
-  priority: m.priority, publishedAtUtc: m.publishedAtUtc, imageUrl: m.imageUrl, detailUrl: m.detailUrl, rich: m.rich, ackedAtUtc: null,
+  priority: m.priority, publishedAtUtc: m.publishedAtUtc, imageUrl: m.imageUrl, detailUrl: m.detailUrl, rich: m.rich, ackedAtUtc: null, publisher: m.publisher ?? null,
 });
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {

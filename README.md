@@ -74,8 +74,17 @@ the single replica alive while they are online.
   rendered to PNG server-side (via mermaid.ink by default, Kroki supported, `HashRelay:Diagrams`) and shown inside the
   toast; `POST /api/v1/images` uploads a picture for `imageUrl`. CLI: `--markdown[-file]`, `--diagram[-file]`, `--image`.
 - **Transport.** Groups are per-endpoint addresses only; subscriptions live in the database and are the sole matching
-  authority. The agent reconnects with backoff forever, re-registers after every reconnect, acks displayed deliveries
-  and suppresses duplicates.
+  authority. The agent reconnects with backoff forever, re-registers after every reconnect, acks every delivery it
+  receives and suppresses duplicates by notification id. A subscription applies to notifications published after it
+  exists; history is never replayed into a new subscription.
+- **Catch-up.** Backlog replayed on `Hello` (queued while offline, plus anything handed to an earlier connection but
+  never acked, at most 3 attempts) arrives flagged `replayed`. The agent shows live notifications at once but folds a
+  replayed backlog into one summary toast ("47 notifications while you were away") that opens the Activity page; at most
+  three high-priority items from the backlog get their own toast. Acknowledgement means received, not shown.
+- **Publisher attribution.** Every notification carries `publisher: { id, name, type, channel }` set by the server from
+  the credential: a service account's name and declared type, an API key's label and declared type, or a paired device
+  (`human`). The type is declared by an admin (dashboard, OAuth consent) and is otherwise `unknown`; it is never inferred
+  from MCP, REST or the message. `channel` records the entry point (mcp, rest, cli, sdk, agent, mobile).
 - **Errors.** `{code, message, traceId, details}` with `400/401/403/404/409/429`. CLI exit codes:
   `0` ok, `2` invalid input, `3` authentication, `4` server unavailable, `5` rejected, `10` unexpected.
 

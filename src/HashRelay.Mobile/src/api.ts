@@ -9,14 +9,17 @@ export type DeviceCodeResponse = { deviceCode: string; userCode: string; verific
 export type DeviceTokenResponse = { status: 'pending' | 'approved' | 'denied' | 'expired'; token: string | null; tenant: TenantInfo | null; credential: CredentialInfo | null };
 export type PublishRequest = { tags: string[]; title: string; body?: string; url?: string; priority?: 'low' | 'normal' | 'high'; markdown?: string };
 export type PublishResult = { notificationId: string; acceptedAtUtc: string; tags: string[]; title: string; matchedEndpoints: number; deliveredLive: number; queued: number; pushed: number; duplicate: boolean; detailUrl: string | null };
+/** Server-verified publisher attribution; `name` is null (and `type` 'unknown') for notifications stored before attribution existed. */
+export type PublisherInfo = { id: string | null; name: string | null; type: 'agent' | 'application' | 'service' | 'human' | 'unknown'; channel: string | null };
 export type EndpointDeliveryInfo = {
   deliveryId: string; status: 'queued' | 'sent' | 'pushed' | 'acked' | 'expired'; notificationId: string; tags: string[]; title: string; body: string | null;
   url: string | null; priority: string; publishedAtUtc: string; imageUrl: string | null; detailUrl: string | null; rich: boolean; ackedAtUtc: string | null;
+  publisher?: PublisherInfo | null;
 };
 /** Server → client hub payload (NotificationReceived). */
 export type NotificationMessage = {
   notificationId: string; tenantId: string; tags: string[]; title: string; body: string | null; publishedAtUtc: string; deliveryId: string; url: string | null;
-  priority: string; tenantName: string; replayed: boolean; imageUrl: string | null; detailUrl: string | null; rich: boolean;
+  priority: string; tenantName: string; replayed: boolean; imageUrl: string | null; detailUrl: string | null; rich: boolean; publisher?: PublisherInfo | null;
 };
 export type PushRegistration = { provider: string; token: string } | null;
 

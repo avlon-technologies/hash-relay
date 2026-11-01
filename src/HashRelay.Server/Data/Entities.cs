@@ -55,6 +55,8 @@ public sealed class Credential
     public required string Scopes { get; set; }         // comma separated
     public Guid? EndpointRef { get; set; }              // device tokens are bound to one endpoint
     public Guid? ServiceAccountId { get; set; }         // service keys belong to one service account
+    /// <summary>For API keys: the <c>PublisherTypes</c> value the admin declared when creating the key; null = unknown. Service keys take their account's type, device tokens are always human.</summary>
+    public string? PublisherType { get; set; }
     public Guid? CreatedByAccountId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastUsedAt { get; set; }
@@ -115,6 +117,12 @@ public sealed class Notification
     public string? DiagramImageUrl { get; set; }        // server-rendered PNG of Diagram, when rendering succeeded
     public required string PayloadHash { get; set; }    // for idempotency conflict detection
     public Guid? PublishedByCredentialId { get; set; }
+    /// <summary>Publisher attribution resolved by the server from the credential at publish time (see <c>PublisherIdentity</c>). Null on rows written before attribution existed: shown as unknown.</summary>
+    public Guid? PublisherId { get; set; }
+    public string? PublisherName { get; set; }
+    public string? PublisherType { get; set; }
+    /// <summary>Entry point of the publication, a <c>Channels</c> value (mcp, rest, cli, sdk, agent, mobile).</summary>
+    public string? Channel { get; set; }
     public DateTimeOffset PublishedAt { get; set; }
     public int MatchedEndpoints { get; set; }
     public List<Delivery> Deliveries { get; set; } = [];
@@ -125,9 +133,9 @@ public sealed class Notification
 public static class DeliveryStatus
 {
     public const string Queued = "queued";      // endpoint offline; eligible for replay on reconnect
-    public const string Sent = "sent";          // sent over a live connection
+    public const string Sent = "sent";          // handed to a live connection; replayed again on the next Hello until acked (bounded by MaxSendAttempts)
     public const string Pushed = "pushed";      // accepted by the push provider (FCM); display is unknown until the endpoint acks
-    public const string Acked = "acked";        // endpoint confirmed display
+    public const string Acked = "acked";        // endpoint confirmed receipt (shown, or synchronised into its history); not necessarily a toast
     public const string Expired = "expired";    // replay window elapsed
 }
 
@@ -190,6 +198,8 @@ public sealed class ServiceAccount
     public required string AllowedTags { get; set; }    // comma separated glob patterns, normalised like tags ("agent-*")
     public string? AllowedUrlHosts { get; set; }        // comma separated host names; null = any https host
     public int HourlyPublishLimit { get; set; } = 60;
+    /// <summary>The <c>PublisherTypes</c> value declared by the admin (or at OAuth consent); null = unknown. Never inferred from the transport: an MCP caller is not assumed to be an agent.</summary>
+    public string? PublisherType { get; set; }
     public bool Enabled { get; set; } = true;
     public Guid? CreatedByAccountId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
