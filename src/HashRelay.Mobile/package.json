@@ -1,6 +1,6 @@
 {
   "name": "hashrelay-mobile",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
     "@microsoft/signalr": "^10.0.11",
