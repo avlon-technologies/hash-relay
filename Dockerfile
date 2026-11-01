@@ -15,6 +15,9 @@ RUN dotnet publish src/HashRelay.Server/HashRelay.Server.csproj -c Release -o /a
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app .
+# Reported by /healthz as "build" so a deploy can prove which image is serving.
+ARG BUILD_LABEL=""
+ENV HASHRELAY_BUILD=$BUILD_LABEL
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "HashRelay.Server.dll"]

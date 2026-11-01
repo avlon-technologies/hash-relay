@@ -162,7 +162,8 @@ public static class ApiEndpoints
         return app;
     }
 
-    private static IResult Health() => Results.Ok(new HealthResponse("ok", Version, DateTimeOffset.UtcNow));
+    private static readonly string? BuildLabel = Environment.GetEnvironmentVariable("HASHRELAY_BUILD") is { Length: > 0 } b ? b : null;
+    private static IResult Health() => Results.Ok(new HealthResponse("ok", Version, DateTimeOffset.UtcNow, BuildLabel));
 }
 
 /// <summary>Translates <see cref="ApiException"/> and malformed JSON into the error envelope.</summary>

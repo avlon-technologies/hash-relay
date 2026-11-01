@@ -110,7 +110,8 @@ public sealed record NotificationSummary(
 /// <summary>Error envelope: <c>{code,message,traceId}</c> plus optional field-level details.</summary>
 public sealed record ApiError(string Code, string Message, string? TraceId = null, IReadOnlyDictionary<string, string[]>? Details = null);
 
-public sealed record HealthResponse(string Status, string Version, DateTimeOffset Time);
+/// <param name="Build">The image's build label (version-sha-timestamp), stamped at image build time; null for local runs.</param>
+public sealed record HealthResponse(string Status, string Version, DateTimeOffset Time, string? Build = null);
 
 // ---------- Device pairing (OAuth device-authorization style) ----------
 
