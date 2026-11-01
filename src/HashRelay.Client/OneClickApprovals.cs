@@ -75,6 +75,46 @@ public sealed record DecisionResult(DecisionResultKind Kind, string Message, str
     public bool Decided => Kind is DecisionResultKind.Approved or DecisionResultKind.Rejected;
     /// <summary>True when the toast should offer Retry: nothing is known to have been recorded.</summary>
     public bool Retryable => Kind == DecisionResultKind.Failed;
+
+    /// <summary>The result toast's heading.</summary>
+    public string Heading => Kind switch
+    {
+        DecisionResultKind.Approved => "Approved",
+        DecisionResultKind.Rejected => "Rejected",
+        DecisionResultKind.Expired => "Expired",
+        DecisionResultKind.Cancelled => "Cancelled",
+        DecisionResultKind.AlreadyResolved => "Already resolved",
+        DecisionResultKind.NotAuthorized or DecisionResultKind.NotEnrolled => "Can't decide from here",
+        _ => "Unable to submit",
+    };
+
+    public static DecisionResult SubmitFailed { get; } = new(DecisionResultKind.Failed, "Unable to submit. Nothing was recorded. Retry, or open HashRelay to decide.");
+}
+
+/// <summary>
+/// The order of a one-click: show progress, submit, show the outcome. Showing is presentation only, so a failure to
+/// render either toast is logged and never stops the submission or changes the outcome the server confirmed.
+/// </summary>
+public static class OneClickFlow
+{
+    public static async Task<DecisionResult> RunAsync(Func<Task<DecisionResult>> submit, Action showProgress, Action<DecisionResult> showResult,
+        Action<string, Exception> logError)
+    {
+        try { showProgress(); }
+        catch (Exception ex) { logError("One-click progress toast", ex); }
+
+        DecisionResult result;
+        try { result = await submit(); }
+        catch (Exception ex)
+        {
+            logError("One-click decision", ex);
+            result = DecisionResult.SubmitFailed;
+        }
+
+        try { showResult(result); }
+        catch (Exception ex) { logError("One-click result toast", ex); }
+        return result;
+    }
 }
 
 /// <summary>The toast button arguments for one-click decisions. Only ids, never a credential.</summary>

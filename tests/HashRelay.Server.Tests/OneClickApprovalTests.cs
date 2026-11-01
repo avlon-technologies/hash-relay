@@ -29,7 +29,7 @@ public sealed class XorProtector : IGrantProtector
 /// grant its own pairer gave after signing in, only from the approval's own notification delivered to it, and only as
 /// that person under every check the page applies. Real server, real SQLite, a real paired device receiving over the hub.
 /// </summary>
-public sealed class OneClickApprovalTests : IAsyncLifetime
+public sealed partial class OneClickApprovalTests : IAsyncLifetime
 {
     private const string Tag = "ops";
     private readonly ShiftableClock _clock = new();

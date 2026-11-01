@@ -36,44 +36,31 @@ internal static class OneClick
         if (!InFlight.TryAdd(approvalId, 0)) { Log.Info($"One-click {decision} for {approvalId} ignored: already submitting"); return; }
         try
         {
-            var config = ConfigStore.Load();
-            var page = ApprovalPageUrl(config, approvalId);
-            ShowState(tag, subject, "Submitting your decision…", decision == ApprovalDecisions.Approve ? "Approving" : "Rejecting", popup: false);
-            DecisionResult result;
-            if (!config.IsLoggedIn) result = new(DecisionResultKind.NotAuthorized, "This device isn't paired. Open HashRelay to decide.");
-            else
-            {
-                var decider = new ApprovalDecider(() => Api(config), config.ServerUri, Store);
-                result = await decider.DecideAsync(approvalId, decision, deliveryId);
-            }
+            RelayConfig? config = null;
+            var result = await OneClickFlow.RunAsync(
+                submit: async () =>
+                {
+                    config = ConfigStore.Load();
+                    if (!config.IsLoggedIn) return new DecisionResult(DecisionResultKind.NotAuthorized, "This device isn't paired. Open HashRelay to decide.");
+                    var decider = new ApprovalDecider(() => Api(config), config.ServerUri, Store);
+                    return await decider.DecideAsync(approvalId, decision, deliveryId);
+                },
+                showProgress: () => Show(BuildProgress(subject, decision), tag, popup: false),
+                showResult: r => Show(BuildResult(subject, r, tag, approvalId, decision, deliveryId, ApprovalPageUrl(config ?? ConfigStore.Load(), approvalId)), tag, popup: true),
+                logError: (what, ex) => Log.Error(what, ex));
             Log.Info($"One-click {decision} for {approvalId}: {result.Kind} {result.Status}");
-            ShowResult(tag, subject, result, approvalId, decision, deliveryId, page);
-        }
-        catch (Exception ex)
-        {
-            Log.Error("One-click decision", ex);
-            ShowResult(tag, subject, new DecisionResult(DecisionResultKind.Failed, "Unable to submit. Nothing was recorded. Retry, or open HashRelay to decide."),
-                approvalId, decision, deliveryId, ApprovalPageUrl(ConfigStore.Load(), approvalId));
         }
         finally { InFlight.TryRemove(approvalId, out _); }
     }
 
     private static string ApprovalPageUrl(RelayConfig config, Guid approvalId) => new Uri(config.ServerUri, $"approvals/{approvalId}").ToString();
 
-    private static string Heading(DecisionResult r) => r.Kind switch
-    {
-        DecisionResultKind.Approved => "Approved",
-        DecisionResultKind.Rejected => "Rejected",
-        DecisionResultKind.Expired => "Expired",
-        DecisionResultKind.Cancelled => "Cancelled",
-        DecisionResultKind.AlreadyResolved => "Already resolved",
-        DecisionResultKind.NotAuthorized or DecisionResultKind.NotEnrolled => "Can't decide from here",
-        _ => "Unable to submit",
-    };
+    internal static ToastContentBuilder BuildProgress(string? subject, string decision)
+        => Base(subject, decision == ApprovalDecisions.Approve ? "Approving…" : "Rejecting…", "Submitting your decision…").AddArgument("action", "none");
 
-    private static void ShowResult(string? tag, string? subject, DecisionResult r, Guid approvalId, string decision, Guid deliveryId, string page)
+    internal static ToastContentBuilder BuildResult(string? subject, DecisionResult r, string? tag, Guid approvalId, string decision, Guid deliveryId, string page)
     {
-        var b = Base(subject, Heading(r), r.Message);
+        var b = Base(subject, r.Heading, r.Message);
         if (r.Retryable)
         {
             var retry = new ToastButton().SetContent("Retry");
@@ -84,35 +71,31 @@ internal static class OneClick
         if (!r.Decided)
             b.AddButton(new ToastButton().SetContent("Open HashRelay").AddArgument("action", "url").AddArgument("url", page));
         b.AddArgument("action", "url").AddArgument("url", page);
-        Show(b, tag, popup: true);
+        return b;
     }
 
-    private static void ShowState(string? tag, string? subject, string body, string heading, bool popup)
-        => Show(Base(subject, heading + "…", body).AddArgument("action", "none"), tag, popup);
-
+    /// <summary>
+    /// Heading and subject on one line each, then the message on up to two. The toolkit throws for hintMaxLines above 2
+    /// on any text, and for more than 4 lines in total (a heading defaults to 2), so the budget is 1 + 1 + 2.
+    /// </summary>
     private static ToastContentBuilder Base(string? subject, string heading, string body)
     {
-        var b = new ToastContentBuilder().AddText(heading).AddText(string.IsNullOrWhiteSpace(subject) ? body : $"{subject}\n{body}", hintMaxLines: 3)
-            .AddAudio(new ToastAudio { Silent = true });
+        var b = new ToastContentBuilder().AddText(heading, hintMaxLines: 1);
+        if (!string.IsNullOrWhiteSpace(subject)) b.AddText(subject, hintMaxLines: 1);
+        b.AddText(body, hintMaxLines: 2).AddAudio(new ToastAudio { Silent = true });
         var icon = Path.Combine(AppContext.BaseDirectory, "hashrelay.png");
         if (File.Exists(icon)) b.AddAppLogoOverride(new Uri(icon), ToastGenericAppLogoCrop.None);
         return b;
     }
 
-    /// <summary>Same tag and group as the approval toast, so the state replaces it in Notification Center.</summary>
+    /// <summary>Same tag and group as the approval toast, so the state replaces it in Notification Center. Throws on failure; OneClickFlow logs it.</summary>
     private static void Show(ToastContentBuilder b, string? tag, bool popup)
-    {
-        try
+        => b.Show(t =>
         {
-            b.Show(t =>
-            {
-                if (!string.IsNullOrEmpty(tag)) { t.Tag = tag; t.Group = "hashrelay"; }
-                t.SuppressPopup = !popup;
-                t.ExpirationTime = DateTimeOffset.Now.AddDays(1);
-            });
-        }
-        catch (Exception ex) { Log.Warn($"Result toast: {ex.Message}"); }
-    }
+            if (!string.IsNullOrEmpty(tag)) { t.Tag = tag; t.Group = "hashrelay"; }
+            t.SuppressPopup = !popup;
+            t.ExpirationTime = DateTimeOffset.Now.AddDays(1);
+        });
 
     // ------------------------------------------------------------------ enrolment
 
