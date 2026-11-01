@@ -180,7 +180,7 @@ public sealed class HashRelayTools(IHttpContextAccessor http, RelayDbContext db,
         }
     }
 
-    private static async Task<T> Guard<T>(Func<Task<T>> action)
+    internal static async Task<T> Guard<T>(Func<Task<T>> action)
     {
         try { return await action(); }
         catch (ApiException ex)

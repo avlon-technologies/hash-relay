@@ -9,6 +9,9 @@ namespace HashRelay.Server.Services.Approvals;
 /// <summary>The authenticated requesting application, derived from its credential's claims; never from a request body.</summary>
 public sealed record ApprovalRequesterPrincipal(Guid TenantId, Guid CredentialId, Guid? ServiceAccountId, PublisherIdentity Publisher, ServicePolicy? Policy);
 
+/// <summary>A workspace member who may be named in <c>targetUserIds</c>.</summary>
+public sealed record EligibleApprover(Guid AccountId, string DisplayName, string Role, bool AuthorizedThisCredential);
+
 /// <summary>
 /// ApprovalService (ADL HashRelay.Approvals.DecisionManagement.ApprovalService). Handles RequestApproval, DecideApproval
 /// and CancelApproval; is the only writer of ApprovalStore; publishes ApprovalResolved through the transactional outbox.
@@ -109,6 +112,23 @@ public sealed class ApprovalService(RelayDbContext db, TimeProvider clock, Publi
 
         if (intent is not null) await TryProcessInFreshScopeAsync(intent.Id, ct);
         return (await ToResourceAsync(id, ct), true);
+    }
+
+    /// <summary>
+    /// The workspace members a requester may designate: the same rule CreateAsync enforces. Ids and display names only
+    /// (no emails); <c>AuthorizedThisCredential</c> marks the person who created the requester's service account, which
+    /// for an OAuth-connected AI app is the person who connected it.
+    /// </summary>
+    public async Task<IReadOnlyList<EligibleApprover>> EligibleApproversAsync(ApprovalRequesterPrincipal requester, CancellationToken ct)
+    {
+        Guid? createdBy = requester.ServiceAccountId is { } sa
+            ? await db.ServiceAccounts.AsNoTracking().Where(s => s.Id == sa && s.TenantId == requester.TenantId).Select(s => s.CreatedByAccountId).FirstOrDefaultAsync(ct)
+            : null;
+        var rows = await db.Memberships.AsNoTracking().Where(m => m.TenantId == requester.TenantId)
+            .Select(m => new { m.AccountId, m.Role, m.Account.DisplayName }).ToListAsync(ct);
+        return rows.Where(m => RoleMayDecide(m.Role))
+            .Select(m => new EligibleApprover(m.AccountId, m.DisplayName, m.Role, m.AccountId == createdBy))
+            .OrderByDescending(m => m.AuthorizedThisCredential).ThenBy(m => m.DisplayName, StringComparer.OrdinalIgnoreCase).Take(100).ToList();
     }
 
     private Task<Approval?> FindByKeyAsync(ApprovalRequesterPrincipal requester, string key, CancellationToken ct)
