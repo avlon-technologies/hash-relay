@@ -16,6 +16,12 @@
                         · @Model.Delivered/@n.MatchedEndpoints delivered@(Model.Pushed > 0 ? $" ({Model.Pushed} pushed, {Model.Acked} acknowledged)" : "")
                         @if (n.Priority != "normal") { <span class="badge badge-accent">@n.Priority</span> }
                     </div>
+                    <div class="muted small" title="Publisher, as verified by the server from the credential that published this">
+                        @{ var publisher = RoutingService.PublisherOf(n); }
+                        Published by <strong>@(publisher.IsKnown ? publisher.Name : "unknown publisher")</strong>
+                        <span class="badge">@PublisherTypes.Labels[publisher.Type]</span>
+                        @if (publisher.Channel is not null) { <span>via @publisher.Channel</span> }
+                    </div>
                 </div>
                 <h1 class="notification-title">@n.Title</h1>
                 @if (!string.IsNullOrEmpty(n.Body) && n.Markdown is null)

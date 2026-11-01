@@ -1,0 +1,59 @@
+// Catch-up without interruption, and trustworthy publisher attribution. Authored against the
+// draft-1 state that already carries IntroduceMobileApp; a proposal until approved.
+//
+// Observed (2026-11-01): an agent that reconnected after being away received every queued
+// delivery individually over the realtime connection and showed one native toast per message,
+// so a backlog of N notifications interrupted the subscriber N times. Attribution on a toast was
+// only the hashtag and workspace; the publisher's identity existed in the store as a credential
+// reference and nowhere on the wire.
+//
+// Principle this change records: HashRelay guarantees that every message is AVAILABLE to the
+// subscriber; it does not promise that every message INTERRUPTS the subscriber. Availability is
+// the delivery record and the acknowledgement; display is a client policy over that record.
+//
+// What this change deliberately does NOT claim: no notification-centre deployable (the inbox is
+// the existing activity history), no identity subsystem (attribution is a snapshot of the
+// authenticated credential taken at publish time), no new message, no new bounded context.
+// Toast folding, the settle window and the high-priority bound are client bindings.
+
+change CatchUpAndAttribution core adl/1.4 {
+  desc "A backlog delivered after an absence is made available as one catch-up rather than one interruption per message; every notification carries publisher attribution established by the server from the authenticated credential, never from the message or the transport."
+
+  base package Avlon.HashRelay version "draft-1" state "sha256:f054f59937833a63b2a698c2bc10fd42e9e35b20e89dd9bbef496e6c58ed1427"
+
+  // 1. Catch-up. Delivery already satisfies OncePerEndpoint and DeliveryEvidence; this names the
+  //    missing half of the vision principle: availability is owed per message, interruption is not.
+  add into #88888888-8888-4888-8888-888888888888 {
+    requirement CatchUpWithoutInterruption #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb {
+      desc "Deliveries that accumulate while an endpoint is away are replayed on reconnect, flagged as replayed and retained until acknowledged, so the endpoint can record them without presenting each one; live deliveries are presented at once. Acknowledgement means received, not shown."
+    }
+  }
+  link #18181818-1818-4818-8818-181818181818 satisfies #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb
+
+  // 2. Subscription semantics, stated explicitly: a subscription is forward-looking. Routing
+  //    already behaves this way (a delivery exists only for endpoints subscribed at publish time);
+  //    the requirement makes the behaviour a commitment rather than an accident.
+  add into #88888888-8888-4888-8888-888888888888 {
+    requirement ForwardOnlySubscription #49ca33cb-df60-4ef4-9280-7807328ea2d5 {
+      desc "A subscription applies to notifications published after it exists. Earlier notifications are never replayed into a new subscription; they remain readable through the workspace's history."
+    }
+  }
+  link #12121212-1212-4212-8212-121212121212 satisfies #49ca33cb-df60-4ef4-9280-7807328ea2d5
+
+  // 3. Attribution. Routing authorizes the publication, so Routing is where the publisher's
+  //    identity is known and where it is stamped onto the notification.
+  add into #88888888-8888-4888-8888-888888888888 {
+    requirement PublisherAttribution #abb41875-38c1-4a85-a377-293012ad4b3d {
+      desc "Every notification records who published it: a stable publisher id, a display name, a publisher type (agent, application, service, human or unknown) and the entry channel. All four are established by the routing service from the authenticated credential and its registration; none is taken from the message body or inferred from the transport. A type that was never declared is unknown."
+    }
+  }
+  link #12121212-1212-4212-8212-121212121212 satisfies #abb41875-38c1-4a85-a377-293012ad4b3d
+
+  // 4. The Publisher actor is not an agent by definition. The description now says what the
+  //    system can know about a publisher and what it refuses to assume.
+  modify #22222222-2222-4222-8222-222222222222 description = "An authorized credential holder publishing notifications: an application, a service, an AI agent or a person at a paired device. Its type is declared at registration and is otherwise unknown; nothing about the transport decides it."
+
+  modify #12121212-1212-4212-8212-121212121212 description = "Authorizes publications and subscriptions, owns hashtag matching and stamps each accepted notification with the attribution of the credential that published it."
+
+  modify #18181818-1818-4818-8818-181818181818 description = "Fans out accepted notifications to eligible endpoint transports: the realtime connection for connected agents and foreground apps, Firebase Cloud Messaging for mobile endpoints holding a provider token. Replays unacknowledged deliveries to a reconnecting endpoint, flagged as replayed and bounded in attempts. Transport selection is an implementation binding."
+}

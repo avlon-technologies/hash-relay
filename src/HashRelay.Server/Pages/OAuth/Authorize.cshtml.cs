@@ -36,7 +36,7 @@ public sealed class AuthorizeModel(CurrentTenant current, OAuthService oauth) : 
         return Page();
     }
 
-    public async Task<IActionResult> OnPostApproveAsync(Guid tenantId, string[] scopes, string allowedTags, int hourlyLimit, CancellationToken ct)
+    public async Task<IActionResult> OnPostApproveAsync(Guid tenantId, string[] scopes, string allowedTags, int hourlyLimit, string? publisherType, CancellationToken ct)
     {
         await current.LoadAsync(ct);
         if (await ValidateAsync(ct) is { } early) return early;
@@ -45,7 +45,7 @@ public sealed class AuthorizeModel(CurrentTenant current, OAuthService oauth) : 
         try
         {
             var granted = OAuthService.ParseScopes(string.Join(' ', scopes));
-            var code = await oauth.ApproveAsync(tenantId, current.Account!, Client!, RedirectUri!, granted, allowedTags, hourlyLimit, CodeChallenge!, Resource, ct);
+            var code = await oauth.ApproveAsync(tenantId, current.Account!, Client!, RedirectUri!, granted, allowedTags, hourlyLimit, CodeChallenge!, Resource, ct, publisherType);
             return Redirect(QueryHelpers.AddQueryString(RedirectUri!, Query(("code", code), ("state", State))));
         }
         catch (ApiException ex)

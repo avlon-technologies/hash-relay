@@ -48,7 +48,8 @@ public sealed class HashRelayTools(IHttpContextAccessor http, RelayDbContext db,
             id = parsed;
         }
         var req = new PublishRequest(tags, title, body, url, priority, id, markdown, imageUrl, diagram);
-        var r = await Guard(() => routing.PublishAsync(user.TenantId(), user.CredentialId(), req, ct, ServicePolicy.Of(user)));
+        // Attribution comes from the credential's claims, never from tool arguments: an MCP caller is whatever its service account was registered as.
+        var r = await Guard(() => routing.PublishAsync(user.TenantId(), user.CredentialId(), req, ct, ServicePolicy.Of(user), PublisherIdentity.Of(user), PublishChannel.Of(http.HttpContext)));
         var summary = r.Duplicate
             ? $"Already published earlier as {r.NotificationId}; nothing was sent again."
             : r.MatchedEndpoints == 0
@@ -103,7 +104,7 @@ public sealed class HashRelayTools(IHttpContextAccessor http, RelayDbContext db,
     }
 
     public sealed record NotificationDetail(Guid Id, IReadOnlyList<string> Tags, string Title, string? Body, string? Url, string Priority, DateTimeOffset PublishedAt,
-        int MatchedDevices, int Delivered, int Acknowledged, string? Markdown, string? Diagram, string? ImageUrl, string DetailUrl, string Note);
+        int MatchedDevices, int Delivered, int Acknowledged, string? Markdown, string? Diagram, string? ImageUrl, string DetailUrl, string Note, PublisherInfo? Publisher = null);
 
     [McpServerTool(Name = "get_notification", Title = "Get one notification", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Description("Fetch one notification by id, including its markdown and diagram source and delivery counts. " + UntrustedNote)]
@@ -117,7 +118,7 @@ public sealed class HashRelayTools(IHttpContextAccessor http, RelayDbContext db,
                 ?? throw new McpException("No notification with that id in this workspace.");
         return new NotificationDetail(n.Id, n.Tags, n.Title, n.Body, n.Url, n.Priority, n.PublishedAt, n.MatchedEndpoints,
             n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued), n.Deliveries.Count(d => d.Status == DeliveryStatus.Acked),
-            n.Markdown, n.Diagram, RoutingService.ToastImage(n), routing.DetailUrl(n), UntrustedNote);
+            n.Markdown, n.Diagram, RoutingService.ToastImage(n), routing.DetailUrl(n), UntrustedNote, RoutingService.PublisherOf(n));
     }
 
     // ------------------------------------------------------------------ devices

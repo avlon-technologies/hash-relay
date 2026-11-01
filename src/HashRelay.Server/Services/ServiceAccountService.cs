@@ -17,11 +17,13 @@ public sealed class ServiceAccountService(RelayDbContext db, TimeProvider clock,
     public const int MaxHourlyLimit = 10_000;
     public const string DefaultAllowedTags = "agent-*";
 
-    public sealed record Draft(string Name, string? Description, IReadOnlyList<string> Scopes, IReadOnlyList<string> AllowedTags, IReadOnlyList<string> AllowedUrlHosts, int HourlyPublishLimit);
+    /// <param name="PublisherType">A <see cref="PublisherTypes"/> value declared by the admin; unknown when not stated. Not derived from how the account connects.</param>
+    public sealed record Draft(string Name, string? Description, IReadOnlyList<string> Scopes, IReadOnlyList<string> AllowedTags, IReadOnlyList<string> AllowedUrlHosts, int HourlyPublishLimit,
+        string PublisherType = PublisherTypes.Unknown);
 
     // ------------------------------------------------------------------ validation
 
-    public static Draft Validate(string? name, string? description, IEnumerable<string>? scopes, string? allowedTags, string? allowedUrlHosts, int? hourlyLimit)
+    public static Draft Validate(string? name, string? description, IEnumerable<string>? scopes, string? allowedTags, string? allowedUrlHosts, int? hourlyLimit, string? publisherType = null)
     {
         var details = new Dictionary<string, string[]>();
         name = (name ?? "").Trim();
@@ -42,7 +44,7 @@ public sealed class ServiceAccountService(RelayDbContext db, TimeProvider clock,
         if (limit is < MinHourlyLimit or > MaxHourlyLimit) details["hourlyLimit"] = [$"Hourly limit must be between {MinHourlyLimit} and {MaxHourlyLimit}."];
 
         if (details.Count > 0) throw new ApiException(400, ErrorCodes.Validation, details.Values.First()[0], details);
-        return new Draft(name, description, scopeList, tags, hosts, limit);
+        return new Draft(name, description, scopeList, tags, hosts, limit, PublisherTypes.Normalize(publisherType));
     }
 
     public static IReadOnlyList<string> NormalizeScopes(IEnumerable<string>? scopes)
@@ -104,7 +106,7 @@ public sealed class ServiceAccountService(RelayDbContext db, TimeProvider clock,
             Id = Guid.NewGuid(), TenantId = tenantId, Name = draft.Name, Description = draft.Description,
             Scopes = string.Join(',', draft.Scopes), AllowedTags = string.Join(',', draft.AllowedTags),
             AllowedUrlHosts = draft.AllowedUrlHosts.Count == 0 ? null : string.Join(',', draft.AllowedUrlHosts),
-            HourlyPublishLimit = draft.HourlyPublishLimit, Enabled = true, CreatedByAccountId = createdBy, CreatedAt = now, UpdatedAt = now,
+            HourlyPublishLimit = draft.HourlyPublishLimit, PublisherType = draft.PublisherType, Enabled = true, CreatedByAccountId = createdBy, CreatedAt = now, UpdatedAt = now,
         };
         db.ServiceAccounts.Add(account);
         audit.Add(tenantId, AuditActions.ServiceAccountCreated, account.Id, accountId: createdBy, target: account.Name, detail: Describe(account));
@@ -124,6 +126,7 @@ public sealed class ServiceAccountService(RelayDbContext db, TimeProvider clock,
         account.AllowedTags = string.Join(',', draft.AllowedTags);
         account.AllowedUrlHosts = draft.AllowedUrlHosts.Count == 0 ? null : string.Join(',', draft.AllowedUrlHosts);
         account.HourlyPublishLimit = draft.HourlyPublishLimit;
+        account.PublisherType = draft.PublisherType;
         account.UpdatedAt = clock.GetUtcNow();
         // Keys inherit the account's policy at authentication time, so the stored scope string is kept in step for display.
         await db.Credentials.Where(c => c.ServiceAccountId == id).ExecuteUpdateAsync(s => s.SetProperty(c => c.Scopes, account.Scopes), ct);
@@ -188,5 +191,5 @@ public sealed class ServiceAccountService(RelayDbContext db, TimeProvider clock,
     }
 
     public static string Describe(ServiceAccount a)
-        => $"scopes {string.Join(' ', a.ScopeList)}; tags {string.Join(' ', a.AllowedTagList)}; hosts {(a.AllowedUrlHostList.Count == 0 ? "any https" : string.Join(' ', a.AllowedUrlHostList))}; {a.HourlyPublishLimit}/hour";
+        => $"scopes {string.Join(' ', a.ScopeList)}; tags {string.Join(' ', a.AllowedTagList)}; hosts {(a.AllowedUrlHostList.Count == 0 ? "any https" : string.Join(' ', a.AllowedUrlHostList))}; {a.HourlyPublishLimit}/hour; type {PublisherTypes.Normalize(a.PublisherType)}";
 }

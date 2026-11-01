@@ -98,8 +98,9 @@ public sealed class RealtimeTests : IAsyncLifetime
         var msg = await WithTimeout(got.Task);
         Assert.True(msg.Replayed);
         Assert.Equal("Missed me?", msg.Title);
+        await hub.InvokeAsync(HubMethods.Ack, msg.DeliveryId);
 
-        // Reconnecting again does not replay the same delivery twice.
+        // Once acknowledged, reconnecting does not replay the same delivery again (unacknowledged ones are: see CatchUpTests).
         await using var hub2 = _factory.Hub(_a.ApiKey);
         await hub2.StartAsync();
         var hello2 = await hub2.InvokeAsync<HelloResponse>(HubMethods.Hello, new HelloRequest("agent-3", "Desk", "windows", "test"));

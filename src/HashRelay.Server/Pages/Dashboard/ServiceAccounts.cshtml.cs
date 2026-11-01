@@ -27,12 +27,12 @@ public sealed class ServiceAccountsModel(CurrentTenant current, IOptions<HashRel
         Accounts = list.Select(a => new Row(a, keys.GetValueOrDefault(a.Id))).ToList();
     }
 
-    public async Task<IActionResult> OnPostCreateAsync(string name, string? description, string[] scopes, string allowedTags, string? allowedUrlHosts, int hourlyLimit, int expiresDays, CancellationToken ct)
+    public async Task<IActionResult> OnPostCreateAsync(string name, string? description, string[] scopes, string allowedTags, string? allowedUrlHosts, int hourlyLimit, int expiresDays, string? publisherType, CancellationToken ct)
     {
         if (!CanManage) return Flash("danger", "Only workspace owners and admins can create service accounts.");
         try
         {
-            var draft = ServiceAccountService.Validate(name, description, scopes, allowedTags, allowedUrlHosts, hourlyLimit);
+            var draft = ServiceAccountService.Validate(name, description, scopes, allowedTags, allowedUrlHosts, hourlyLimit, publisherType);
             var account = await accounts.CreateAsync(Current.TenantId, Current.Account!.Id, draft, ct);
             var expires = expiresDays > 0 ? clock.GetUtcNow().AddDays(expiresDays) : (DateTimeOffset?)null;
             var (cred, secret) = await accounts.IssueKeyAsync(Current.TenantId, account.Id, Current.Account!.Id, account.Name, expires, ct);

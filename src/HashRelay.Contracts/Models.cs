@@ -62,6 +62,18 @@ public sealed record SubscriptionsRequest(IReadOnlyList<string> Tags);
 
 public sealed record SubscriptionsResponse(string EndpointId, IReadOnlyList<string> Tags);
 
+/// <summary>
+/// Who published a notification, as established by the server from the authenticated credential, never from the
+/// request body. <paramref name="Id"/> is stable for the principal (service account, API key or paired device),
+/// <paramref name="Type"/> is a <see cref="PublisherTypes"/> value and <paramref name="Channel"/> a <see cref="Channels"/>
+/// value. Notifications stored before attribution existed carry <see cref="Unknown"/>.
+/// </summary>
+public sealed record PublisherInfo(Guid? Id, string? Name, string Type, string? Channel)
+{
+    public static readonly PublisherInfo Unknown = new(null, null, PublisherTypes.Unknown, null);
+    public bool IsKnown => Name is not null;
+}
+
 /// <summary>One delivery routed to an endpoint (its inbox). <paramref name="Status"/> is a <c>DeliveryStatus</c> value: queued, sent, pushed, acked or expired.</summary>
 public sealed record EndpointDeliveryInfo(
     Guid DeliveryId,
@@ -76,7 +88,8 @@ public sealed record EndpointDeliveryInfo(
     string? ImageUrl,
     string? DetailUrl,
     bool Rich,
-    DateTimeOffset? AckedAtUtc);
+    DateTimeOffset? AckedAtUtc,
+    PublisherInfo? Publisher = null);
 
 public sealed record NotificationSummary(
     Guid NotificationId,
@@ -91,7 +104,8 @@ public sealed record NotificationSummary(
     bool HasMarkdown = false,
     bool HasDiagram = false,
     string? ImageUrl = null,
-    string? DetailUrl = null);
+    string? DetailUrl = null,
+    PublisherInfo? Publisher = null);
 
 /// <summary>Error envelope: <c>{code,message,traceId}</c> plus optional field-level details.</summary>
 public sealed record ApiError(string Code, string Message, string? TraceId = null, IReadOnlyDictionary<string, string[]>? Details = null);
@@ -127,6 +141,8 @@ public sealed record HelloResponse(
 /// <param name="ImageUrl">Image to show inside the toast: the publisher's image, or the server-rendered diagram.</param>
 /// <param name="DetailUrl">Web page with the full notification (rendered markdown, live diagram). Opened on click when <paramref name="Rich"/>.</param>
 /// <param name="Rich">True when the notification carries markdown or a diagram beyond what the toast can show.</param>
+/// <param name="Replayed">True when this is backlog from while the endpoint was offline (sent during Hello), not a live publication. Clients fold replayed deliveries into a catch-up summary instead of a toast each.</param>
+/// <param name="Publisher">Server-verified publisher attribution; null for notifications stored before attribution existed.</param>
 public sealed record NotificationMessage(
     Guid NotificationId,
     Guid TenantId,
@@ -141,7 +157,8 @@ public sealed record NotificationMessage(
     bool Replayed,
     string? ImageUrl = null,
     string? DetailUrl = null,
-    bool Rich = false);
+    bool Rich = false,
+    PublisherInfo? Publisher = null);
 
 public static class Limits
 {
@@ -172,6 +189,48 @@ public static class Priorities
         value = v;
         return true;
     }
+}
+
+/// <summary>
+/// What kind of principal a publisher is. Declared by a workspace admin when the credential is registered (API key,
+/// service account, OAuth consent), never inferred from the transport or the message text; a paired device is
+/// <see cref="Human"/> because pairing is approved interactively for a person's own device. Anything undeclared is <see cref="Unknown"/>.
+/// </summary>
+public static class PublisherTypes
+{
+    public const string Agent = "agent";
+    public const string Application = "application";
+    public const string Service = "service";
+    public const string Human = "human";
+    public const string Unknown = "unknown";
+    public static readonly string[] All = [Agent, Application, Service, Human, Unknown];
+    /// <summary>The types an admin may declare for a credential (a device is always <see cref="Human"/>).</summary>
+    public static readonly string[] Declarable = [Unknown, Agent, Application, Service];
+    public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>
+    {
+        [Agent] = "AI agent",
+        [Application] = "Application",
+        [Service] = "Service / automation",
+        [Human] = "Person",
+        [Unknown] = "Not specified",
+    };
+    public static string Normalize(string? type)
+    {
+        var v = (type ?? "").Trim().ToLowerInvariant();
+        return All.Contains(v) ? v : Unknown;
+    }
+}
+
+/// <summary>The entry point a publication arrived through, determined by the server from the request (path, then the first-party client's User-Agent). A hint for display and audit, not an identity.</summary>
+public static class Channels
+{
+    public const string Mcp = "mcp";
+    public const string Rest = "rest";
+    public const string Sdk = "sdk";
+    public const string Cli = "cli";
+    public const string Agent = "agent";
+    public const string Mobile = "mobile";
+    public static readonly string[] All = [Mcp, Rest, Sdk, Cli, Agent, Mobile];
 }
 
 public static class Scopes

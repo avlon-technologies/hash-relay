@@ -377,7 +377,8 @@ public static class Cli
             if (Terminal.Json) Terminal.Emit(m);
             else
             {
-                Console.WriteLine($"{Terminal.Dim(m.PublishedAtUtc.ToLocalTime().ToString("HH:mm:ss"))} {string.Join(' ', m.Tags.Select(Terminal.Tag))} {Terminal.Bold(m.Title)}{(m.Replayed ? Terminal.Dim(" (replayed)") : "")}");
+                var from = m.Publisher?.IsKnown == true ? Terminal.Dim($" — {m.Publisher.Name}") : "";
+                Console.WriteLine($"{Terminal.Dim(m.PublishedAtUtc.ToLocalTime().ToString("HH:mm:ss"))} {string.Join(' ', m.Tags.Select(Terminal.Tag))} {Terminal.Bold(m.Title)}{from}{(m.Replayed ? Terminal.Dim(" (replayed)") : "")}");
                 if (!string.IsNullOrEmpty(m.Body)) Console.WriteLine($"         {m.Body}");
                 if (!string.IsNullOrEmpty(m.Url)) Console.WriteLine($"         {Terminal.Dim(m.Url)}");
                 if (m.Rich && !string.IsNullOrEmpty(m.DetailUrl)) Console.WriteLine($"         {Terminal.Dim("page: " + m.DetailUrl)}");

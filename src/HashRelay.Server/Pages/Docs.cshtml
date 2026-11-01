@@ -107,7 +107,7 @@ POST /api/v1/device/token  { "deviceCode" }
         <p>The person approves the code at <a href="/pair">/pair</a>, choosing the workspace and whether the device may also publish. Approving again for the same endpoint replaces its previous token.</p>
 
         <h2 id="realtime">Realtime hub</h2>
-        <p>Agents connect to the SignalR hub at <code>@HubMethods.Path</code> with their token (<code>Authorization</code> header or <code>?access_token=</code>). The server binds the endpoint identity in <code>Hello</code>, replays queued deliveries, and pushes:</p>
+        <p>Agents connect to the SignalR hub at <code>@HubMethods.Path</code> with their token (<code>Authorization</code> header or <code>?access_token=</code>). The server binds the endpoint identity in <code>Hello</code>, replays the backlog (queued deliveries, plus any handed to an earlier connection but never acknowledged) with <code>replayed: true</code>, and pushes:</p>
         <div class="code"><pre><code>// client → server
 Hello({ endpointId, name, platform, agentVersion }) → { tenant, endpointId, subscriptions[], pendingReplay }
 Subscribe(tags[]) / Unsubscribe(tags[]) → tags[]
@@ -115,10 +115,12 @@ Ack(deliveryId)
 
 // server → client
 NotificationReceived({ notificationId, tenantId, tags, title, body, publishedAtUtc, deliveryId, url, priority, tenantName, replayed,
-                       imageUrl, detailUrl, rich })
+                       imageUrl, detailUrl, rich, publisher: { id, name, type, channel } })
 SubscriptionsChanged(tags[])
 CredentialRevoked(reason)</code></pre></div>
-        <p>Groups are per-endpoint routing addresses only. Subscriptions are persisted and are the sole authority for matching.</p>
+        <p>Groups are per-endpoint routing addresses only. Subscriptions are persisted and are the sole authority for matching. A subscription takes effect for notifications published after it is created; earlier notifications are not replayed to it (read them with <code>GET /api/v1/notifications</code> or the endpoint's <code>/deliveries</code>).</p>
+        <p><strong>Catch-up.</strong> Clients acknowledge every delivery they receive, replayed or not, and acknowledgement means "received", not "a toast was shown". The Windows agent shows live deliveries at once and folds a replayed backlog into one summary toast ("47 notifications while you were away"), showing at most three high-priority items on their own; the summary opens the Activity page.</p>
+        <p><strong>Publisher.</strong> <code>publisher</code> is set by the server from the credential: a service account (its name and the type an admin declared), an API key (its label and declared type) or a paired device (its name, type <code>human</code>). <code>type</code> is one of <code>@string.Join(", ", PublisherTypes.All)</code> and is never inferred from MCP, REST or the message text; <code>channel</code> is the entry point (<code>@string.Join(", ", Channels.All)</code>). Notifications stored before attribution existed carry type <code>unknown</code>. The same object appears on <code>GET /api/v1/notifications</code> and the deliveries inbox.</p>
 
         <h2 id="errors">Errors &amp; limits</h2>
         <div class="code"><pre><code>{ "code": "validation_failed", "message": "The publication is not valid.", "traceId": "00-…", "details": { "title": ["Title must be 1–120 characters."] } }</code></pre></div>

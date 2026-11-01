@@ -64,7 +64,7 @@ public sealed class ApiKeyAuthenticationHandler(
         var now = clock.GetUtcNow();
         var cred = await db.Credentials.AsNoTracking()
             .Where(c => c.Hash == hash)
-            .Select(c => new { c.Id, c.TenantId, c.Kind, c.Scopes, c.EndpointRef, c.ServiceAccountId, c.RevokedAt, c.ExpiresAt, c.LastUsedAt, Tenant = db.Tenants.First(t => t.Id == c.TenantId) })
+            .Select(c => new { c.Id, c.TenantId, c.Kind, c.Label, c.Scopes, c.EndpointRef, c.ServiceAccountId, c.PublisherType, c.RevokedAt, c.ExpiresAt, c.LastUsedAt, Tenant = db.Tenants.First(t => t.Id == c.TenantId) })
             .FirstOrDefaultAsync(Context.RequestAborted);
 
         if (cred is null) return AuthenticateResult.Fail("Unknown credential.");
@@ -110,6 +110,11 @@ public sealed class ApiKeyAuthenticationHandler(
         };
         if (cred.EndpointRef is not null) claims.Add(new Claim(ApiAuth.ClaimEndpointRef, cred.EndpointRef.Value.ToString()));
         if (account is not null) claims.AddRange(ServicePolicy.From(account).ToClaims());
+        // Publisher attribution is fixed here, from the credential, so no later layer can be talked into another identity.
+        var publisher = account is not null ? PublisherIdentity.ForServiceAccount(account)
+            : cred.Kind == Contracts.CredentialKinds.Device ? PublisherIdentity.ForDevice(cred.Id, cred.EndpointRef, cred.Label)
+            : PublisherIdentity.ForApiKey(cred.Id, cred.Label, cred.PublisherType);
+        claims.AddRange(publisher.ToClaims());
         foreach (var s in scopes.Distinct(StringComparer.OrdinalIgnoreCase))
             claims.Add(new Claim(ApiAuth.ClaimScope, s));
 

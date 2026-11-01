@@ -93,8 +93,9 @@ public sealed class OAuthService(RelayDbContext db, TimeProvider clock, ServiceA
     }
 
     /// <summary>Records the person's consent (creating or updating the backing service account) and returns a fresh authorization code.</summary>
+    /// <param name="publisherType">What the person says the connecting app is (a <see cref="PublisherTypes"/> value). Unknown when not stated; the OAuth/MCP transport never implies a type.</param>
     public async Task<string> ApproveAsync(Guid tenantId, Account account, OAuthClient client, string redirectUri, IReadOnlyList<string> scopes,
-        string allowedTags, int hourlyLimit, string codeChallenge, string? resource, CancellationToken ct)
+        string allowedTags, int hourlyLimit, string codeChallenge, string? resource, CancellationToken ct, string? publisherType = null)
     {
         var now = clock.GetUtcNow();
         var grant = await db.OAuthGrants.FirstOrDefaultAsync(g => g.TenantId == tenantId && g.AccountId == account.Id && g.ClientId == client.Id && g.RevokedAt == null, ct);
@@ -102,7 +103,9 @@ public sealed class OAuthService(RelayDbContext db, TimeProvider clock, ServiceA
         ServiceAccount sa;
         if (grant is not null && await accounts.GetAsync(tenantId, grant.ServiceAccountId, ct) is { } existing)
         {
-            var draft = ServiceAccountService.Validate(existing.Name, description, scopes, allowedTags, existing.AllowedUrlHosts, hourlyLimit);
+            // Re-consent keeps a type the admin set on the account unless the person states one now.
+            var type = string.IsNullOrWhiteSpace(publisherType) || PublisherTypes.Normalize(publisherType) == PublisherTypes.Unknown ? existing.PublisherType : publisherType;
+            var draft = ServiceAccountService.Validate(existing.Name, description, scopes, allowedTags, existing.AllowedUrlHosts, hourlyLimit, type);
             sa = await accounts.UpdateAsync(tenantId, existing.Id, account.Id, draft, ct);
             if (!sa.Enabled) await accounts.SetEnabledAsync(tenantId, sa.Id, account.Id, true, ct);
             grant.Scopes = string.Join(',', scopes);
@@ -110,7 +113,7 @@ public sealed class OAuthService(RelayDbContext db, TimeProvider clock, ServiceA
         }
         else
         {
-            sa = await CreateServiceAccountAsync(tenantId, account, client, description, scopes, allowedTags, hourlyLimit, ct);
+            sa = await CreateServiceAccountAsync(tenantId, account, client, description, scopes, allowedTags, hourlyLimit, publisherType, ct);
             grant = new OAuthGrant { Id = Guid.NewGuid(), TenantId = tenantId, AccountId = account.Id, ClientId = client.Id, ServiceAccountId = sa.Id, Scopes = string.Join(',', scopes), CreatedAt = now, UpdatedAt = now };
             db.OAuthGrants.Add(grant);
         }
@@ -127,7 +130,7 @@ public sealed class OAuthService(RelayDbContext db, TimeProvider clock, ServiceA
     }
 
     private async Task<ServiceAccount> CreateServiceAccountAsync(Guid tenantId, Account account, OAuthClient client, string description,
-        IReadOnlyList<string> scopes, string allowedTags, int hourlyLimit, CancellationToken ct)
+        IReadOnlyList<string> scopes, string allowedTags, int hourlyLimit, string? publisherType, CancellationToken ct)
     {
         var baseName = $"{client.Name} · {account.DisplayName}";
         if (baseName.Length > 70) baseName = baseName[..70].Trim();
@@ -136,7 +139,7 @@ public sealed class OAuthService(RelayDbContext db, TimeProvider clock, ServiceA
             var name = attempt == 0 ? baseName : attempt < 4 ? $"{baseName} {attempt + 1}" : $"{baseName} {Secrets.RandomString(4).ToLowerInvariant()}";
             try
             {
-                var draft = ServiceAccountService.Validate(name, description, scopes, allowedTags, null, hourlyLimit);
+                var draft = ServiceAccountService.Validate(name, description, scopes, allowedTags, null, hourlyLimit, publisherType);
                 return await accounts.CreateAsync(tenantId, account.Id, draft, ct);
             }
             catch (ApiException ex) when (ex.Status == 409 && attempt < 6) { /* name taken, try the next */ }

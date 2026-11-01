@@ -61,6 +61,8 @@
   const live = document.querySelector("[data-live]");
   if (live) {
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    // Mirrors PublisherTypes.Labels; the type is whatever was registered for the credential, never a guess.
+    const publisherLabel = (t) => ({ agent: "AI agent", application: "Application", service: "Service / automation", human: "Person", unknown: "Not specified" }[t] ?? "Not specified");
     let lastStamp = null;
     async function tick() {
       try {
@@ -91,9 +93,9 @@
               feed.innerHTML = data.recent.map((n) => `
                 <li class="fade-in">
                   <div>
-                    <div class="t"><a class="plain" href="/n/${esc(n.notificationId)}">${esc(n.title)}</a></div>
+                    <div class="t"><a class="plain" href="/n/${esc(n.notificationId)}">${esc(n.title)}</a>${n.publisher && n.publisher.name ? `<span class="small muted"> — ${esc(n.publisher.name)}</span>` : ""}</div>
                     ${n.body ? `<div class="b">${esc(n.body)}</div>` : ""}
-                    <div class="tags mt-1">${n.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}${n.hasMarkdown ? `<span class="badge">markdown</span>` : ""}${n.hasDiagram ? `<span class="badge">diagram</span>` : (n.imageUrl ? `<span class="badge">image</span>` : "")}</div>
+                    <div class="tags mt-1">${n.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}${n.hasMarkdown ? `<span class="badge">markdown</span>` : ""}${n.hasDiagram ? `<span class="badge">diagram</span>` : (n.imageUrl ? `<span class="badge">image</span>` : "")}${n.publisher ? `<span class="badge">${esc(publisherLabel(n.publisher.type))}</span>${n.publisher.channel ? `<span class="badge">${esc(n.publisher.channel)}</span>` : ""}` : ""}</div>
                   </div>
                   <div class="text-right">
                     <time data-rel datetime="${esc(n.publishedAtUtc)}"></time>

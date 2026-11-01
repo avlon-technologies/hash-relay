@@ -22,13 +22,13 @@ public sealed class KeysModel(CurrentTenant current, IOptions<HashRelayOptions> 
         Keys = await credentials.ListAsync(Current.TenantId, CredentialKinds.Api, ct);
     }
 
-    public async Task<IActionResult> OnPostCreateAsync(string label, string[] scopes, int expiresDays, CancellationToken ct)
+    public async Task<IActionResult> OnPostCreateAsync(string label, string[] scopes, int expiresDays, string? publisherType, CancellationToken ct)
     {
         if (!CanManage) return Flash("danger", "Only workspace owners and admins can create keys.");
         try
         {
             var expires = expiresDays > 0 ? clock.GetUtcNow().AddDays(expiresDays) : (DateTimeOffset?)null;
-            var (cred, secret) = await credentials.IssueApiKeyAsync(Current.TenantId, Current.Account!.Id, label, scopes, expires, ct);
+            var (cred, secret) = await credentials.IssueApiKeyAsync(Current.TenantId, Current.Account!.Id, label, scopes, expires, ct, publisherType);
             TempData["newkey.secret"] = secret;
             TempData["newkey.label"] = cred.Label;
             return Redirect("/dashboard/keys");

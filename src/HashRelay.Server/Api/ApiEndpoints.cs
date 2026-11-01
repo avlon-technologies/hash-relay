@@ -40,7 +40,8 @@ public static class ApiEndpoints
         // ---- publish ----
         api.MapPost("/notifications", async (PublishRequest req, HttpContext ctx, RoutingService routing, CancellationToken ct) =>
         {
-            var result = await routing.PublishAsync(ctx.User.TenantId(), ctx.User.CredentialId(), req, ct, ServicePolicy.Of(ctx.User));
+            var result = await routing.PublishAsync(ctx.User.TenantId(), ctx.User.CredentialId(), req, ct, ServicePolicy.Of(ctx.User),
+                PublisherIdentity.Of(ctx.User), PublishChannel.Of(ctx));
             return Results.Json(result, statusCode: result.Duplicate ? StatusCodes.Status200OK : StatusCodes.Status202Accepted);
         }).RequireAuthorization(ApiAuth.PolicyPublish).RequireRateLimiting("publish");
 

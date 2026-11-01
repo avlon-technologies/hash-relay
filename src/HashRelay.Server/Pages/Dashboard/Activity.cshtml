@@ -21,13 +21,14 @@
             {
                 <li>
                     <div>
-                        <div class="t"><a class="plain" href="/n/@n.NotificationId">@n.Title</a></div>
+                        <div class="t"><a class="plain" href="/n/@n.NotificationId">@n.Title</a>@if (n.Publisher?.IsKnown == true) { <span class="small muted"> — @n.Publisher.Name</span> }</div>
                         @if (!string.IsNullOrEmpty(n.Body)) { <div class="b">@n.Body</div> }
                         <div class="tags mt-1">
                             @foreach (var t in n.Tags) { <span class="tag">#@t</span> }
                             @if (n.HasMarkdown) { <span class="badge">markdown</span> }
                             @if (n.HasDiagram) { <span class="badge">diagram</span> }
                             else if (n.ImageUrl is not null) { <span class="badge">image</span> }
+                            @if (n.Publisher is { } p) { <span class="badge" title="Publisher type, as registered for the credential">@PublisherTypes.Labels[p.Type]</span> @if (p.Channel is not null) { <span class="badge" title="Entry point">@p.Channel</span> } }
                         </div>
                     </div>
                     <div class="text-right">

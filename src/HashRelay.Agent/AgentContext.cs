@@ -18,8 +18,8 @@ internal sealed class AgentContext : ApplicationContext
     private readonly ToolStripMenuItem _pairItem;
     private readonly FileSystemWatcher? _configWatcher;
     private readonly System.Windows.Forms.Timer _debounce;
-    private readonly HashSet<Guid> _recent = [];
-    private readonly Queue<Guid> _recentOrder = new();
+    /// <summary>Live deliveries toast at once; the backlog replayed on reconnect becomes one catch-up summary. Also de-duplicates by notification id.</summary>
+    private readonly NotificationPresenter _presenter;
     private RelayListener? _listener;
     private RelayConfig _config;
     private CancellationTokenSource _cts = new();
@@ -71,6 +71,7 @@ internal sealed class AgentContext : ApplicationContext
         Toasts.EnsureRegistered();
         ImageCache.Prune();
         ToastNotificationManagerCompat.OnActivated += e => ToastActivation.Handle(e.Argument);
+        _presenter = new NotificationPresenter(ShowToast, ShowCatchUp);
 
         _debounce = new System.Windows.Forms.Timer { Interval = 600 };
         _debounce.Tick += (_, _) => { _debounce.Stop(); OnConfigChanged(); };
@@ -186,6 +187,8 @@ internal sealed class AgentContext : ApplicationContext
             _config.TenantSlug = hello.Tenant.Slug;
             SetStatus($"Connected · {hello.Tenant.Name}", $"HashRelay — {hello.Tenant.Name} · {(hello.Subscriptions.Count == 0 ? "no subscriptions" : Tags.DisplayAll(hello.Subscriptions))}");
             Log.Info($"Registered as {hello.Name} in {hello.Tenant.Name}; subscriptions: {Tags.DisplayAll(hello.Subscriptions)}; replayed {hello.PendingReplay}");
+            // The server sends the backlog before it answers Hello, so the batch is complete now; present it as one catch-up.
+            _presenter.Flush();
             if (!_silent && !_announced)
             {
                 // Launched by hand or by the installer while already paired: say so, otherwise a reinstall looks like it did nothing.
@@ -278,23 +281,34 @@ internal sealed class AgentContext : ApplicationContext
 
     private void OnNotification(NotificationMessage m)
     {
-        // Suppress duplicates (e.g. a replay racing a live push) by notification id, remembering the last 200.
-        lock (_recent)
-        {
-            if (!_recent.Add(m.NotificationId)) { _ = _listener?.AckAsync(m.DeliveryId); return; }
-            _recentOrder.Enqueue(m.NotificationId);
-            while (_recentOrder.Count > 200) _recent.Remove(_recentOrder.Dequeue());
-        }
+        // Every delivery is acknowledged as received, whether it becomes a toast, part of a summary or a duplicate:
+        // the ack says "this device has it", not "a toast was shown".
+        var fresh = _presenter.Receive(m);
+        if (!fresh) Log.Info($"Duplicate suppressed: {m.NotificationId}");
+        _ = _listener?.AckAsync(m.DeliveryId);
+    }
+
+    private void ShowToast(NotificationMessage m, bool fromBacklog)
+    {
         _ = Task.Run(async () =>
         {
             try
             {
-                await Toasts.ShowAsync(m);
-                Log.Info($"Shown: {Tags.DisplayAll(m.Tags)} \"{m.Title}\"{(m.Replayed ? " (replayed)" : "")}{(m.ImageUrl is null ? "" : " +image")}");
+                await Toasts.ShowAsync(m, fromBacklog);
+                Log.Info($"Shown: {Tags.DisplayAll(m.Tags)} \"{m.Title}\"{(m.Publisher?.IsKnown == true ? $" from {m.Publisher.Name}" : "")}{(fromBacklog ? " (while away)" : "")}{(m.ImageUrl is null ? "" : " +image")}");
             }
             catch (Exception ex) { Log.Error("Toast failed", ex); }
         });
-        _ = _listener?.AckAsync(m.DeliveryId);
+    }
+
+    private void ShowCatchUp(CatchUpSummary summary)
+    {
+        try
+        {
+            Toasts.ShowCatchUp(summary, new Uri(_config.ServerUri, "dashboard/activity").ToString());
+            Log.Info($"Catch-up: {summary.Describe()} ({Tags.DisplayAll(summary.Hashtags)})");
+        }
+        catch (Exception ex) { Log.Error("Catch-up toast failed", ex); }
     }
 
     private void OnConfigChanged()
@@ -388,6 +402,7 @@ internal sealed class AgentContext : ApplicationContext
             _configWatcher?.Dispose();
             _tray.Dispose();
             _debounce.Dispose();
+            _presenter.Dispose();
             _ui.Dispose();
             _startGate.Dispose();
         }
