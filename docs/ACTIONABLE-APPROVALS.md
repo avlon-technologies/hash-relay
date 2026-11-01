@@ -1,7 +1,7 @@
 # Actionable approvals — implementation contract
 
 Status: **Development-ready design proposal, not implementation.** Date: 2026-11-01.
-Source architecture: `architecture/model/hash-relay.adl` (Continuum ADL 1.4 draft; compile attestation `sha256:260afc5be54aeddcadaad953d6b08256efdc63f167434104b0f1e317ae84ad8a`). Compiler result: 0 errors / 13 warnings; approval-specific warnings include unverified DecisionIntegrity, missing BC ownership and unconsumed ApprovalResolved. Acceptance and implementation verification remain separate gates.
+Source architecture: `architecture/model/hash-relay.adl` (Continuum ADL 1.4 draft; compile attestation `sha256:840751f090d4cfd371c41e6f40c78b675532e91c863a7918ab1788c64ddd1ba8`). Compiler result: 0 errors / 12 warnings; approval-specific warnings include unverified DecisionIntegrity and missing BC ownership; ApprovalResolved now has a declared subscriber. Acceptance and implementation verification remain separate gates.
 
 ## Bounded-context responsibility
 `Approvals.DecisionManagement.ApprovalService` owns approval state, authorized transitions and durable result publication. `ApprovalStore` is the authoritative transactional store. Existing `Notifications.Routing` publishes an ordinary notification referencing an approval, and `Notifications.Delivery` transports it with the existing at-most-once logical endpoint fanout. `Access.TenantIdentity` supplies verified tenant and human identity. Requesting systems execute their own actions after reading/validating the decision. A toast, webhook, SignalR event or MCP response is not the decision source of truth.
@@ -66,6 +66,10 @@ ADL is an unaccepted draft; review/adopt against repo lifecycle rules. Continuum
 
 ## Approval round trip — who records and returns the decision
 
+![Continuum Diagram — actionable approvals round trip](diagrams/hashrelay-approval-roundtrip.svg)
+
+This revised **Continuum Diagram**, generated from the evolved ADL, shows ApprovalService, existing RoutingService/DeliveryService, durable ApprovalStore, ApprovalResolved and ApprovalOutcomeReader. The actual human-to-service and originating publisher-to-service paths remain labeled narrative proposals because ADL does not declare them. The detailed sequence below specifies those proposed interactions.
+
 This sequence is the **proposed implementation contract** grounded in the Continuum model. The model now declares ApprovalService's dependency on RoutingService and TenantAdministrationService and declares ApprovalOutcomeReader subscribing to ApprovalResolved. The concrete HTTPS calls, transactional outbox and originating-system polling are implementation choices documented here, **not falsely claimed to be executable ADL workflow semantics**.
 
 ```mermaid
@@ -123,7 +127,7 @@ sequenceDiagram
 
 ![Continuum Diagram C3: actionable approvals](diagrams/hashrelay-actionable-approvals.svg)
 
-Generated with Continuum Diagram from the draft ADL at attestation `sha256:260afc5be54aeddcadaad953d6b08256efdc63f167434104b0f1e317ae84ad8a` (run `ecfbf24c-2999-4a86-9a06-5bd8bb36def5`). The reconstructed editable SVG passed geometric, semantic fidelity, and containment checks. It is **not** a claim that the draft architecture is accepted or its proposed cross-context integrations already implemented. The Routing-to-Delivery route is deliberately drawn with a weaker dotted grade by the renderer, although Routing publishes and Delivery subscribes to `NotificationAccepted` in the ADL.
+Generated with Continuum Diagram from the draft ADL at attestation `sha256:840751f090d4cfd371c41e6f40c78b675532e91c863a7918ab1788c64ddd1ba8` (run `ecfbf24c-2999-4a86-9a06-5bd8bb36def5`). The reconstructed editable SVG passed geometric, semantic fidelity, and containment checks. It is **not** a claim that the draft architecture is accepted or its proposed cross-context integrations already implemented. The Routing-to-Delivery route is deliberately drawn with a weaker dotted grade by the renderer, although Routing publishes and Delivery subscribes to `NotificationAccepted` in the ADL.
 
 ### Existing behavior versus proposed approval behavior
 
@@ -148,4 +152,4 @@ Generated with Continuum Diagram from the draft ADL at attestation `sha256:260af
 
 ### Architecture relationships still needing explicit declaration
 
-The compiled ADL **already declares** `RoutingService publishes NotificationAccepted`, `DeliveryService subscribesTo NotificationAccepted`, and `ApprovalService publishes ApprovalResolved`. It does **not** yet declare the integration whereby creating an approval causes the associated notification to be published, the identity/authorization dependency from ApprovalService to TenantIdentity, or a modeled consumer for ApprovalResolved. Those are specified as implementation requirements above, **not falsely depicted as existing ADL relationships**. Before calling the architecture accepted, evolve the Continuum model to represent these relationships through valid constructs (without inventing a message type or workflow engine), verify compile, and examine the remaining warnings.
+The updated ADL **declares** `RoutingService publishes NotificationAccepted`, `DeliveryService subscribesTo NotificationAccepted`, `ApprovalService publishes ApprovalResolved`, `ApprovalOutcomeReader subscribesTo ApprovalResolved`, plus ApprovalService dependencies on RoutingService and TenantAdministrationService. It does **not** declare a complete execution workflow, concrete end-user interaction calls, the exact notification publication protocol, or the initiating publisher's authenticated retrieval path. Those are explicit implementation contracts above rather than fictional declared edges. The model compiles with zero errors and 12 warnings; review remaining ownership and verification obligations before architecture acceptance.
