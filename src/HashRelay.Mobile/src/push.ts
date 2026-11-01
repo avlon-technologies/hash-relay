@@ -6,6 +6,31 @@ import { Platform } from 'react-native';
 import { api } from './api';
 import { firebaseConfigured, loadPairing } from './config';
 
+export const APPROVAL_CATEGORY = 'hashrelay-approval-confirm';
+export const APPROVE_ACTION = 'hashrelay-review-approve';
+export const REJECT_ACTION = 'hashrelay-review-reject';
+
+/**
+ * An action is navigation intent, NOT a decision. The existing first-party web page
+ * requires a human session, CSRF protection and a fresh server-side eligibility check.
+ * Never send a decision using a paired device credential.
+ */
+export function isApprovalUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && /^\/approvals\/[0-9a-f-]{36}\/?$/i.test(url.pathname)
+      && !url.username && !url.password;
+  } catch { return false; }
+}
+
+export async function registerApprovalActions(): Promise<void> {
+  await Notifications.setNotificationCategoryAsync(APPROVAL_CATEGORY, [
+    { identifier: APPROVE_ACTION, buttonTitle: 'Review / Approve', options: { opensAppToForeground: true } },
+    { identifier: REJECT_ACTION, buttonTitle: 'Review / Reject', options: { opensAppToForeground: true } },
+  ]);
+}
+
 export const ANDROID_CHANNEL = 'hashrelay'; // must match HashRelay:Push:Fcm:AndroidChannelId on the server
 export type PushData = Record<string, string | object> | undefined;
 export type PushState = { provider: 'fcm'; token: string } | { provider: null; token: null; reason: string };
@@ -127,13 +152,13 @@ export async function ackFromPushData(data: PushData): Promise<string | null> {
 
 export async function showLocalNotification(title: string, body: string, data: Record<string, unknown>): Promise<void> {
   await Notifications.scheduleNotificationAsync({
-    content: { title, body, data, sound: 'default' },
+    content: { title, body, data, sound: 'default', ...(isApprovalUrl(data.url) ? { categoryIdentifier: APPROVAL_CATEGORY } : {}) },
     trigger: null,
   });
 }
 
 /** The user tapped a locally scheduled notification (live delivery shown while the app was open). */
-export function onLocalNotificationOpened(cb: (data: Record<string, unknown>) => void): () => void {
-  const sub = Notifications.addNotificationResponseReceivedListener((r) => cb(r.notification.request.content.data ?? {}));
+export function onLocalNotificationOpened(cb: (data: Record<string, unknown>, actionIdentifier: string) => void): () => void {
+  const sub = Notifications.addNotificationResponseReceivedListener((r) => cb(r.notification.request.content.data ?? {}, r.actionIdentifier));
   return () => sub.remove();
 }
