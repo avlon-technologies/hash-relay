@@ -19,7 +19,7 @@ export function isApprovalUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && /^\\/approvals\\/[0-9a-f-]{36}\\/?$/i.test(url.pathname)
+    return url.protocol === 'https:' && /^\/approvals\/[0-9a-f-]{36}\/?$/i.test(url.pathname)
       && !url.username && !url.password;
   } catch { return false; }
 }
