@@ -1,6 +1,6 @@
 # Actionable approvals — implementation contract
 
-Status: **Milestone 1 (backend vertical slice) implemented**; see [Milestone 1 implementation](#milestone-1-implementation) for what shipped and how it resolves this contract's open points. Date: 2026-11-01.
+Status: **Milestone 1 (backend vertical slice) and Milestone 2 (MCP tools) implemented**; see [Milestone 1 implementation](#milestone-1-implementation) and [Milestone 2 implementation](#milestone-2-implementation-mcp-tools). Date: 2026-11-01.
 Source architecture: `architecture/model/hash-relay.adl` (Continuum ADL 1.4 draft). Designed against changeState `sha256:44127a98aa3fa1f667c2f57ef2ac9e3a5c4664b703aac6f73c3cecad4e4d56ea`; Milestone 1 applied `architecture/changes/2026-11-01-approval-outcome-contracts.adl-change`, giving changeState `sha256:36ec56ff234b6deac6a20bb6bd6d156bed45f7b0b2a28ade137a5984338b805e` (0 errors / 16 warnings). Acceptance and implementation verification remain separate gates.
 
 ## Bounded-context responsibility
@@ -85,7 +85,29 @@ How this contract's open points were resolved:
 
 Lifecycle and consistency as built: `Pending` leaves exactly once. Every transition is one `UPDATE … WHERE id, tenantId, status = 'pending', version = v` with `expiresAt > now` for a decision or cancellation, or `expiresAt <= now` for expiry. It runs in one SQLite write transaction (`BEGIN IMMEDIATE`) with the audit row and the `approval.resolved` outbox row; the outbox is unique per `(approvalId, kind, version)`. A loser rolls back and receives `409` with `details.status` and `details.version`. Expiry is materialised lazily on read, decide and cancel, and by `ApprovalMaintenanceService` (`HashRelay:Approvals:SweepIntervalSeconds`, default 15; 0 disables it). `ApprovalAudit` is append-only: the DbContext refuses updates and deletes.
 
-Not in Milestone 1: `GET /api/v1/approvals` (list), MCP `request_approval` / `get_approval`, native toast or mobile action buttons, admin cancellation, webhook or callback delivery of `approval.resolved` (the outcome is read by `GET`), and quorum, delegation and escalation (unchanged deferrals).
+Not in Milestone 1: `GET /api/v1/approvals` (list), MCP `request_approval` / `get_approval` (shipped in Milestone 2, below), native toast or mobile action buttons, admin cancellation, webhook or callback delivery of `approval.resolved` (the outcome is read by `GET`), and quorum, delegation and escalation (unchanged deferrals).
+
+## Milestone 2 implementation: MCP tools
+
+Shipped: three tools on the existing MCP endpoint (`/mcp`, stateless Streamable HTTP, bearer-authenticated). Code: `src/HashRelay.Server/Mcp/ApprovalTools.cs`, plus `ApprovalService.EligibleApproversAsync`; tests in `tests/HashRelay.Server.Tests/McpApprovalTests.cs`. Each tool calls the same `ApprovalService` methods as the HTTP routes, with the requester built by the same `ApprovalEndpoints.Requester`. The tools hold no state of their own, so there is no second source of truth.
+
+| Tool | Inputs | Returns | Maps to |
+|---|---|---|---|
+| `list_approvers` | none | `approvers[]`: `accountId`, `displayName`, `role`, `authorizedThisCredential` (the person who created this service account; for an OAuth connector, the person who connected it). No emails. At most 100. | Membership read, using the same eligibility rule as create |
+| `request_approval` | `subject`, `targetUserIds[]`, `expiresAt`, `idempotencyKey` (required); `description`, `tags[]`, `requesterCorrelationId` (optional) | `approvalId`, `status` (`pending`), `proceed` (false), `version`, `expiresAt`, `requesterCorrelationId`, `approvalUrl`, `notificationId`, `created` (false on an idempotent replay), `next` (what the agent should do) | `POST /api/v1/approvals` (`ApprovalApi.Request`); `idempotencyKey` is the `Idempotency-Key` header |
+| `get_approval` | `approvalId` | `approval`: the full `ApprovalResource` (status, proceed, version, timestamps, resolution with cause, decider and note), plus `guidance` and an untrusted-content `note` | `GET /api/v1/approvals/{id}` (`ApprovalApi.Retrieve`) |
+
+Rules, all inherited from Milestone 1 rather than re-implemented:
+
+- **Who may call.** A service key with `approvals:create`, or an API key with `publish`. Device tokens and subscribe-only keys are refused. The service account's hashtag allowlist bounds `tags`. Approvers must be eligible members of the caller's workspace.
+- **Visibility.** `get_approval` returns only approvals created by this credential or by another key of the same service account. Anything else, in this workspace or another, returns "No such approval".
+- **No decision tool.** There is no `approve_approval`, `reject_approval` or `cancel_approval` tool. Deciding stays on `POST /api/v1/approvals/{id}/decision`, which accepts only a signed-in session cookie plus an antiforgery token. An agent's bearer key gets `401` there. Cancelling stays on the REST route for requesters.
+- **Asynchronous.** `request_approval` returns as soon as the approval is committed. Nothing blocks, polls or calls back. The agent tells the user the `approvalUrl` and calls `get_approval` later. Only `status = approved` (`proceed = true`) read from `get_approval` permits the agent to continue, after re-checking its own permissions and preconditions. A toast, a notification or an opened page is not a decision.
+- **Errors** are MCP tool errors (`isError: true`) carrying the HTTP error's message, e.g. the idempotency conflict, a disallowed hashtag, an expiry out of range, or a lost-race `409`.
+
+Not added: `list_approvals`. Requesters have no list query in the service yet (`GET /api/v1/approvals` is still deferred). Adding a list only for MCP would create a second read path. The MCP endpoint has no request rate limit of its own. REST create uses the `publish` limiter, and over MCP creation is bounded by idempotency and the authenticated credential.
+
+Architecture: no ADL change. The tools are a second entry channel onto the existing `ApprovalApi.Request` and `ApprovalApi.Retrieve` operations, the same way MCP `publish_notification` uses `PublicationApi.Publish`. Membership lookup is covered by `ApprovalService`'s declared `dependsOn` on `TenantAdministrationService`. The model compiles unchanged at changeState `sha256:36ec56ff…805e` (attestation `sha256:7f19ee3517699ea7bbb01ac0b29c91fb492471d70e0243c6db727502f54d6c0c`, 0 errors, 16 warnings, 73/73 checks passed).
 
 ## Approval round trip — who records and returns the decision
 
