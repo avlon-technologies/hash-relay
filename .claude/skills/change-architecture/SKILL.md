@@ -33,6 +33,15 @@ Then read enough of the model to express the change against what is
 actually declared: `continuum_query` for the affected elements and their
 edges, the projection when the change is broad.
 
+### 1a. Assess A, so the change is proposed against a known state
+
+Assess state A (`continuum` skill §5a) and record it. It tells you what you
+are changing *from*: a level not attained, and why. Keep the two kinds apart
+— what this change will fix, and what it will not — and say which findings
+it deliberately leaves standing. An attained level is **not** permission to
+change the model, and a level that was not attained is **not** a reason to
+refuse: both are facts the proposal reports.
+
 ## 2. Decide the architecture, in concepts
 
 What element is added, modified, renamed, moved, removed; which
@@ -161,6 +170,13 @@ ended. Then the consequences:
 - relevance — `continuum_applicable_guardrails` accepts a **candidate**
   tuple, so you can ask which Guardrails would bear on an edge the change
   introduces *before* it exists;
+- **conformance of B, where it matters.** Assessment needs a manifest, so
+  materialize B first (`--emit-source <dir>`, or `continuum icp materialize
+  <transition> --analysis` for a transition) and assess *that*. `--assess`
+  on an apply-mode compile reports the applied change and no assessment —
+  the flag is accepted and nothing is assessed, so never read its silence as
+  a level. Report A's level and B's as two facts, and never present a level
+  as agreement that the change is desirable;
 - what the change leaves undeclared.
 
 Deliver: the `.adl-change` artifact, the apply status with both digests,
@@ -194,8 +210,8 @@ not yours — drive the transition with the readiness loop (`continuum` skill
 facts live in verifies at all. If the checkpoint moved under you
 (`base-drift` from the guard), `continuum icp rebase <icp> --onto continuum`
 re-pins into a **new** package and reports the refused operations —
-only those need a Δ'. A transition is adopted only after a person has
-approved it — before its implementation — and accepted the completed,
-committed implementation against its materialized result; adoption itself
-is then mechanical and records the checkpoint. Until then everything you
-delivered is a proposal.
+only those need a Δ'. Which acts remain, in what order and performed by whom,
+is readiness's answer and is never restated from here; what holds regardless
+is that **approval precedes implementation** and that nothing you ran — a
+compile, an apply, a suite, an attained level — is any of those acts. Until a
+person has performed them, everything you delivered is a proposal.
