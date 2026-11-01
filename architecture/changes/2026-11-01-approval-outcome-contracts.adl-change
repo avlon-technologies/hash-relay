@@ -1,0 +1,69 @@
+// Approval outcome contracts — the bounded gaps Milestone 1 implementation needs closed in the model
+// before code. Authored against the integrated draft-1 state that already carries
+// IntroduceActionableApprovals; a proposal until accepted.
+//
+// Gap 1 — event semantics. ApprovalResolved carried ApprovalDecision {decision, decidedBy, decidedAt},
+// which claims a human decided every terminal outcome. Expiry and cancellation are terminal too and
+// nobody "decided" them. The event now carries ApprovalOutcome: the terminal status, the cause that
+// produced it, the version of the transition, and a decider only when a human decided. DecideApproval
+// keeps ApprovalDecision: the command is a human's requested decision; the event is the authoritative
+// outcome. They are deliberately different records.
+//
+// Gap 2 — cancellation. The implementation contract lets the requester cancel a Pending approval; the
+// model had no command for it. CancelApproval is handled by ApprovalService like the other two.
+//
+// Gap 3 — requester retrieval. The originating system recovers the outcome by authenticated retrieval,
+// never by callback or notification acknowledgement. The API gains Retrieve and Cancel operations over an
+// ApprovalReference so the retrieval path is declared rather than narrated.
+//
+// Gap 4 — lifecycle. The allowed transitions and the expiry boundary are stated as a requirement that
+// ApprovalService satisfies, so implementation verification has something specific to verify.
+//
+// Not claimed: no workflow, no external webhook, no new bounded context, no new store.
+
+change ApprovalOutcomeContracts core adl/1.4 {
+  desc "Separates the human decision command from the authoritative terminal outcome event, adds requester cancellation and authenticated outcome retrieval, and states the approval lifecycle as a requirement."
+
+  base package Avlon.HashRelay version "draft-1" state "sha256:44127a98aa3fa1f667c2f57ef2ac9e3a5c4664b703aac6f73c3cecad4e4d56ea"
+
+  // 1. The outcome record and the reference record.
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+    record ApprovalOutcome v1 #eb38d58f-e819-4079-b582-56995ccdb1c7 { approvalId: text, workspaceId: text, requesterId: text, correlationId: optional(text), status: text, cause: text, version: text, resolvedAt: text, decidedBy: optional(text) }
+  }
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+    record ApprovalReference v1 #c85d210f-16fe-4db6-8a70-a3c116548d85 { approvalId: text, workspaceId: text, requesterId: text }
+  }
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1004 {
+    command CancelApproval #2a04c1b4-04f1-480e-9ea2-4396bebf6976 {
+      payload = #c85d210f-16fe-4db6-8a70-a3c116548d85
+    }
+  }
+
+  // 2. The event carries the outcome, not a decision.
+  modify #5bd1be10-b48e-4b77-a7c6-9e57f06d1009 attributes.payload = type #eb38d58f-e819-4079-b582-56995ccdb1c7
+
+  // 3. ApprovalService handles cancellation.
+  link #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 handles #2a04c1b4-04f1-480e-9ea2-4396bebf6976
+
+  // 4. Retrieval and cancellation are API operations of the approval API.
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1012 {
+    operation Retrieve #c288ed53-834c-46dc-9e69-b7f63e39b0c1 {
+      in = #c85d210f-16fe-4db6-8a70-a3c116548d85
+      out = #eb38d58f-e819-4079-b582-56995ccdb1c7
+    }
+  }
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1012 {
+    operation Cancel #8fe3c0da-4c06-4f72-9904-cd7d0f2a93df {
+      in = #c85d210f-16fe-4db6-8a70-a3c116548d85
+      out = #eb38d58f-e819-4079-b582-56995ccdb1c7
+    }
+  }
+
+  // 5. The lifecycle, as a requirement ApprovalService satisfies.
+  add into #5bd1be10-b48e-4b77-a7c6-9e57f06d1002 {
+    requirement OutcomeLifecycle #d8f8d42f-f7c1-4d35-b9e2-ab5d4d760c64 {
+      desc "An approval is created Pending and leaves Pending exactly once, to Approved or Rejected by a designated human's decision made while the server time is before expiresAt, to Expired when that time is reached, or to Cancelled by its requester. Terminal outcomes are immutable. The resolved event names its cause and names a decider only when a human decided."
+    }
+  }
+  link #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 satisfies #d8f8d42f-f7c1-4d35-b9e2-ab5d4d760c64
+}
