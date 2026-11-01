@@ -32,3 +32,26 @@ Users sign up, select or create a tenant workspace, and access a developer dashb
 ![HashRelay product vision](diagrams/hashrelay-vision.svg)
 
 This is a checked Continuum Diagram rendering of the earlier pinned ADL architecture (attestation `sha256:f2ce446b35e77d5a7aae1bed4715ac80f0f61e4fd6b9fd75d0cf7c78047012dd`). It illustrates the product ambition, including future mobile endpoints; dotted paths are planned rather than established ADL relationships. The current Windows-first ADL has since evolved; the image must not be treated as the current model's canonical projection.
+
+## Planned enhancement — Actionable approvals (2026-11-01)
+
+**Status:** development-ready proposal; not yet implemented or accepted as authoritative architecture.
+**Detailed implementation contract:** [Actionable approvals](ACTIONABLE-APPROVALS.md).
+**Continuum draft:** [architecture/model/hash-relay.adl](../architecture/model/hash-relay.adl), compiled using adl/1.4, attestation `sha256:260afc5be54aeddcadaad953d6b08256efdc63f167434104b0f1e317ae84ad8a`.
+
+### Vision
+A publisher may request a human decision and address it to an authorized approver. HashRelay persistently tracks one approval request independently of its notification deliveries; a subscriber can approve or reject through an authenticated client. The original publisher can reliably observe the terminal result and decide what to execute. This is useful for automated services and human workflows as well as AI agents; MCP is a transport, not evidence that a publisher is an agent.
+
+### Product principles
+- A notification attracts attention; an approval is a distinct durable, tenant-scoped resource and decision lifecycle.
+- Displaying, clicking or dismissing a toast is **not** approval; server authorization and an atomic state transition are required.
+- One approval can reach several endpoints; the first valid terminal decision wins. Subsequent clients see final state, never competing outcomes.
+- No unauthenticated, device-only, or publisher API-key-only decision is permitted. Verify the human subject and approver eligibility on the server.
+- Approval does not execute the requested operation or confer the requester's permissions on HashRelay.
+- Decisions are retrievable even when notifications, websocket connections or callbacks fail; published result notifications are at-least-once hints.
+- Requests expire, may be cancelled by authorized requesters, and cannot be approved afterwards.
+- Desktop and mobile clients show current state; high-impact approvals open an authenticated confirmation view instead of committing with one unreviewed toast click.
+- The feature builds on existing tenant identity, service-account policies, notification routing, endpoints, HTTP, and MCP; no new transport or generalized workflow engine.
+
+### Initial scope
+Create/list/read approval requests; authorized approve/reject; expiry/cancellation; stable correlation; detail-page and notification presentation; durable requester retrieval and resumable completion indication; audit trail; REST + MCP creation and status; multi-device convergence. Future extensions (quorum voting, delegation, automatic execution, conditional approval policies, complex escalation chains) are explicitly out of scope.
