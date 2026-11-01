@@ -102,3 +102,9 @@ variable "allow_password_reset" {
   default     = false
   description = "Enable the self-service forgot-password pages and the link on the sign-in page. Needs the SMTP settings above to send the links."
 }
+
+variable "github_oidc_subject" {
+  type        = string
+  default     = ""
+  description = "OIDC subject of the GitHub environment allowed to deploy (repo:<owner>@<id>/<repo>@<id>:environment:<env>, immutable form). Empty = no CI deploy identity."
+}
