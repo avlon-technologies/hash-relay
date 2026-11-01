@@ -49,10 +49,17 @@ The iOS Simulator only exists in Xcode on macOS, so on a Windows machine the pat
 ```powershell
 npm install -g eas-cli
 eas login
-eas build --profile development --platform ios     # installs on a registered iPhone (internal distribution)
+eas device:create                                  # once: open the link on the iPhone to register it
+eas build --profile development --platform ios     # dev client for registered iPhones (internal distribution)
+npx expo start                                     # then open the dev client; JS reloads without rebuilding
 ```
 
-EAS needs an Apple Developer account; `eas build` walks through certificates, the provisioning profile and the push (APNs) key. Alternatively `eas build --profile preview --platform ios` for a TestFlight-ready build.
+EAS needs an Apple Developer Program membership. `eas build` walks you through the signing certificate and the provisioning profile, and can create the push key. Rebuild after adding a device or changing native code; plain JS changes only need `expo start`.
+
+- `--profile preview`: an installable build without the dev menu, for registered iPhones only.
+- TestFlight and the App Store: `eas build --profile production --platform ios`, then `eas submit -p ios`.
+
+iOS push needs `GoogleService-Info.plist` (see below). Without it the iOS build leaves Firebase out and the app runs without background push. The Android file alone does not turn Firebase on for iOS.
 
 ## Firebase setup (needed for background push)
 

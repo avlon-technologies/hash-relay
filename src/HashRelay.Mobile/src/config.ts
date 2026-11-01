@@ -26,7 +26,8 @@ const KEY_PAIRING = 'hashrelay.pairing';
 
 export const appVersion: string = Constants.expoConfig?.version ?? '0.0.0';
 export const defaultServerUrl: string = Constants.expoConfig?.extra?.defaultServerUrl ?? 'https://hashrelay.dev.avlon.ca';
-export const firebaseConfigured: boolean = Constants.expoConfig?.extra?.firebase === true;
+/** Whether this build has Firebase client files for this OS (see app.config.js); without them push is off. */
+export const firebaseConfigured: boolean = Constants.expoConfig?.extra?.firebase?.[Platform.OS] === true;
 export const platform: string = Platform.OS;
 
 export function normalizeServerUrl(input: string): string {
