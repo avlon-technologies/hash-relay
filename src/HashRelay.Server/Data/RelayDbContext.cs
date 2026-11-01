@@ -23,6 +23,7 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
     public DbSet<Approval> Approvals => Set<Approval>();
     public DbSet<ApprovalAudit> ApprovalAudits => Set<ApprovalAudit>();
     public DbSet<ApprovalOutbox> ApprovalOutbox => Set<ApprovalOutbox>();
+    public DbSet<DecisionGrant> DecisionGrants => Set<DecisionGrant>();
 
     /// <summary>Approval audit entries are append-only: an update or delete through the context is a programming error.</summary>
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
@@ -246,6 +247,21 @@ public sealed class RelayDbContext(DbContextOptions<RelayDbContext> options) : D
             e.Property(x => x.Kind).HasMaxLength(32);
             e.Property(x => x.Payload).HasMaxLength(2000);
             e.Property(x => x.LastError).HasMaxLength(500);
+        });
+
+        b.Entity<DecisionGrant>(e =>
+        {
+            e.HasIndex(x => x.PollCodeHash).IsUnique();
+            e.HasIndex(x => x.SecretHash).IsUnique();
+            e.HasIndex(x => x.UserCode);
+            e.HasIndex(x => new { x.AccountId, x.Status });
+            e.HasIndex(x => x.DeviceCredentialId);
+            e.Property(x => x.DeviceName).HasMaxLength(80);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.UserCode).HasMaxLength(16);
+            e.Property(x => x.PollCodeHash).HasMaxLength(64);
+            e.Property(x => x.SecretHash).HasMaxLength(64);
+            e.Property(x => x.IssuedSecret).HasMaxLength(64);
         });
 
         b.Entity<DevicePairing>(e =>

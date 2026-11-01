@@ -97,12 +97,12 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
       service ApprovalService #5bd1be10-b48e-4b77-a7c6-9e57f06d1011 {
         desc "Creates and atomically resolves authorized approvals; publishes committed decisions for requesting applications to observe. Does not execute approved operations."
         dependsOn: ::HashRelay.Notifications.Routing.RoutingService, ::HashRelay.Access.TenantIdentity.TenantAdministrationService
-        handles: ::HashRelay.Approvals.DecisionManagement.RequestApproval, ::HashRelay.Approvals.DecisionManagement.DecideApproval, ::HashRelay.Approvals.DecisionManagement.CancelApproval
+        handles: ::HashRelay.Approvals.DecisionManagement.RequestApproval, ::HashRelay.Approvals.DecisionManagement.DecideApproval, ::HashRelay.Approvals.DecisionManagement.CancelApproval, ::HashRelay.Approvals.DecisionManagement.GrantDeviceDecisions, ::HashRelay.Approvals.DecisionManagement.RevokeDeviceDecisions
         publishes: ::HashRelay.Approvals.DecisionManagement.ApprovalResolved
-        reads: ::HashRelay.Approvals.DecisionManagement.ApprovalStore
+        reads: ::HashRelay.Approvals.DecisionManagement.ApprovalStore, ::HashRelay.Approvals.DecisionManagement.DecisionGrantStore
         realizes: ::HashRelay.Approvals.HumanDecision
-        satisfies: ::HashRelay.Approvals.HumanDecision.DecisionIntegrity, ::HashRelay.Approvals.HumanDecision.OutcomeLifecycle
-        writes: ::HashRelay.Approvals.DecisionManagement.ApprovalStore
+        satisfies: ::HashRelay.Approvals.HumanDecision.DecisionIntegrity, ::HashRelay.Approvals.HumanDecision.OutcomeLifecycle, ::HashRelay.Approvals.HumanDecision.DeviceDecisionAuthority
+        writes: ::HashRelay.Approvals.DecisionManagement.ApprovalStore, ::HashRelay.Approvals.DecisionManagement.DecisionGrantStore
 
         api ApprovalApi #5bd1be10-b48e-4b77-a7c6-9e57f06d1012 {
           operation Decide #5bd1be10-b48e-4b77-a7c6-9e57f06d1014 {
@@ -121,6 +121,14 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
             in = ::HashRelay.Approvals.DecisionManagement.ApprovalReference
             out = ::HashRelay.Approvals.DecisionManagement.ApprovalOutcome
           }
+          operation EnrollDevice #a5bfefc3-4121-4e7f-9ab6-a74ec33746bb {
+            in = ::HashRelay.Approvals.DecisionManagement.DecisionGrant
+            out = ::HashRelay.Approvals.DecisionManagement.DecisionGrant
+          }
+          operation RevokeDevice #46ebc799-6c9b-4dc4-b381-af1d467edf8c {
+            in = ::HashRelay.Approvals.DecisionManagement.DecisionGrant
+            out = ::HashRelay.Approvals.DecisionManagement.DecisionGrant
+          }
         }
       }
       record ApprovalDecision v1 #5bd1be10-b48e-4b77-a7c6-9e57f06d1006 { approvalId: text, decidedAt: text, decidedBy: text, decision: text }
@@ -129,6 +137,16 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
       record ApprovalReference v1 #c85d210f-16fe-4db6-8a70-a3c116548d85 { approvalId: text, workspaceId: text, requesterId: text }
       command CancelApproval #2a04c1b4-04f1-480e-9ea2-4396bebf6976 {
         payload = ::HashRelay.Approvals.DecisionManagement.ApprovalReference
+      }
+      record DecisionGrant v1 #a35ab5c0-579f-48b6-b27a-81b2ea764d4f { grantId: text, workspaceId: text, accountId: text, deviceCredentialId: text, status: text, expiresAt: text }
+      resource DecisionGrantStore #cad19393-5a26-44be-8f35-02f4e3960ef4 [data-store] {
+        persistence[durable; strong; retention="grant lifecycle and audit policy"]
+      }
+      command GrantDeviceDecisions #bef797ed-e6ea-4be9-b11f-25de3ff9f24e {
+        payload = ::HashRelay.Approvals.DecisionManagement.DecisionGrant
+      }
+      command RevokeDeviceDecisions #629a27a5-b5d9-4095-809d-d9623906ad77 {
+        payload = ::HashRelay.Approvals.DecisionManagement.DecisionGrant
       }
     }
     capability HumanDecision #5bd1be10-b48e-4b77-a7c6-9e57f06d1002 {
@@ -139,6 +157,9 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
       }
       requirement OutcomeLifecycle #d8f8d42f-f7c1-4d35-b9e2-ab5d4d760c64 {
         desc "An approval is created Pending and leaves Pending exactly once, to Approved or Rejected by a designated human's decision made while the server time is before expiresAt, to Expired when that time is reached, or to Cancelled by its requester. Terminal outcomes are immutable. The resolved event names its cause and names a decider only when a human decided."
+      }
+      requirement DeviceDecisionAuthority #f8c9062d-d840-4c17-bb33-c6994f644ca4 {
+        desc "A device may submit DecideApproval only together with an active decision grant that the person it names gave explicitly, after interactive sign-in, to that paired device's credential in that workspace, and only that person may grant it. The pairing token alone never decides, and a device decides only from the approval's own notification as delivered to that device. At decision time the grant must be unrevoked and unexpired, its device credential still active, the approval in the grant's workspace, and the person still a member and a designated approver. Grants are revocable by the person and by the device."
       }
     }
   }

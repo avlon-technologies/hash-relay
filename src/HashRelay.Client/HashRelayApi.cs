@@ -98,6 +98,42 @@ public sealed class HashRelayApi : IDisposable
         return await ReadAsync<SubscriptionsResponse>(res, ct);
     }
 
+    // ------------------------------------------------------------------ one-click approvals (device token + decision grant)
+
+    /// <summary>Starts enrolment for one-click approvals; the person then grants it in the browser at the returned URI.</summary>
+    public async Task<DecisionGrantStart> BeginDecisionGrantAsync(CancellationToken ct = default)
+    {
+        using var res = await _http.PostAsync("api/v1/decision-grants", null, ct);
+        return await ReadAsync<DecisionGrantStart>(res, ct);
+    }
+
+    public async Task<DecisionGrantPoll> PollDecisionGrantAsync(string pollCode, CancellationToken ct = default)
+    {
+        using var res = await _http.PostAsJsonAsync("api/v1/decision-grants/poll", new DecisionGrantPollRequest(pollCode), Json, ct);
+        return await ReadAsync<DecisionGrantPoll>(res, ct);
+    }
+
+    public async Task RevokeDecisionGrantAsync(string grantSecret, CancellationToken ct = default)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Delete, "api/v1/decision-grants/current");
+        req.Headers.Add(DecisionGrants.Header, grantSecret);
+        using var res = await _http.SendAsync(req, ct);
+        if (!res.IsSuccessStatusCode) await ReadAsync<object>(res, ct);
+    }
+
+    /// <summary>Submits the grant holder's decision. Throws <see cref="HashRelayApiException"/> on any refusal; success is only what the server returns.</summary>
+    public async Task<ApprovalResource> DecideOnDeviceAsync(Guid approvalId, string decision, Guid deliveryId, string grantSecret, string idempotencyKey, CancellationToken ct = default)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"api/v1/approvals/{approvalId}/device-decision")
+        {
+            Content = JsonContent.Create(new DeviceDecisionRequest(decision, deliveryId), options: Json),
+        };
+        req.Headers.Add(DecisionGrants.Header, grantSecret);
+        req.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var res = await _http.SendAsync(req, ct);
+        return await ReadAsync<ApprovalResource>(res, ct);
+    }
+
     private async Task<T> GetAsync<T>(string path, CancellationToken ct)
     {
         using var res = await _http.GetAsync(path, ct);

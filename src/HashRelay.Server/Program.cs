@@ -51,6 +51,7 @@ builder.Services.AddRazorPages(o =>
 {
     o.Conventions.AuthorizeFolder("/Dashboard");
     o.Conventions.AuthorizePage("/Pair");
+    o.Conventions.AuthorizePage("/ApprovalDevices");
 });
 builder.Services.AddSignalR(o => { o.EnableDetailedErrors = builder.Environment.IsDevelopment(); o.MaximumReceiveMessageSize = 64 * 1024; });
 // Malformed or missing request bodies throw in every environment (the default only throws in Development), so the
@@ -81,7 +82,9 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy(ApiAuth.PolicyImages, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireClaim(ApiAuth.ClaimScope, Scopes.Publish).RequireAssertion(c => !c.User.ServiceAccountLacks(ServiceScopes.Images)))
     // Requesting approvals: an application credential (API key with publish, or service key with approvals:create).
     // Deciding is not here: it accepts only a person's session (ApprovalEndpoints).
-    .AddPolicy(ApprovalEndpoints.PolicyRequester, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireAssertion(c => ApprovalEndpoints.MayRequestApprovals(c.User)));
+    .AddPolicy(ApprovalEndpoints.PolicyRequester, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireAssertion(c => ApprovalEndpoints.MayRequestApprovals(c.User)))
+    // One-click decisions and their grants: a paired device token only. The token alone decides nothing; the grant secret is checked per call.
+    .AddPolicy(ApprovalEndpoints.PolicyDevice, p => p.AddAuthenticationSchemes(ApiAuth.Scheme).RequireAuthenticatedUser().RequireAssertion(c => c.User.CredentialKind() == CredentialKinds.Device));
 
 builder.Services.AddRateLimiter(o =>
 {
