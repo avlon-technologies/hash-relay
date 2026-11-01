@@ -91,19 +91,38 @@ public sealed class RelayListener : IAsyncDisposable
         finally { _gate.Release(); }
     }
 
+    // Hello binds this connection to the endpoint on the server; until it succeeds the socket is open but routes
+    // nothing (the server treats the endpoint as offline and queues or pushes instead). A failure is therefore
+    // retried, and if it keeps failing the connection is dropped so the automatic reconnect starts over with a
+    // fresh Hello. Seen in the wild: the server's database is briefly locked while a rolling deploy swaps revisions.
     private async Task SayHelloAsync(CancellationToken ct)
     {
-        try
+        for (var attempt = 1; ; attempt++)
         {
-            var res = await _hub.InvokeAsync<HelloResponse>(HubMethods.Hello, _hello, ct);
-            LastHello = res;
-            Registered?.Invoke(res);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            Set(State, ex);
+            try
+            {
+                var res = await _hub.InvokeAsync<HelloResponse>(HubMethods.Hello, _hello, ct);
+                LastHello = res;
+                Registered?.Invoke(res);
+                return;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                Set(State, ex);
+                if (_disposed || _hub.State != HubConnectionState.Connected) return; // the reconnect path says hello again
+                if (attempt >= HelloAttempts)
+                {
+                    // Closed fires, waits, and StartAsync opens a new connection that says hello again.
+                    try { await _hub.StopAsync(CancellationToken.None); } catch { /* already closing */ }
+                    return;
+                }
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(30, 3 * attempt)), ct);
+            }
         }
     }
+
+    private const int HelloAttempts = 5;
 
     public Task<IReadOnlyList<string>> SubscribeAsync(IEnumerable<string> tags, CancellationToken ct = default)
         => _hub.InvokeAsync<IReadOnlyList<string>>(HubMethods.Subscribe, tags.ToArray(), ct);
