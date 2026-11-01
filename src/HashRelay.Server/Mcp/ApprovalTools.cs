@@ -23,13 +23,8 @@ public sealed class ApprovalTools(IHttpContextAccessor http, ApprovalService app
     private ClaimsPrincipal Requester()
     {
         var user = http.HttpContext?.User is { Identity.IsAuthenticated: true } u ? u : throw new McpException("Not authenticated. Send 'Authorization: Bearer hr_svc_…' with a service-account key.");
-        if (ApprovalEndpoints.MayRequestApprovals(user)) return user;
-        throw new McpException(user.CredentialKind() switch
-        {
-            CredentialKinds.Service => $"This service account does not have the '{ServiceScopes.ApprovalsCreate}' permission. A workspace admin can grant it under Dashboard → Service accounts.",
-            CredentialKinds.Device => "A device token cannot request approvals; use a service-account key.",
-            _ => $"This credential does not have the '{Scopes.Publish}' scope.",
-        });
+        RequireRequester(user);
+        return user;
     }
 
     // ------------------------------------------------------------------ approvers
@@ -59,24 +54,51 @@ public sealed class ApprovalTools(IHttpContextAccessor http, ApprovalService app
         "Retrying with the same idempotencyKey and the same arguments returns the original approval instead of creating a second one.")]
     public async Task<ApprovalRequested> RequestApproval(
         [Description("Short human-readable description of what needs approving, 1–120 characters. Shown on the toast and the approval page.")] string subject,
-        [Description("Account ids (UUIDs) of the designated approvers, 1–10, from list_approvers. Any one of them may decide.")] string[] targetUserIds,
         [Description("When the request lapses if nobody decides, ISO 8601 with offset (e.g. 2026-11-01T18:30:00Z), between 1 minute and 30 days from now.")] DateTimeOffset expiresAt,
         [Description("A unique key for this request (1–128 visible ASCII characters, e.g. a UUID). Reuse it only to retry the same request.")] string idempotencyKey,
+        [Description("Account ids (UUIDs) of the designated approvers, 1–10, from list_approvers; any one of them may decide. Omit to ask the person who connected this app.")] string[]? targetUserIds = null,
         [Description("Optional detailed explanation, at most 4000 characters: what will happen if approved, its impact, and how to undo it. Shown only on the signed-in approval page.")] string? description = null,
         [Description("Optional hashtags (without or with '#') whose subscribed devices get a notification linking to the approval, e.g. [\"deploys\"].")] string[]? tags = null,
         [Description("Optional identifier from your own system (at most 128 characters), returned with the outcome so you can match it to your operation.")] string? requesterCorrelationId = null,
         CancellationToken ct = default)
     {
         var user = Requester();
+        var (a, created) = await CreateAsync(approvals, user, http.HttpContext, subject, targetUserIds, expiresAt, idempotencyKey, description, tags, requesterCorrelationId, ct);
+        return new ApprovalRequested(a.Id, a.Status, a.Proceed, a.Version, a.ExpiresAt, a.RequesterCorrelationId, a.DetailUrl, a.NotificationId, created, Next(a));
+    }
+
+    internal static string Next(ApprovalResource a) => a.Status == ApprovalStatuses.Pending
+        ? $"Not decided yet: do not proceed. Tell the user the approval is waiting at {a.DetailUrl}, then call get_approval with approvalId {a.Id} later. HashRelay does not call you back. It expires at {a.ExpiresAt:u}."
+        : Guidance(a);
+
+    /// <summary>Shared by request_approval and publish_notification's approval option: one path into ApprovalService.CreateAsync.</summary>
+    internal static async Task<(ApprovalResource Approval, bool Created)> CreateAsync(ApprovalService approvals, ClaimsPrincipal user, HttpContext? http,
+        string subject, string[]? targetUserIds, DateTimeOffset expiresAt, string idempotencyKey, string? description, string[]? tags, string? correlationId, CancellationToken ct)
+    {
+        var requester = ApprovalEndpoints.Requester(user);
         var ids = new List<Guid>();
         foreach (var raw in targetUserIds ?? [])
             ids.Add(Guid.TryParse(raw, out var g) ? g : throw new McpException($"targetUserIds must be account ids (UUIDs) from list_approvers; '{raw}' is not one."));
-        var req = new CreateApprovalRequest(subject, ids, expiresAt, description, tags, requesterCorrelationId);
-        var (a, created) = await HashRelayTools.Guard(() => approvals.CreateAsync(ApprovalEndpoints.Requester(user), idempotencyKey, req, http.HttpContext?.TraceIdentifier, ct));
-        var next = a.Status == ApprovalStatuses.Pending
-            ? $"Not decided yet: do not proceed. Tell the user the approval is waiting at {a.DetailUrl}, then call get_approval with approvalId {a.Id} later. HashRelay does not call you back. It expires at {a.ExpiresAt:u}."
-            : Guidance(a);
-        return new ApprovalRequested(a.Id, a.Status, a.Proceed, a.Version, a.ExpiresAt, a.RequesterCorrelationId, a.DetailUrl, a.NotificationId, created, next);
+        if (ids.Count == 0)
+        {
+            // Default: the person who created (for an OAuth connector, connected) this credential, resolved server-side; never guessed.
+            var me = (await approvals.EligibleApproversAsync(requester, ct)).FirstOrDefault(x => x.AuthorizedThisCredential)
+                ?? throw new McpException("Name the approvers in targetUserIds (account ids from list_approvers): this credential has no connecting person who could approve by default.");
+            ids.Add(me.AccountId);
+        }
+        var req = new CreateApprovalRequest(subject, ids, expiresAt, description, tags, correlationId);
+        return await HashRelayTools.Guard(() => approvals.CreateAsync(requester, idempotencyKey, req, http?.TraceIdentifier, ct));
+    }
+
+    internal static void RequireRequester(ClaimsPrincipal user)
+    {
+        if (ApprovalEndpoints.MayRequestApprovals(user)) return;
+        throw new McpException(user.CredentialKind() switch
+        {
+            CredentialKinds.Service => $"This service account does not have the '{ServiceScopes.ApprovalsCreate}' permission. A workspace admin can grant it under Dashboard → Service accounts.",
+            CredentialKinds.Device => "A device token cannot request approvals; use a service-account key.",
+            _ => $"This credential does not have the '{Scopes.Publish}' scope.",
+        });
     }
 
     // ------------------------------------------------------------------ Retrieve

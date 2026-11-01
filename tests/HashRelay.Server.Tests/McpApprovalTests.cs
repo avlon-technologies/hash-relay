@@ -20,7 +20,7 @@ namespace HashRelay.Server.Tests;
 /// MCP request_approval / get_approval / list_approvers, driven with the official MCP client against the real server.
 /// Human decisions go through the real sign-in, decision page and antiforgery token, never through MCP.
 /// </summary>
-public sealed class McpApprovalTests : IAsyncLifetime
+public sealed partial class McpApprovalTests : IAsyncLifetime
 {
     private readonly ShiftableClock _clock = new();
     private readonly RelayFactory _factory;

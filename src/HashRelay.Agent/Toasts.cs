@@ -65,7 +65,13 @@ internal static class Toasts
         if (!string.IsNullOrWhiteSpace(open)) builder.AddArgument("url", open);
         if (File.Exists(IconPath)) builder.AddAppLogoOverride(new Uri(IconPath), ToastGenericAppLogoCrop.None);
         if (imagePath is not null && File.Exists(imagePath)) builder.AddInlineImage(new Uri(imagePath));
-        if (m.Rich && !string.IsNullOrWhiteSpace(m.Url) && open != m.Url)
+        if (ApprovalPage(m) is { } approval)
+        {
+            // Opens the signed-in approval page with the choice pre-selected; the person confirms it there.
+            builder.AddButton(new ToastButton().SetContent("Approve…").AddArgument("action", "url").AddArgument("url", ApprovalLink.WithDecision(approval, ApprovalDecisions.Approve).ToString()));
+            builder.AddButton(new ToastButton().SetContent("Reject…").AddArgument("action", "url").AddArgument("url", ApprovalLink.WithDecision(approval, ApprovalDecisions.Reject).ToString()));
+        }
+        else if (m.Rich && !string.IsNullOrWhiteSpace(m.Url) && open != m.Url)
             builder.AddButton(new ToastButton().SetContent("Open link").AddArgument("action", "url").AddArgument("url", m.Url));
 
         if (m.Priority == Priorities.High) builder.SetToastScenario(ToastScenario.Reminder);
@@ -77,6 +83,12 @@ internal static class Toasts
             toast.Group = "hashrelay";
             toast.ExpirationTime = DateTimeOffset.Now.AddDays(3);
         });
+    }
+
+    private static Uri? ApprovalPage(NotificationMessage m)
+    {
+        try { return ApprovalLink.TryParse(m, Client.ConfigStore.Load().ServerUri, out var page) ? page : null; }
+        catch (Exception ex) { Log.Warn($"Approval link: {ex.Message}"); return null; }
     }
 
     /// <summary>
