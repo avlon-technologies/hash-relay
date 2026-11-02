@@ -70,3 +70,13 @@ Phase 2 (`Operation.enters`, `via`).
 `continuum.yml` runs on every push. On this branch its pinned toolchain predates `adl/1.7`,
 so the architecture gate is expected to refuse the `adl/1.7` pin. `build.yml` (the deploy
 path) runs only on `main`.
+
+## Correction found by the blind evaluation (2026-11-01)
+
+This validation under-states `PublishNotification`. `ApprovalOutboxProcessor` (`notifier.PublishAsync(a, ct)`)
+publishes the approval's notification from inside `ApprovalService`, under the requester's credential, so the
+code admits that internal publisher as well as `Publisher`. The model did not flag the omission because it
+declares no `sends` edge from `ApprovalService` to `PublishNotification`: the closure law judges only declared
+edges, so an under-stated admission set over an under-stated edge set is silent. The blind run
+(`experiment/blind-command-admission-20261101`, 050c03a) admitted `ApprovalService` and is the more
+faithful reading here. This record is left otherwise as it was.
