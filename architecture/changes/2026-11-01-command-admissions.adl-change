@@ -1,0 +1,64 @@
+// Command admissions: who the server admits to send DecideApproval, RequestApproval and PublishNotification.
+//
+// Recorded from src/HashRelay.Server as it stands; nothing here is new behaviour.
+//
+// Prerequisite (not part of this change; a change never re-pins the core): the manifest is re-pinned from
+// adl/1.4 to adl/1.7 by an explicit manifest edit. The base pin below is the state of the re-pinned package.
+//
+// What the code establishes, and where:
+// - RequestApproval. Api/ApprovalEndpoints.MayRequestApprovals (policy api:approvals, and MCP request_approval and
+//   publish_notification's approval option through ApprovalTools.RequireRequester): an API key with the publish
+//   scope, or a service-account key (an OAuth access token is one) whose account holds approvals:create. A device
+//   token and a person's session are refused.
+// - DecideApproval, direct. POST /api/v1/approvals/{id}/decision and the Approval page: only a signed-in person's
+//   session (cookie scheme only; antiforgery on the API). ApprovalService.DecideAsync then requires a current
+//   membership and the person among the approval's designated approvers.
+// - DecideApproval, delegated. POST /api/v1/approvals/{id}/device-decision (policy api:device-decisions, device
+//   credential kind only) -> ApprovalService.DecideFromDeviceAsync: the device must present its own token AND the
+//   decision-grant secret of an active, unexpired grant bound to that device credential and workspace, AND the id
+//   of a delivery to the token's bound endpoint of the approval's own notification. The decision is then made as
+//   the person the grant names, by DecideAsync, confined to the grant's workspace.
+// - PublishNotification. POST /api/v1/notifications (policy api:publish) and MCP publish_notification: any
+//   credential carrying the publish scope - an API key, a device token paired with publish, or a service-account
+//   key (scope implied by notifications:publish or images:write on REST; MCP requires notifications:publish).
+//   Internally, ApprovalService's outbox publishes an approval's notification through RoutingService under the
+//   requester's credential and publisher identity, with no service policy re-applied.
+//
+// What changes:
+// 1. Two actors for initiators the model did not distinguish: ApprovalRequester (the credential kinds admitted to
+//    request approvals) and PairedDevice (the holder of a device token).
+// 2. A record EndpointDelivery for the delivery a device-submitted decision must cite.
+// 3. Admissions on the three commands.
+
+change CommandAdmissions core adl/1.7 {
+  desc "Records, from the server code, who may send RequestApproval, DecideApproval and PublishNotification, and that a paired device decides only on behalf of a person, with a decision grant and the approval's own delivery as evidence."
+
+  base package Avlon.HashRelay version "draft-1" state "sha256:2f161aaa96b9b7ab3f70227180d64add25627ec2a1dba47835b49708e73f97d9"
+
+  // 1. Initiators.
+  add into #11111111-1111-4111-8111-111111111111 {
+    actor ApprovalRequester #6a2388c1-6df9-43a4-80b7-85f9371c639b [system] {
+      desc "An application credential admitted to request approvals: an API key holding the publish scope, or a service-account key (an OAuth access token issued to a connector is one) whose service account holds approvals:create. A paired device token and a person's session are never one."
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    actor PairedDevice #80adbab6-b940-4812-af9c-1f161daf55e2 [system] {
+      desc "The holder of a paired device token: a device credential bound to one endpoint in one workspace, issued when a signed-in person approves a pairing request."
+    }
+  }
+
+  // 2. The delivery a device-submitted decision cites.
+  add into #13131313-1313-4313-8313-131313131313 {
+    record EndpointDelivery v1 #93717198-6a4c-490d-aaf7-ec34216f9b58 { deliveryId: text, workspaceId: text, notificationId: text, endpointId: text, status: text }
+  }
+
+  // 3. Admissions.
+  modify #5bd1be10-b48e-4b77-a7c6-9e57f06d1007 attributes.admissions = [#6a2388c1-6df9-43a4-80b7-85f9371c639b]
+    hint "MayRequestApprovals: API key with publish, or service key with approvals:create; device tokens and sessions refused."
+
+  modify #5bd1be10-b48e-4b77-a7c6-9e57f06d1008 attributes.admissions = [#42424242-4242-4242-8242-424242424242; #80adbab6-b940-4812-af9c-1f161daf55e2 on-behalf-of #42424242-4242-4242-8242-424242424242 requires #a35ab5c0-579f-48b6-b27a-81b2ea764d4f, #93717198-6a4c-490d-aaf7-ec34216f9b58 for approvalId]
+    hint "Session-only decision route and page; device-decision route needs the grant secret and a delivery of this approval's notification to the device's endpoint."
+
+  modify #eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee attributes.admissions = [#22222222-2222-4222-8222-222222222222; #5bd1be10-b48e-4b77-a7c6-9e57f06d1011]
+    hint "Any credential with the publish scope; and ApprovalService's outbox, publishing an approval's notification."
+}
