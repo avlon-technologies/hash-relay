@@ -3,7 +3,7 @@
   "manifest": {
     "name": "Avlon.HashRelay",
     "version": "draft-1",
-    "core": "adl/1.4",
+    "core": "adl/1.7",
     "imports": [],
     "extensions": [],
     "documents": [
