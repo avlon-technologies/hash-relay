@@ -1,0 +1,51 @@
+// Verification traces: every requirement in the model names the test suite that evidences it.
+// Authored against the draft-1 state that already carries CatchUpAndAttribution.
+//
+// Each `test` below is an existing xUnit suite in tests/HashRelay.Server.Tests; nothing here adds
+// a test to the code base or changes what a requirement says. A test is placed in the bounded
+// context whose behaviour it drives; its `verifies:` edges name only the requirements its facts
+// assert, per the facts listed in each description.
+//
+// What this change deliberately does NOT claim: no new requirement, no new satisfier, no change to
+// any requirement's text, no coverage of the account, OAuth, MCP or pairing suites (they verify no
+// requirement the model declares).
+
+change VerificationTraces core adl/1.4 {
+  desc "Each requirement of HashtagDelivery and TenantAdministration is linked to the existing test suite that verifies it, so requirement coverage is declared rather than implied."
+
+  base package Avlon.HashRelay version "draft-1" state "sha256:5e21f905bc071e7aa68876c061a4ad76bdf55ff8ad4c1fa600c589a89dbce487"
+
+  // Routing context: hashtag matching, tenant scoping of credentials, attribution at publish time.
+  add into #bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb {
+    test RoutingSuite #f14c35f4-e69b-480a-ac2f-39ac9bee89e1 {
+      desc "tests/HashRelay.Server.Tests/RoutingTests.cs: multiple matching tags yield exactly one delivery per endpoint; a tenant B credential cannot publish into, read or change tenant A's endpoints, subscriptions or notifications; a revoked key is rejected."
+      verifies: #aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa, #99999999-9999-4999-8999-999999999999, #32323232-3232-4232-8232-323232323232
+    }
+  }
+  add into #bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb {
+    test PublisherIdentitySuite #844cf966-bc0a-437d-81ac-a6530395ada5 {
+      desc "tests/HashRelay.Server.Tests/PublisherIdentityTests.cs: attribution comes from the credential and its registration (API key label and declared type, service account, paired device as a person), publisher fields in the body are ignored, the channel is the entry point and never an identity, and undeclared or legacy types read as unknown."
+      verifies: #abb41875-38c1-4a85-a377-293012ad4b3d
+    }
+  }
+
+  // Delivery context: fan-out to transports, delivery evidence, replay on reconnect.
+  add into #13131313-1313-4313-8313-131313131313 {
+    test RealtimeSuite #49b481a1-8c5c-4cae-9126-b55a4f2f9b74 {
+      desc "tests/HashRelay.Server.Tests/RealtimeTests.cs: a connected agent receives a live notification once for multiple matching tags, and a publication in tenant B never reaches a connected agent in tenant A."
+      verifies: #aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa, #99999999-9999-4999-8999-999999999999
+    }
+  }
+  add into #13131313-1313-4313-8313-131313131313 {
+    test PushSuite #577091e5-c186-4300-8d8c-24b216c949b0 {
+      desc "tests/HashRelay.Server.Tests/PushTests.cs: a push to an offline mobile endpoint is recorded as provider acceptance with no acknowledgement, and only the endpoint's acknowledgement records it as acknowledged."
+      verifies: #4b83047e-c625-485c-8330-1a6a171bd029
+    }
+  }
+  add into #13131313-1313-4313-8313-131313131313 {
+    test CatchUpSuite #aebdaf8c-fff7-4ae4-8a42-871851c1ee18 {
+      desc "tests/HashRelay.Server.Tests/CatchUpTests.cs: an offline backlog is replayed on reconnect flagged as replayed and ends with acknowledgement; unacknowledged live deliveries are offered again, acknowledged ones never; an interrupted replay resumes within the attempt limit; a new subscription receives only what is published after it while history stays readable."
+      verifies: #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb, #49ca33cb-df60-4ef4-9280-7807328ea2d5
+    }
+  }
+}

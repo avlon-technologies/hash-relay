@@ -100,6 +100,18 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
         }
       }
       record EndpointRegistration v1 #14141414-1414-4414-8414-141414141414 { endpointId: text, platform: text, providerToken: optional(text), subscriberId: text, workspaceId: text }
+      test RealtimeSuite #49b481a1-8c5c-4cae-9126-b55a4f2f9b74 {
+        desc "tests/HashRelay.Server.Tests/RealtimeTests.cs: a connected agent receives a live notification once for multiple matching tags, and a publication in tenant B never reaches a connected agent in tenant A."
+        verifies: ::HashRelay.Notifications.HashtagDelivery.OncePerEndpoint, ::HashRelay.Notifications.HashtagDelivery.WorkspaceIsolation
+      }
+      test PushSuite #577091e5-c186-4300-8d8c-24b216c949b0 {
+        desc "tests/HashRelay.Server.Tests/PushTests.cs: a push to an offline mobile endpoint is recorded as provider acceptance with no acknowledgement, and only the endpoint's acknowledgement records it as acknowledged."
+        verifies: ::HashRelay.Notifications.HashtagDelivery.DeliveryEvidence
+      }
+      test CatchUpSuite #aebdaf8c-fff7-4ae4-8a42-871851c1ee18 {
+        desc "tests/HashRelay.Server.Tests/CatchUpTests.cs: an offline backlog is replayed on reconnect flagged as replayed and ends with acknowledgement; unacknowledged live deliveries are offered again, acknowledged ones never; an interrupted replay resumes within the attempt limit; a new subscription receives only what is published after it while history stays readable."
+        verifies: ::HashRelay.Notifications.HashtagDelivery.CatchUpWithoutInterruption, ::HashRelay.Notifications.HashtagDelivery.ForwardOnlySubscription
+      }
     }
     bounded-context Routing #bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb {
       realizes: ::HashRelay.Notifications.HashtagDelivery
@@ -139,6 +151,14 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
       }
       record Publication v1 #cccccccc-cccc-4ccc-8ccc-cccccccccccc { body: text, notificationId: text, tags: list(text), title: text, workspaceId: text }
       record SubscriptionChange v1 #dddddddd-dddd-4ddd-8ddd-dddddddddddd { subscriberId: text, tag: text, workspaceId: text }
+      test RoutingSuite #f14c35f4-e69b-480a-ac2f-39ac9bee89e1 {
+        desc "tests/HashRelay.Server.Tests/RoutingTests.cs: multiple matching tags yield exactly one delivery per endpoint; a tenant B credential cannot publish into, read or change tenant A's endpoints, subscriptions or notifications; a revoked key is rejected."
+        verifies: ::HashRelay.Notifications.HashtagDelivery.OncePerEndpoint, ::HashRelay.Notifications.HashtagDelivery.WorkspaceIsolation, ::HashRelay.Access.TenantAdministration.TenantKeyIsolation
+      }
+      test PublisherIdentitySuite #844cf966-bc0a-437d-81ac-a6530395ada5 {
+        desc "tests/HashRelay.Server.Tests/PublisherIdentityTests.cs: attribution comes from the credential and its registration (API key label and declared type, service account, paired device as a person), publisher fields in the body are ignored, the channel is the entry point and never an identity, and undeclared or legacy types read as unknown."
+        verifies: ::HashRelay.Notifications.HashtagDelivery.PublisherAttribution
+      }
     }
     capability HashtagDelivery #88888888-8888-4888-8888-888888888888 {
       desc "An authorized publisher addresses one or more hashtags and subscribed endpoints receive matching notifications."
