@@ -12,6 +12,9 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
   actor Subscriber #33333333-3333-4333-8333-333333333333 [person] {
     desc "A person receiving notifications through registered endpoints."
   }
+  actor PairedDevice #e8c6cd85-b48f-453a-94a4-07c7b8b9a1e6 [system] {
+    desc "A desktop or mobile endpoint paired to one person's account, holding a device credential. It may hold a decision grant from that person."
+  }
   deployable CloudApi #19191919-1919-4919-8919-191919191919 {
     desc "Initial single cloud process hosting API, routing, endpoint registration, and delivery dispatch."
   }
@@ -79,9 +82,13 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
 
       command DecideApproval #5bd1be10-b48e-4b77-a7c6-9e57f06d1008 {
         payload = ::HashRelay.Approvals.DecisionManagement.ApprovalDecision
+        admits ::HashRelay.AccountHolder
+        admits ::HashRelay.PairedDevice on-behalf-of ::HashRelay.AccountHolder
+          requires ::HashRelay.Approvals.DecisionManagement.DecisionGrant, ::HashRelay.Notifications.Delivery.NotificationDelivery for approvalId
       }
       command RequestApproval #5bd1be10-b48e-4b77-a7c6-9e57f06d1007 {
         payload = ::HashRelay.Approvals.DecisionManagement.ApprovalRequest
+        admits ::HashRelay.Publisher
       }
       event ApprovalResolved #5bd1be10-b48e-4b77-a7c6-9e57f06d1009 {
         payload = ::HashRelay.Approvals.DecisionManagement.ApprovalOutcome
@@ -194,6 +201,7 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
           }
         }
       }
+      record NotificationDelivery v1 #e374d88c-f7d1-41ec-a0bb-eaa72646a05f { deliveryId: text, endpointRef: text, notificationId: text, tenantId: text }
       record EndpointRegistration v1 #14141414-1414-4414-8414-141414141414 { endpointId: text, platform: text, providerToken: optional(text), subscriberId: text, workspaceId: text }
     }
     bounded-context Routing #bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb {
@@ -202,6 +210,7 @@ system HashRelay #11111111-1111-4111-8111-111111111111 {
       command PublishNotification #eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee {
         occurrence-identity = payload.notificationId
         payload = ::HashRelay.Notifications.Routing.Publication
+        admits ::HashRelay.Publisher
       }
       command SubscribeTag #ffffffff-ffff-4fff-8fff-ffffffffffff {
         payload = ::HashRelay.Notifications.Routing.SubscriptionChange
