@@ -25,7 +25,7 @@ public sealed class NotificationModel(CurrentTenant current, RoutingService rout
         if (item is null) return NotFound();
         Item = item;
         TenantName = current.Memberships.First(m => m.TenantId == item.TenantId).Tenant.Name;
-        Delivered = item.Deliveries.Count(d => d.Status != DeliveryStatus.Queued);
+        Delivered = item.Deliveries.Count(d => d.Status != DeliveryStatus.Queued && d.Status != DeliveryStatus.Expired); // expired is never delivered (ADR-001)
         Pushed = item.Deliveries.Count(d => d.Status == DeliveryStatus.Pushed);
         Acked = item.Deliveries.Count(d => d.Status == DeliveryStatus.Acked);
         if (item.Markdown is not null) MarkdownHtml = MarkdownRenderer.ToHtml(item.Markdown, item.Title);

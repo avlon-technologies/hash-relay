@@ -23,7 +23,9 @@ Use ASP.NET Core SignalR for connected desktop agents; negotiate and authenticat
 - Access controls for publishing and subscribing are explicit; tenant-wide public tags are not assumed.
 
 ## Important unresolved design choices
-Subscription ownership (user vs installation), notification payload/privacy limits, identity provider, offline retention, delivery SLA, application credential onboarding and push credential custody, rate limits, opt-out and deletion controls, and whether mobile notification history is retained are not yet decided.
+Subscription ownership (user vs installation), notification payload/privacy limits, identity provider, delivery SLA, application credential onboarding and push credential custody, rate limits, opt-out and deletion controls, and whether mobile notification history is retained are not yet decided.
+
+Offline retention is decided: [ADR-001](../architecture/decisions/DECISIONS.md). A delivery queued for an offline endpoint is kept for a bounded replay window (`HashRelay:ReplayWindowHours`, 24 by default), then expires whether or not the endpoint returns (`DeliveryMaintenanceService`, every `HashRelay:Deliveries:SweepIntervalSeconds`, 300 by default). An expired delivery is reported as expired and never counted as delivered.
 
 ## Continuum verification
 Compiled with Continuum ADL core adl/1.4, compiler adlc 0.2.0; 0 errors, 10 review warnings (missing ownership, deployment mappings and verification). Current state (after the 2026-10-31 mobile change, changeState `sha256:f054f59937833a63b2a698c2bc10fd42e9e35b20e89dd9bbef496e6c58ed1427`): attestation `sha256:ec8d8674f26c93366ec102a3f7ce6c2aa4836410ac05a20820070933daa962e7`. Previous Windows-first state: attestation `sha256:15001b83acfbb18c92baf0a9a945592ef66015ec5205b6cb2168589419254714`.

@@ -214,9 +214,11 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
         // A notificationId is globally unique; a collision from another tenant or with a different payload is a conflict.
         if (existing.TenantId != tenantId || existing.PayloadHash != payloadHash)
             throw ApiException.Conflict("A notification with this notificationId already exists with a different payload.");
-        var delivered = await db.Deliveries.CountAsync(d => d.NotificationId == existing.Id && d.Status != DeliveryStatus.Queued, ct);
+        // Expired (ADR-001) is neither delivered nor still queued.
+        var delivered = await db.Deliveries.CountAsync(d => d.NotificationId == existing.Id && d.Status != DeliveryStatus.Queued && d.Status != DeliveryStatus.Expired, ct);
+        var queued = await db.Deliveries.CountAsync(d => d.NotificationId == existing.Id && d.Status == DeliveryStatus.Queued, ct);
         return new PublishResult(existing.Id, existing.PublishedAt, existing.Tags, existing.Title, existing.MatchedEndpoints,
-            delivered, existing.MatchedEndpoints - delivered, Duplicate: true, DetailUrl(existing), ToastImage(existing));
+            delivered, queued, Duplicate: true, DetailUrl(existing), ToastImage(existing));
     }
 
     /// <summary>
@@ -335,6 +337,17 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
         return replayed;
     }
 
+    /// <summary>
+    /// BoundedOfflineRetention (ADR-001): expires every queued delivery whose replay window has elapsed, whether or not
+    /// its endpoint ever reconnects. Run periodically by <see cref="DeliveryMaintenanceService"/>; returns how many expired.
+    /// </summary>
+    public async Task<int> ExpireDueAsync(CancellationToken ct)
+    {
+        var cutoff = clock.GetUtcNow().AddHours(-Math.Max(0, options.Value.ReplayWindowHours));
+        return await db.Deliveries.Where(d => d.Status == DeliveryStatus.Queued && d.CreatedAt < cutoff)
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.Status, DeliveryStatus.Expired), ct);
+    }
+
     public async Task AckAsync(Guid tenantId, Guid endpointRef, Guid deliveryId, CancellationToken ct)
     {
         var now = clock.GetUtcNow();
@@ -361,7 +374,7 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
             .Select(n => new
             {
                 n.Id, n.TagsCsv, n.Title, n.Body, n.Url, n.Priority, n.PublishedAt, n.MatchedEndpoints,
-                Delivered = n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued),
+                Delivered = n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued && d.Status != DeliveryStatus.Expired), // expired is never delivered (ADR-001)
                 HasMarkdown = n.Markdown != null, HasDiagram = n.Diagram != null, n.ImageUrl, n.DiagramImageUrl,
                 n.PublisherId, n.PublisherName, n.PublisherType, n.Channel,
             })
@@ -378,5 +391,27 @@ public sealed class RoutingService(RelayDbContext db, TimeProvider clock, Connec
         var tenants = memberTenantIds.ToList();
         return db.Notifications.AsNoTracking().Include(n => n.Deliveries)
             .FirstOrDefaultAsync(n => n.Id == id && tenants.Contains(n.TenantId), ct);
+    }
+}
+
+/// <summary>Periodically expires queued deliveries past their replay window. Interval 0 disables it (tests drive it directly).</summary>
+public sealed class DeliveryMaintenanceService(IServiceScopeFactory scopes, IConfiguration config, ILogger<DeliveryMaintenanceService> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var seconds = config.GetValue("HashRelay:Deliveries:SweepIntervalSeconds", 300);
+        if (seconds <= 0) return;
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(seconds));
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            try
+            {
+                using var scope = scopes.CreateScope();
+                var expired = await scope.ServiceProvider.GetRequiredService<RoutingService>().ExpireDueAsync(stoppingToken);
+                if (expired > 0) log.LogInformation("Expired {Count} queued deliveries past the replay window", expired);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+            catch (Exception ex) { log.LogWarning(ex, "Delivery maintenance sweep failed"); }
+        }
     }
 }

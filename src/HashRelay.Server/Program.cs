@@ -154,6 +154,7 @@ builder.Services.AddScoped<HashRelay.Server.Services.Approvals.ApprovalOutboxPro
 builder.Services.AddScoped<HashRelay.Server.Services.Approvals.ApprovalOutcomeReader>();
 builder.Services.AddScoped<HashRelay.Server.Services.Approvals.IApprovalNotificationPublisher, HashRelay.Server.Services.Approvals.RoutingApprovalNotificationPublisher>();
 builder.Services.AddHostedService<HashRelay.Server.Services.Approvals.ApprovalMaintenanceService>();
+builder.Services.AddHostedService<HashRelay.Server.Services.DeliveryMaintenanceService>();
 // OAuth metadata/token endpoints are called cross-origin by browser-based MCP clients (e.g. MCP Inspector); they carry no cookies.
 builder.Services.AddCors(o => o.AddPolicy(OAuthEndpoints.CorsPolicy, p => p.AllowAnyOrigin().AllowAnyHeader().WithMethods("GET", "POST")));
 

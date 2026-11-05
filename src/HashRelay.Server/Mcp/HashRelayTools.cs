@@ -160,7 +160,7 @@ public sealed class HashRelayTools(IHttpContextAccessor http, RelayDbContext db,
         var n = await db.Notifications.AsNoTracking().Include(x => x.Deliveries).FirstOrDefaultAsync(x => x.Id == guid && x.TenantId == tenantId, ct)
                 ?? throw new McpException("No notification with that id in this workspace.");
         return new NotificationDetail(n.Id, n.Tags, n.Title, n.Body, n.Url, n.Priority, n.PublishedAt, n.MatchedEndpoints,
-            n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued), n.Deliveries.Count(d => d.Status == DeliveryStatus.Acked),
+            n.Deliveries.Count(d => d.Status != DeliveryStatus.Queued && d.Status != DeliveryStatus.Expired), n.Deliveries.Count(d => d.Status == DeliveryStatus.Acked),
             n.Markdown, n.Diagram, RoutingService.ToastImage(n), routing.DetailUrl(n), UntrustedNote, RoutingService.PublisherOf(n));
     }
 
