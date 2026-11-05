@@ -25,7 +25,13 @@ fi
 # the export must be THIS space's record: the pin names the space, which is the digest of its genesis line
 space="$(node -e 'try{process.stdout.write(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).space||"")}catch{}' "$DIR/decision-space.json")"
 pin=(); [ -n "$space" ] && pin=(--pin "$space")
-$CLI decision export --dir "$DIR" --offline "${keys[@]}" --check "$DIR/DECISIONS.md" --json > "$out/export.json" 2> "$out/export.err"; e=$?
+if [ ${#keys[@]} -gt 0 ] || ! head -n 1 "$DIR/decisions.jsonl" 2>/dev/null | grep -q 'continuum-decision-record/1'; then
+  $CLI decision export --dir "$DIR" --offline "${keys[@]}" --check "$DIR/DECISIONS.md" --json > "$out/export.json" 2> "$out/export.err"; e=$?
+else
+  # DECISIONS.md states that the record was VERIFIED; without the keys it can only render as UNVERIFIED, so a comparison
+  # would report a difference that is not there. Not comparable is INDETERMINATE, never FAIL.
+  echo '{"result":"NOT COMPARED","reason":"not compared: DECISIONS.md renders a Host-signed record as VERIFIED, which cannot be established without the Host keys"}' > "$out/export.json"; e=3
+fi
 $CLI decision assert integrity --dir "$DIR" --offline "${keys[@]}" "${pin[@]}" --checks "$DIR/assertions.json" --json > "$out/assert.json" 2> "$out/assert.err"; a=$?
 if [ -z "$space" ] && head -n 1 "$DIR/decisions.jsonl" 2>/dev/null | grep -q 'continuum-decision-record/1'; then
   echo "::error::$DIR/decisions.jsonl is Host-signed but $DIR/decision-space.json names no space: the export cannot be tied to its space" >&2; a=1
