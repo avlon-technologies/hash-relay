@@ -1,0 +1,43 @@
+{
+  "decision": "ADR-002",
+  "commit": "f64713c",
+  "method": "code inspection; no test exercises these properties",
+  "findings": [
+    {
+      "claim": "Only DesktopAgent, in the signed-in user's session, displays notifications; no service or server process renders them",
+      "result": "holds",
+      "evidence": [
+        "Toast APIs (Microsoft.Toolkit.Uwp.Notifications) are referenced only in src/HashRelay.Agent: AgentContext.cs, OneClick.cs, Program.cs, Toasts.cs",
+        "src/HashRelay.Agent/HashRelay.Agent.csproj: OutputType WinExe (a tray app, not a Windows service)",
+        "build.ps1:57 publishes HashRelay.Server for linux-x64; the server has no toast code"
+      ]
+    },
+    {
+      "claim": "On Windows, notifications go through the Windows App SDK AppNotificationManager",
+      "result": "does not hold as worded",
+      "evidence": [
+        "AppNotificationManager appears nowhere in src",
+        "src/HashRelay.Agent/HashRelay.Agent.csproj:25 references Microsoft.Toolkit.Uwp.Notifications; the agent uses ToastNotificationManagerCompat (AgentContext.cs:77)"
+      ],
+      "note": "Both libraries deliver to the Windows notification center from the user session, so the intent of the decision holds. The library named in the decision text is wrong; it was carried over from docs/adr/0001-windows-first.md without checking the code."
+    },
+    {
+      "claim": "The Windows agent ships as a self-contained x64 build",
+      "result": "holds",
+      "evidence": [
+        "build.ps1:65 publishes HashRelay.Agent with -r win-x64",
+        "HashRelay.Agent.csproj: SelfContained is true whenever a RuntimeIdentifier is set"
+      ]
+    },
+    {
+      "claim": "Per-user Inno Setup installer that needs no admin rights",
+      "result": "holds",
+      "evidence": [
+        "installer/HashRelay.iss:36 PrivilegesRequired=lowest",
+        "installer/HashRelay.iss:32 DefaultDirName={localappdata}\\Programs\\{#AppName}",
+        "installer/HashRelay.iss:48-49 x64compatible only"
+      ]
+    }
+  ],
+  "limits": "Inspection of source and build scripts at the commit above. It does not run the installer, does not observe toasts on a machine, and does not prove that no future process renders notifications."
+}

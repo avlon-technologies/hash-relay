@@ -1,5 +1,5 @@
 # ADR-0001 — Windows-first delivery boundary
-Status: Accepted for M1 development, 2026-10-31.
+Status: Accepted for M1 development, 2026-10-31. Now in the decision record (architecture/decisions/DECISIONS.md): the desktop-agent boundary is ADR-002, and ADR-001 replaces "Offline delivery is not promised" below.
 
 M1A is loopback-only ASP.NET Core/SignalR plus per-user Windows notification agent, CLI/SDK and per-user unpackaged installer. M1B is tenant-aware hosted API/web dashboard and Azure SignalR provisioned by Terraform. Do not confuse the milestones.
 

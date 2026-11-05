@@ -54,7 +54,7 @@ jobs:
           echo "npm_config_userconfig=$RUNNER_TEMP/.npmrc" >> "$GITHUB_ENV"
 
       - name: Install the Continuum CLI (exact version)
-        run: npm install -g @avlon/continuum-cli@0.26.0 && continuum version
+        run: npm install -g @avlon/continuum-cli@0.28.1 && continuum version
 
       - name: Check the decision record
         env:
