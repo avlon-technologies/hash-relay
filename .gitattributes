@@ -7,3 +7,7 @@ continuum/**/*.adl text eol=lf
 continuum/**/*.md text eol=lf
 continuum/**/*.txt text eol=lf
 # <<< continuum <<<
+
+# The decision record is verified byte for byte (canonical lines, chained digests, signatures), and DECISIONS.md is
+# compared byte for byte with its rendering. A CRLF checkout reads as DAMAGED. Keep them LF everywhere.
+architecture/decisions/** text eol=lf
