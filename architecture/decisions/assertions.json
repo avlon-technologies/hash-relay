@@ -1,3 +1,5 @@
 {
-  "checks": []
+  "checks": [
+    "exists ADR-001"
+  ]
 }
