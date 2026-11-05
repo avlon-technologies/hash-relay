@@ -1,0 +1,62 @@
+# Decisions — HashRelay's architectural decisions, checked from the record (opt-in; Vision V3 Stage 9).
+#
+# The authority is the decision space the Continuum Host keeps. This repository holds only its pin and an export
+# (architecture/decisions/decision-space.json, decisions.jsonl), the rendering reviewers read (DECISIONS.md) and the
+# invariants HashRelay relies on (assertions.json). See architecture/decisions/README.md.
+#
+# Runs only when something under architecture/decisions/ (or this file) changes. No credential reaches the Host: its
+# PUBLIC signing keys come from the anonymous keys route, and every check runs offline on the committed export.
+# The checks live in architecture/decisions/check.sh, which runs the same way on a laptop.
+#
+#   integrity   every line canonical, chained and signed by the Host           FAIL = damaged or forged
+#   export      DECISIONS.md is exactly the rendering of the record           FAIL = missing, stale or edited by hand
+#   assert      the invariants in assertions.json                              FAIL = a decision HashRelay relies on is
+#                                                                                      not in the state it is relied on in
+#   conflicts   informational only: structured contradictions, and how many decisions in force state an ADL expectation
+#
+# PASS exits 0, FAIL 1, INDETERMINATE 3. INDETERMINATE (for example: the keys could not be fetched, so no signature
+# was checked) also fails the job, because an unresolved state never passes, but it is reported as INDETERMINATE.
+name: Decisions
+
+on:
+  push:
+    paths: ["architecture/decisions/**", ".github/workflows/decisions.yml"]
+  pull_request:
+    paths: ["architecture/decisions/**", ".github/workflows/decisions.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  decisions:
+    name: Decision record
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Authenticate to the Avlon feed
+        shell: bash
+        env:
+          AZURE_ARTIFACTS_TOKEN: ${{ secrets.AZURE_ARTIFACTS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_ARTIFACTS_TOKEN" || { echo "::error::AZURE_ARTIFACTS_TOKEN is not set — the CLI is only on the Avlon feed"; exit 1; }
+          umask 077
+          {
+            echo "@avlon:registry=https://pkgs.dev.azure.com/avlon/_packaging/continuum/npm/registry/"
+            echo "//pkgs.dev.azure.com/avlon/_packaging/continuum/npm/registry/:_authToken=$AZURE_ARTIFACTS_TOKEN"
+          } > "$RUNNER_TEMP/.npmrc"
+          echo "npm_config_userconfig=$RUNNER_TEMP/.npmrc" >> "$GITHUB_ENV"
+
+      - name: Install the Continuum CLI (exact version)
+        run: npm install -g @avlon/continuum-cli@0.26.0 && continuum version
+
+      - name: Check the decision record
+        env:
+          CONTINUUM_HOST: ${{ vars.CONTINUUM_HOST }}
+        run: bash architecture/decisions/check.sh

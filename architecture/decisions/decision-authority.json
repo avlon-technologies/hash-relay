@@ -1,0 +1,40 @@
+{
+  "profile": "continuum-decision-authority/1",
+  "note": "Who may decide what about HashRelay, ENFORCED BY THE HOST (Vision V3 Stage 9; ADR-0010 in continuum-architecture). This document travels once, as the body of the space's genesis act; after that the policy IS the record's `governed` lines, and changing it is itself a `govern` act. A principal is an issuer + oid the Host verifies from a token. A workload grant (actingAs agent:…) is usable only through a delegation token the Host issues to that workload, and never exceeds the grant it is delegatedBy.",
+  "principals": {
+    "owner": {
+      "issuer": "https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0",
+      "oid": "2605c7a8-5120-4edb-98cc-76d563601c0f",
+      "note": "the HashRelay owner (Entra ID)"
+    }
+  },
+  "grants": [
+    {
+      "id": "owner",
+      "principal": "owner",
+      "actingAs": "self",
+      "actions": ["govern", "propose", "revise", "amend", "accept", "reject", "revoke", "supersede", "check", "evidence"],
+      "subjects": ["*"]
+    },
+    {
+      "id": "agent-architect",
+      "principal": "owner",
+      "actingAs": "agent:claude-code",
+      "delegatedBy": "owner",
+      "actions": ["propose", "amend", "check", "evidence"],
+      "subjects": ["::HashRelay"],
+      "expires": "2026-12-31T23:59:59Z",
+      "note": "An AI agent may propose, amend, check and report evidence anywhere in HashRelay, through a Host delegation the owner mints. It may never accept, reject, revoke or supersede."
+    }
+  ],
+  "rules": [
+    {
+      "id": "a-person-who-did-not-author-it-approves",
+      "actions": ["accept", "revoke", "supersede"],
+      "subjects": ["::HashRelay"],
+      "separation": "distinct-party",
+      "approverKinds": ["human"],
+      "note": "A HashRelay decision is approved by a person, never by whoever proposed or amended it."
+    }
+  ]
+}

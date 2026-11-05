@@ -1,0 +1,30 @@
+// Bounded offline retention. Option `bounded-replay-window` of ADR-001 in the HashRelay decision
+// space (architecture/decisions/); a proposal until that decision is accepted with this option.
+//
+// Observed (2026-11-04, Vision V3 Stage 9 audit): CatchUpWithoutInterruption said a delivery for an
+// offline endpoint is "retained until acknowledged". The implementation never did that: a queued
+// delivery older than ReplayWindowHours (24 by default) is marked expired when its endpoint
+// reconnects, and docs/ARCHITECTURE.md still listed offline retention as unresolved. This change
+// records the bounded window the system actually needs, and states that an expired delivery is an
+// outcome of its own, never one that was delivered.
+//
+// What this change deliberately does NOT claim: no retention of the notification itself (its
+// history is unchanged), no per-workspace window, no new store, message or bounded context. The
+// window length and the attempt bound are deployment bindings, not semantics.
+
+change BoundedOfflineRetention core adl/1.4 {
+  desc "A delivery held for an offline endpoint is kept for a bounded replay window, after which it expires whether or not the endpoint returns; an expired delivery is reported as expired and never as delivered."
+
+  base package Avlon.HashRelay version "draft-1" state "sha256:c2824b8808af7698b9fffaf5810d7b4083593ad3f79d5778c98853a360feb405"
+
+  // 1. The bound. Availability is owed per message for a bounded time, not forever.
+  add into #88888888-8888-4888-8888-888888888888 {
+    requirement BoundedOfflineRetention #2beb7660-867d-4a33-b29c-b66f4732bdb6 {
+      desc "A delivery queued for an offline endpoint is replayable for a bounded replay window set per deployment. When the window elapses the delivery becomes expired, whether or not the endpoint ever reconnects. A delivery handed to a connection but never acknowledged is retried on reconnect a bounded number of times. Expired is a terminal outcome that is reported as such and is never counted as delivered."
+    }
+  }
+  link #18181818-1818-4818-8818-181818181818 satisfies #2beb7660-867d-4a33-b29c-b66f4732bdb6
+
+  // 2. Catch-up keeps its meaning but loses the promise the system never kept.
+  modify #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb description = "Deliveries that accumulate while an endpoint is away are replayed on reconnect, flagged as replayed and retained until acknowledged or until their replay window elapses, so the endpoint can record them without presenting each one; live deliveries are presented at once. Acknowledgement means received, not shown."
+}
