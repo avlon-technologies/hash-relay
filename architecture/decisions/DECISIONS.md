@@ -1,19 +1,19 @@
 # Decision history
 
-> A rendering of the decision record `decisions.jsonl`, produced by continuum-cli 0.28.1. It is not the authority: the record is. Each statement copied from the record cites its event as [eN]; the chronology at the end gives every event's line digest. `continuum decision export --check <this file>` re-verifies the record and confirms that this file is its complete rendering.
+> A rendering of the decision record `decisions.jsonl`, produced by continuum-cli 0.28.3. It is not the authority: the record is. Each statement copied from the record cites its event as [eN]; the chronology at the end gives every event's line digest. `continuum decision export --check <this file>` re-verifies the record and confirms that this file is its complete rendering.
 
 ## Verification
 
-**VERIFIED** — 15 Host-signed event(s); every line canonical, chained and signed (ES256) by key(s) decisions-dev-2026-11-04
+**VERIFIED** — 19 Host-signed event(s); every line canonical, chained and signed (ES256) by key(s) decisions-dev-2026-11-04
 
 | | |
 |---|---|
-| Record | `decisions.jsonl`, sha256:afaac1698326102d17776f95566a6d7b8a3f0b87cb3ede267c247b9a6eb18a4b |
+| Record | `decisions.jsonl`, sha256:94b1f10bd50a1a71b0de7cc974b84fc6c57c4975359b5d5531ed4fb9096ffbd4 |
 | Profile | continuum-decision-record/1: each act authorized and signed (ES256) by the Host |
-| Checked | canonical lines, chain, space and every ES256 signature against key(s) decisions-dev-2026-11-04, by continuum-cli 0.28.1 |
-| Events | 15 (e1–e15) |
-| Head | sha256:d50b025314dd25edb399d4f6be23e4e2d23fd5591fbda41f867e765fefd6efba (e15) |
-| Decisions | 2 |
+| Checked | canonical lines, chain, space and every ES256 signature against key(s) decisions-dev-2026-11-04, by continuum-cli 0.28.3 |
+| Events | 19 (e1–e19) |
+| Head | sha256:46b788e623b5a5a8edbae7ccf9d50cf9dbc4b6f2e9007a613a406e5c7ac77286 (e19) |
+| Decisions | 3 |
 | Authority policy | Host policy sha256:9792b32aab7d1fa86b22854f484aaeefe50d78d7187a754a7a9fd2549ca88a08 |
 | Problems | none |
 
@@ -28,24 +28,25 @@
 
 | Actor | Identity as recorded | Acts | First |
 |---|---|---|---|
-| Michael Kang | Michael Kang (Host-verified: https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0 oid 2605c7a8-5120-4edb-98cc-76d563601c0f) | 7 | [e1] |
-| agent:claude-code for Michael Kang | agent:claude-code acting for Michael Kang (Host-verified: https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0 oid 2605c7a8-5120-4edb-98cc-76d563601c0f) under Host delegation 701cafdf-e357-423f-bf4b-d527b1c6ab0e | 8 | [e2] |
+| Michael Kang | Michael Kang (Host-verified: https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0 oid 2605c7a8-5120-4edb-98cc-76d563601c0f) | 9 | [e1] |
+| agent:claude-code for Michael Kang | agent:claude-code acting for Michael Kang (Host-verified: https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0 oid 2605c7a8-5120-4edb-98cc-76d563601c0f) under Host delegation 701cafdf-e357-423f-bf4b-d527b1c6ab0e | 10 | [e2] |
 
 ## Current standing (derived)
 
-Derived from the accept, reject, revoke and supersede acts up to e15.
+Derived from the accept, reject, revoke and supersede acts up to e19.
 
 | Decision | Title | Standing | Since | Detail |
 |---|---|---|---|---|
 | ADR-001 | Offline deliveries are kept for a bounded replay window | IN FORCE | [e5] | option bounded-replay-window |
-| ADR-002 | Native notifications are shown only by a per-user desktop agent | IN FORCE | [e12] |  |
+| ADR-002 | Native notifications are shown only by a per-user desktop agent | SUPERSEDED | [e19] | by ADR-003; line of replacement ADR-002 → ADR-003 (IN FORCE) |
+| ADR-003 | Native notifications are shown only by a per-user desktop agent (toast library left to implementation) | IN FORCE | [e18] |  |
 
-In force: ADR-001, ADR-002.
+In force: ADR-001, ADR-003.
 
 ## Unresolved or conflicting authority (derived)
 
 - No structured contradiction among the 2 decision(s) in force that state ADL expectations.
-- Compared by their ADL expectations: ADR-001, ADR-002. Not compared, because they state no ADL expectation: none.
+- Compared by their ADL expectations: ADR-001, ADR-003. Not compared, because they state no ADL expectation: none.
 - **Prose is not compared.** Continuum does not read decision wording for contradictions. Two decisions in force that say opposite things in words are both listed above as IN FORCE: compare their current wording below.
 - Pending, binding nothing until accepted: none.
 - Challenges with no disposition: none.
@@ -125,7 +126,7 @@ Expectations in effect *(derived)*: `exists ::HashRelay.Notifications.HashtagDel
 
 ### ADR-002 — Native notifications are shown only by a per-user desktop agent
 
-Standing *(derived)*: **IN FORCE** [e12].
+Standing *(derived)*: **SUPERSEDED** by ADR-003 [e19].
 
 - [e10] 2026-11-05T09:51:14.685Z **Proposed** by agent:claude-code for Michael Kang (grant `agent-architect`, delegated by `owner`)
   - Title: Native notifications are shown only by a per-user desktop agent
@@ -175,8 +176,51 @@ Standing *(derived)*: **IN FORCE** [e12].
   - Method: code inspection: toasts only in HashRelay.Agent (WinExe, user session); win-x64 self-contained (build.ps1:65); Inno PrivilegesRequired=lowest, {localappdata}. DEVIATION: uses Microsoft.Toolkit.Uwp.Notifications, not AppNotificationManager as worded
   - Class: reported by the actor the Host recorded — not verified by Continuum
   - Evidence: {"digest":"sha256:28aa180d99f9bd1a7dfc82b2f0a8f6b32239a7de4edfe48c547e52b7d9fef9b0","path":"evidence/ADR-002-implementation.json"}
+- [e19] 2026-11-05T11:34:13.687Z **Superseded** by Michael Kang (grant `owner`, separation-of-duties rule a-person-who-did-not-author-it-approves)
+  - Superseded by: ADR-003
+  - Reason: ADR-003 restates ADR-002 without naming a toast library; the code uses Microsoft.Toolkit.Uwp.Notifications
 
 Current wording *(derived from [e10])*: "On desktop, notifications are displayed only by DesktopAgent running in the signed-in user's session, through the platform notification center (on Windows, the Windows App SDK AppNotificationManager). No service, session-0 or server process renders user notifications. The Windows agent ships as a self-contained x64 build in a per-user Inno Setup installer that needs no admin rights."
+Expectations in effect *(derived)*: `exists ::HashRelay.DesktopAgent`, `exists ::HashRelay.DesktopNotificationCenter`
+
+### ADR-003 — Native notifications are shown only by a per-user desktop agent (toast library left to implementation)
+
+Standing *(derived)*: **IN FORCE** [e18].
+Supersedes *(derived from those acts)*: ADR-002 [e19].
+
+- [e16] 2026-11-05T11:21:17.554Z **Proposed** by agent:claude-code for Michael Kang (grant `agent-architect`, delegated by `owner`)
+  - Title: Native notifications are shown only by a per-user desktop agent (toast library left to implementation)
+  - Decision (as proposed): "On desktop, notifications are displayed only by DesktopAgent running in the signed-in user's session, through the platform notification center (on Windows, toast notifications raised by the agent process). No service, session-0 or server process renders user notifications. The Windows agent ships as a self-contained x64 build in a per-user Inno Setup installer that needs no admin rights."
+  - Rationale: Replaces ADR-002, whose wording named the Windows App SDK AppNotificationManager. That name was carried over from docs/adr/0001-windows-first.md without checking the code: the agent raises toasts with Microsoft.Toolkit.Uwp.Notifications (ToastNotificationManagerCompat), which also delivers to the Windows notification center from the user session (evidence/ADR-002-implementation.json). Which toast library is used is an implementation choice, so the decision no longer names one. The rest of ADR-002 stands unchanged: Windows services run in session 0 and cannot show notifications in a user's session, and a per-user install keeps the agent with the user who paired it and avoids elevation.
+  - Alternatives considered:
+    - Keep ADR-002's wording and move the agent to AppNotificationManager: adds the Windows App SDK runtime and bootstrapper to an unpackaged app with no change in behavior
+    - A Windows service that renders notifications: cannot reach the user session from session 0
+    - A per-machine MSI install: needs admin rights and does not map an install to one user
+    - Framework-dependent build: requires a matching .NET runtime on every machine
+  - Consequences:
+    - Notifications appear only while the user is signed in and the agent is running
+    - Each Windows user who wants notifications installs and pairs their own agent
+    - The toast library can change without a new decision, as long as toasts are raised from the user-session agent
+  - Risks:
+    - A self-contained build is large and must be re-shipped for every .NET security patch
+  - Scope:
+    - ::HashRelay.DesktopAgent (Deployable)
+  - Expectations:
+    - exists ::HashRelay.DesktopAgent
+    - exists ::HashRelay.DesktopNotificationCenter
+  - Bound to model Avlon.HashRelay sha256:a89061e4c049377dbe06faf4e79fe9fd6fd97fff1e3d2281a50cc26bddc13f7f
+- [e17] 2026-11-05T11:21:23.954Z **Checked** by agent:claude-code for Michael Kang (grant `agent-architect`, delegated by `owner`)
+  - Mechanical: passed — the model compiles to sha256:a89061e4c049377dbe06faf4e79fe9fd6fd97fff1e3d2281a50cc26bddc13f7f
+  - Alignment (decision → model, no source code read): aligned — all 2 expectations hold
+    - `exists ::HashRelay.DesktopAgent`: satisfied
+    - `exists ::HashRelay.DesktopNotificationCenter`: satisfied
+  - Assessor: @avlon/continuum-cli 0.28.2
+  - Bound to model Avlon.HashRelay sha256:a89061e4c049377dbe06faf4e79fe9fd6fd97fff1e3d2281a50cc26bddc13f7f
+- [e18] 2026-11-05T11:33:50.270Z **Accepted** by Michael Kang (grant `owner`, separation-of-duties rule a-person-who-did-not-author-it-approves)
+  - Reason: Corrects ADR-002's toast library wording; library left to implementation
+  - Bound to model Avlon.HashRelay sha256:a89061e4c049377dbe06faf4e79fe9fd6fd97fff1e3d2281a50cc26bddc13f7f
+
+Current wording *(derived from [e16])*: "On desktop, notifications are displayed only by DesktopAgent running in the signed-in user's session, through the platform notification center (on Windows, toast notifications raised by the agent process). No service, session-0 or server process renders user notifications. The Windows agent ships as a self-contained x64 build in a per-user Inno Setup installer that needs no admin rights."
 Expectations in effect *(derived)*: `exists ::HashRelay.DesktopAgent`, `exists ::HashRelay.DesktopNotificationCenter`
 
 ## The record itself
@@ -205,4 +249,8 @@ Every event in record order, with the sha256 of its line.
 | e13 | 2026-11-05T09:53:20.134Z | checked | ADR-002 | Michael Kang | sha256:1118ee49b29b97006f3c5b539f22d987f29905a0ada7d9234fb4e0cb6c2ac876 |
 | e14 | 2026-11-05T09:56:25.791Z | checked | ADR-002 | Michael Kang | sha256:f90b70d1a4434a99d10e8ededc12eae105ad2d8518eb1ca7fada03c4be409375 |
 | e15 | 2026-11-05T10:00:16.004Z | evidenced | ADR-002 | Michael Kang | sha256:d50b025314dd25edb399d4f6be23e4e2d23fd5591fbda41f867e765fefd6efba |
+| e16 | 2026-11-05T11:21:17.554Z | proposed | ADR-003 | agent:claude-code for Michael Kang | sha256:519d292b6a207a139191da21a01ddf1eb07204b924f31b76e0da3b6fbd6e8ca6 |
+| e17 | 2026-11-05T11:21:23.954Z | checked | ADR-003 | agent:claude-code for Michael Kang | sha256:2e141e445f2a1c74d65bb2c5827b21ff25f74d27029a962f47d29e88c27addda |
+| e18 | 2026-11-05T11:33:50.270Z | accepted | ADR-003 | Michael Kang | sha256:70fda00f7a3f420add3c3365268d1e373748ee418b724a6479855805fa13cc35 |
+| e19 | 2026-11-05T11:34:13.687Z | superseded | ADR-002 | Michael Kang | sha256:46b788e623b5a5a8edbae7ccf9d50cf9dbc4b6f2e9007a613a406e5c7ac77286 |
 

@@ -3,6 +3,8 @@
     "exists ADR-001",
     "status ADR-001 accepted",
     "exists ADR-002",
-    "status ADR-002 accepted"
+    "status ADR-002 superseded",
+    "exists ADR-003",
+    "status ADR-003 accepted"
   ]
 }
