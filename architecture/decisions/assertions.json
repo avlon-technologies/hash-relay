@@ -1,5 +1,6 @@
 {
   "checks": [
-    "exists ADR-001"
+    "exists ADR-001",
+    "status ADR-001 accepted"
   ]
 }
