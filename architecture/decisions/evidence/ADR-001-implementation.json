@@ -1,0 +1,12 @@
+{
+  "decision": "ADR-001",
+  "commit": "5e57da1",
+  "model": { "change": "architecture/changes/2026-11-04-bounded-offline-retention.adl-change", "state": "sha256:a89061e4c049377dbe06faf4e79fe9fd6fd97fff1e3d2281a50cc26bddc13f7f", "verifyAuthored": "EQUIVALENT", "commit": "1898b96" },
+  "tests": {
+    "added": ["RetentionTests.A_queued_delivery_expires_when_its_window_elapses_even_if_the_endpoint_never_returns", "RetentionTests.An_expired_delivery_is_never_counted_as_delivered"],
+    "redBeforeFix": "An_expired_delivery_is_never_counted_as_delivered: expected 0 delivered, actual 1",
+    "suite": { "total": 167, "passed": 167, "failed": 0 }
+  },
+  "guard": "PASS [model]",
+  "limits": "Tests exercise the sweep and the counts through the API and the database. They do not run the hosted timer, and they do not establish production behaviour."
+}

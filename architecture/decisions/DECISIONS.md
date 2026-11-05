@@ -4,15 +4,15 @@
 
 ## Verification
 
-**VERIFIED** — 7 Host-signed event(s); every line canonical, chained and signed (ES256) by key(s) decisions-dev-2026-11-04
+**VERIFIED** — 8 Host-signed event(s); every line canonical, chained and signed (ES256) by key(s) decisions-dev-2026-11-04
 
 | | |
 |---|---|
-| Record | `decisions.jsonl`, sha256:9bbb66ae287905a95311161336d112c4a2d1b1f5fde96a094e012974e77b70de |
+| Record | `decisions.jsonl`, sha256:57358f5979516c1b82dbd8951c87d97fe23c331e332c61aba576eaaf146b8be9 |
 | Profile | continuum-decision-record/1: each act authorized and signed (ES256) by the Host |
 | Checked | canonical lines, chain, space and every ES256 signature against key(s) decisions-dev-2026-11-04, by continuum-cli 0.26.0 |
-| Events | 7 (e1–e7) |
-| Head | sha256:31d2466082046fa4764bde1a407fb83418704ecfd4a70506d6942456daf6c656 (e7) |
+| Events | 8 (e1–e8) |
+| Head | sha256:f36306c40c9d6e720b22f048a5ecf535568ecc164a824a00b0c708a7cb0fda83 (e8) |
 | Decisions | 1 |
 | Authority policy | Host policy sha256:9792b32aab7d1fa86b22854f484aaeefe50d78d7187a754a7a9fd2549ca88a08 |
 | Problems | none |
@@ -29,11 +29,11 @@
 | Actor | Identity as recorded | Acts | First |
 |---|---|---|---|
 | Michael Kang | Michael Kang (Host-verified: https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0 oid 2605c7a8-5120-4edb-98cc-76d563601c0f) | 2 | [e1] |
-| agent:claude-code for Michael Kang | agent:claude-code acting for Michael Kang (Host-verified: https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0 oid 2605c7a8-5120-4edb-98cc-76d563601c0f) under Host delegation 701cafdf-e357-423f-bf4b-d527b1c6ab0e | 5 | [e2] |
+| agent:claude-code for Michael Kang | agent:claude-code acting for Michael Kang (Host-verified: https://login.microsoftonline.com/f7ef9e19-20fa-47ac-91dd-47890978afe8/v2.0 oid 2605c7a8-5120-4edb-98cc-76d563601c0f) under Host delegation 701cafdf-e357-423f-bf4b-d527b1c6ab0e | 6 | [e2] |
 
 ## Current standing (derived)
 
-Derived from the accept, reject, revoke and supersede acts up to e7.
+Derived from the accept, reject, revoke and supersede acts up to e8.
 
 | Decision | Title | Standing | Since | Detail |
 |---|---|---|---|---|
@@ -110,6 +110,11 @@ Standing *(derived)*: **IN FORCE** [e5].
     - `::HashRelay.Notifications.Delivery.DeliveryService satisfies ::HashRelay.Notifications.HashtagDelivery.BoundedOfflineRetention`: satisfied
   - Assessor: @avlon/continuum-cli 0.26.0
   - Bound to model Avlon.HashRelay sha256:a89061e4c049377dbe06faf4e79fe9fd6fd97fff1e3d2281a50cc26bddc13f7f
+- [e8] 2026-11-05T05:52:45.735Z **Evidence** by agent:claude-code for Michael Kang (grant `agent-architect`, delegated by `owner`)
+  - Implementation evidence, REPORTED (not verified by Continuum): established
+  - Method: regression tests written first (2), full suite 167/167, guard PASS, model Apply EQUIVALENT
+  - Class: reported by the actor the Host recorded — not verified by Continuum
+  - Evidence: {"digest":"sha256:ea5fb101fdc18f4e49c2096b90c11ac1c2270caedc5e5355bfd076695034e2d0","path":"evidence/ADR-001-implementation.json"}
 
 Current wording *(derived from [e2])*: "A delivery queued for an offline endpoint is retained until it is acknowledged or until its replay window (ReplayWindowHours, 24 by default) elapses, whichever comes first. An expired delivery is recorded as expired and is never counted as delivered."
 Expectations in effect *(derived)*: `exists ::HashRelay.Notifications.HashtagDelivery.BoundedOfflineRetention`, `::HashRelay.Notifications.Delivery.DeliveryService satisfies ::HashRelay.Notifications.HashtagDelivery.BoundedOfflineRetention`, `exists ::HashRelay.Notifications.HashtagDelivery.BoundedOfflineRetention`, `::HashRelay.Notifications.Delivery.DeliveryService satisfies ::HashRelay.Notifications.HashtagDelivery.BoundedOfflineRetention`
@@ -132,4 +137,5 @@ Every event in record order, with the sha256 of its line.
 | e5 | 2026-11-05T05:44:50.339Z | accepted | ADR-001 | Michael Kang | sha256:c3f95a540b0a66fdf14ed90c91875c941458096db71d4dd0362a821601e1de80 |
 | e6 | 2026-11-05T05:45:36.068Z | checked | ADR-001 | agent:claude-code for Michael Kang | sha256:b93a49d6758880159f0667618004caa4c85d23b6375f774e12f4beba86630dac |
 | e7 | 2026-11-05T05:45:45.504Z | checked | ADR-001 | agent:claude-code for Michael Kang | sha256:31d2466082046fa4764bde1a407fb83418704ecfd4a70506d6942456daf6c656 |
+| e8 | 2026-11-05T05:52:45.735Z | evidenced | ADR-001 | agent:claude-code for Michael Kang | sha256:f36306c40c9d6e720b22f048a5ecf535568ecc164a824a00b0c708a7cb0fda83 |
 
