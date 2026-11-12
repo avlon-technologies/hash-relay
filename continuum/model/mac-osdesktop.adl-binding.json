@@ -5,7 +5,7 @@
     "base": {
       "package": "Avlon.HashRelay",
       "version": "draft-1",
-      "canonicalModel": "sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870"
+      "canonicalModel": "sha256:60306b31735e0c39d70e8f8e04de6c8e92e388ab0a6ef9742e1447aa86f8b93a"
     },
     "vocabularies": [
       {
@@ -233,7 +233,7 @@
         "kind": "Binding",
         "id": "a3894c70-0968-4a28-b2fa-19fa7fb3126d",
         "name": "B11",
-        "description": "Deployable ::HashRelay.CloudApi — The hosted HashRelay cloud every desktop agent connects to. Realised in M1; M2 changes nothing server-side.",
+        "description": "Deployable ::HashRelay.CloudApi — The hosted HashRelay cloud every desktop agent connects to. Realised in M1. M2 server work is limited to what D-M2-09 decides for uninstall (endpoint delete or device-credential self-revoke API; none exists today).",
         "attributes": {
           "vocabulary": "avlon.hashrelay.bindings.hosted",
           "technology": "aspnetcore-container-app",
@@ -268,7 +268,7 @@
             "bundleId": "ca.avlon.hashrelay.agent",
             "signing": "Developer ID Application certificate, hardened runtime; identity via secretLocator env://MACOS_SIGNING_IDENTITY",
             "notarization": "xcrun notarytool submit --wait, then xcrun stapler staple; App Store Connect API key via secretLocator env://APPLE_NOTARY_API_KEY",
-            "distribution": "notarized .dmg; the user drags HashRelay.app to ~/Applications (no admin) or /Applications",
+            "distribution": "notarized .dmg; the agent installs into ~/Applications (no admin) so self-update needs no admin; /Applications is not supported for per-user lifecycle",
             "startAtLogin": "SMAppService.mainApp login item, toggled from the menu, visible in System Settings > General > Login Items",
             "uninstall": "menu item and hashrelay agent uninstall: revoke grant, delete Keychain items, unregister login item, quit, move app to Trash",
             "diagnostics": "~/Library/Logs/HashRelay; menu Export Diagnostics writes a zip of logs and status JSON, secrets redacted",
@@ -376,10 +376,10 @@
           "vocabulary": "avlon.hashrelay.bindings.macos",
           "technology": "hashrelay-client-runtime",
           "configuration": {
-            "library": "src/HashRelay.Client (net10.0); protocol unchanged: pairing device flow, hub Hello on every (re)connect with platform=macos, ack, replay, duplicate suppression, catch-up summary",
+            "library": "src/HashRelay.Client (net10.0) for hub Hello on every (re)connect with platform=macos, ack, replay, duplicate suppression, catch-up summary; REQUIRED CLIENT WORK: move the device-authorization pairing flow (today duplicated in Agent/PairForm.cs and Cli/Cli.cs) into HashRelay.Client, and add a credential-store interface so the device credential leaves config.json; the CLI and agent share it through that store (D-M2-12), ack, replay, duplicate suppression, catch-up summary",
             "notificationAdapter": "UNUserNotificationCenter: requestAuthorization(alert, sound); a UNNotificationCategory for approvals with Approve/Reject UNNotificationActions; didReceive response goes to OneClickApprovals or opens the review page",
             "permissionState": "UNUserNotificationCenter getNotificationSettings, reported in status",
-            "grantProtector": "IGrantProtector over the Keychain (DeviceVault)",
+            "secretStore": "NEW key-value ISecretStore over the Keychain (DeviceVault) for credential and grant; IGrantProtector (byte-sealing, file-backed decision-grant.bin) does not fit a Keychain and is replaced on macOS",
             "updater": "in-agent updater: signed release manifest from the release channel, Developer ID team-ID check of the new bundle before swapping it in"
           }
         },
@@ -402,7 +402,7 @@
             "keychain": "login keychain, kSecClassGenericPassword",
             "service": "ca.avlon.hashrelay",
             "accounts": "device-credential, decision-grant",
-            "access": "kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly; the agent designated requirement (team ID)"
+            "access": "data-protection keychain (kSecUseDataProtectionKeychain) with keychain-access-group bound to the Developer ID team, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, so access survives signed updates"
           }
         },
         "relationships": {

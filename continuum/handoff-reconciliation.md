@@ -1,6 +1,7 @@
 # M2 Desktop portability — handoff reconciliation and gaps
 
-Authored review artifact (not package inventory, not authority). Status of the handoff: **NOT READY for
+Authored review artifact (not package inventory, not authority). Proposed decisions D-M2-01..12:
+`../architecture/proposals/2026-11-11-m2-desktop-portability-decisions.md`. Status of the handoff: **NOT READY for
 implementation without human confirmation** of the proposed decisions in
 `architecture/proposals/2026-11-11-m2-desktop-portability-decisions.md`; the package itself builds and checks.
 
@@ -36,3 +37,9 @@ implementation without human confirmation** of the proposed decisions in
 | G9 | confirmed (tooling) | No adapter: `continuum package run` refuses ("no adapter at continuum/acceptance/adapter.mjs"). Scenarios are validated, not executed. | implementer writes `acceptance/adapter.mjs` (`continuum package adapter init continuum`) |
 | G10 | confirmed (tooling) | `architecture/bindings/{windows-local,mobile-fcm}.adl-binding.json` are pinned to an old attestation and both bind `DeliveryService` in `LocalDevelopment`; superseded in this package by `continuum/model/local-development.adl-binding.json` (identities reused). | retire or regenerate the old documents |
 | G11 | confirmed | The package rests on proposed state B; `architecture/model/hash-relay.adl` is still state A. Adoption is a human act. | approve the change, then adopt B |
+| G12 | confirmed (cold review) | Client code work the bindings now name: shared pairing flow in HashRelay.Client (today in PairForm.cs and Cli.cs), a key-value secret store replacing file-backed IGrantProtector, CLI `agent` command is Windows-only (Cli.cs:449) and must gain status/diagnostics/uninstall off Windows, migration of existing `~/.config/hashrelay/config.json` plaintext credentials. | D-M2-12, implementation tasks |
+| G13 | needs-decision (cold review) | Uninstall server side: no endpoint-delete or device-credential self-revoke API exists (ApiEndpoints.cs; only grant DELETE /current). BDL `ForgetDeviceOnUninstall` ("nothing that can receive") is only true with one of them. | D-M2-09 + BDL `UninstallServerDisposition` |
+| G14 | needs-evidence (cold review) | Updater unspecified in detail: manifest schema, pinned key id and custody, version comparison and downgrade blocking, swap and rollback. | D-M2-07 detail spec |
+| G15 | confirmed (cold review) | Scenario steps underspecified for an adapter: approval action lacks `deliveryId`; a4 not set up; `grant.given` needs an interactive sign-in test hook; status vocabularies (`refused-by-agent`, `degraded-file`, …) undefined; "decides once" not exercised by a repeat. Missing failure scenarios: no notification server, locked Secret Service, offline one-click, `CredentialRevoked`, failed update download or swap, wrong Developer ID team. 8 of 19 scenarios have no `trace.from`. | scenario revision pass |
+| G16 | confirmed (model) | Hub `Hello`/`Ack`, device code and token and `GrantDeviceDecisions` sending are not modelled for the agent (see G3); the lifecycle trace through `RevokeDeviceDecisions → ApprovalResolved` reflects a pre-existing over-broad server declaration. | protocol-surface change |
+| G17 | suspected (cold review) | Linux: `ActionInvoked` only reaches a live D-Bus client (actions on notifications shown before a restart are lost); KWallet provides Secret Service only on recent KDE Frameworks. | verify on target desktops |

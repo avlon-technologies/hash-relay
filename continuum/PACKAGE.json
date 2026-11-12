@@ -10,8 +10,8 @@
     "package": "Avlon.HashRelay",
     "version": "draft-1",
     "core": "adl/1.4",
-    "attestation": "sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870",
-    "changeState": "sha256:847cb3c84834a50ddec4f6190a01fb65fe6bd49d28c1f81235be766cc1a8dc1f",
+    "attestation": "sha256:60306b31735e0c39d70e8f8e04de6c8e92e388ab0a6ef9742e1447aa86f8b93a",
+    "changeState": "sha256:61fd8f85cb390ca71bbcb90823fbfe94c422d92dfdad26ab22959c7b714ed493",
     "manifest": "model/hash-relay.adl-manifest.json",
     "documents": [
       "model/hash-relay.adl"
@@ -26,26 +26,26 @@
     "name": "MacOSDesktop",
     "id": "dfd21f47-8a5f-4de4-b242-0de6617f3420",
     "document": "model/mac-osdesktop.adl-binding.json",
-    "bindingDigest": "sha256:6d5e3b8ae419334b1cf5012dd753912238a53836fb3bf851e9227d6b15e361d7"
+    "bindingDigest": "sha256:5de7662ce6600babddfe85d52eb1bdee851382cbe79c56e0410654a573201e96"
   },
   "environments": [
     {
       "name": "LinuxDesktop",
       "id": "25837588-bbd7-4026-8dda-de3943124679",
       "document": "model/linux-desktop.adl-binding.json",
-      "bindingDigest": "sha256:f509d27e1230f9bd71fede7183fb0078c7c3927a0a2acf026f8ecd12695e261b"
+      "bindingDigest": "sha256:98f889ec5102257311263c57d3ec2bbeacc2c10952d52efa3dafe95dc65ab515"
     },
     {
       "name": "LocalDevelopment",
       "id": "21212121-2121-4121-8121-212121212121",
       "document": "model/local-development.adl-binding.json",
-      "bindingDigest": "sha256:05698241e5f4ea3111cee41075fd5a3bb48fcc8274e4a64be3aec693c900b3c8"
+      "bindingDigest": "sha256:9a3bb51569aaea6d408c96ecbced86ed1c83f648c3581c6b112f54619a6d7d76"
     },
     {
       "name": "MacOSDesktop",
       "id": "dfd21f47-8a5f-4de4-b242-0de6617f3420",
       "document": "model/mac-osdesktop.adl-binding.json",
-      "bindingDigest": "sha256:6d5e3b8ae419334b1cf5012dd753912238a53836fb3bf851e9227d6b15e361d7"
+      "bindingDigest": "sha256:5de7662ce6600babddfe85d52eb1bdee851382cbe79c56e0410654a573201e96"
     }
   ],
   "bindings": [
@@ -142,10 +142,10 @@
     "model/hash-relay.adl.txt"
   ],
   "files": {
-    "BEHAVIOUR.md": "sha256:4168d7446b1e3a81e6d6da95ab3878c6b68475f2fc5000692ddc6b3be17fee6e",
+    "BEHAVIOUR.md": "sha256:acc1718cf824d1d3c625681988692fcd14898785b29e185e16799f637777d66e",
     "GOAL.md": "sha256:8f5c41bb333d07c10ab84e34eb1eae5c5a050c649ad6b6b970d64e1edc3a581e",
-    "IMPLEMENTATION.md": "sha256:4f627b331bf9a76a66289e47d772cdeb69f24a4b6f12ffe1c32d4cdcf2b0b1ed",
-    "README.md": "sha256:bc999fbe8a30be129104eca6e418c3b5999ea40490d5544d4552cd5e4c9c0bac",
+    "IMPLEMENTATION.md": "sha256:f91fe39a122de7462e4ef01e09f7dea7a1250e5e36b92f5de1a630a7f6a5de82",
+    "README.md": "sha256:510765ebc4f1a5ad349b9653013f649abc6b3c5d3f7c26463001857759a59067",
     "acceptance/README.md": "sha256:7bef675512a8dfcc851f5da615c8f08abf58b7db6441b9dbd64156c76674b075",
     "acceptance/fake-model-provider.mjs": "sha256:d2ec0ce524ca996865beef2c339c205deb9d7ad2610a1e7ff72a1b7732781b69",
     "acceptance/run.mjs": "sha256:447dac8db77b8e1d93382e778b52ebd4fead29f0ef62b05e3a924717dea01370",
@@ -181,16 +181,16 @@
     "acceptance/traces/macos-per-user-install-lifecycle.trace.json": "sha256:f20cf23d5c1ba03f607c4fc390d14809badaa3ce5e8e305d5dcfb3f074110f3c",
     "development-package.json": "sha256:69e1b0473d4df65469271c523955c2a1f88f260d206c66792b29eb78352af049",
     "model/avlon.hashrelay.bindings.hosted.vocabulary-claims.json": "sha256:2c455beb9ee294145adf131441525318b0575d65bc5da16e1e5814081603bdc4",
-    "model/avlon.hashrelay.bindings.linux.vocabulary-claims.json": "sha256:c3a3723a9fd75e30385b3e7b73c123996c4eec3c08fb55c3d11ff82d83790c45",
-    "model/avlon.hashrelay.bindings.macos.vocabulary-claims.json": "sha256:4a7dd1a940818b0cb4ee89c74c8a54fb55a84fddd7aefc8b83386626e5ed8a29",
+    "model/avlon.hashrelay.bindings.linux.vocabulary-claims.json": "sha256:5cbf0d463b8fc2989c1f91e45b0dccba24627a1f005eb516332819fcd44fa82f",
+    "model/avlon.hashrelay.bindings.macos.vocabulary-claims.json": "sha256:8d444e24f305a8779a236c973b1d88a6e5c898973ea581c5f40b0e6693564881",
     "model/avlon.hashrelay.bindings.windows.vocabulary-claims.json": "sha256:07f58cdf00cd31bd104d3691aa074c0647159fd6ac5de8260be50c615cf30033",
-    "model/compile-proof.json": "sha256:7ab2b51c07283efb26cd605f7d973a3ab879ca3aa00d1ba0e88c4d5c8125ba8f",
-    "model/hash-relay.adl": "sha256:1f5a45c2fb8e444bb9627a76d6590dcf57e11716948d982e7135ea1556b92bed",
+    "model/compile-proof.json": "sha256:53417654d74962fce153ff249551969af9a826543d5173b2ec11329e4f379c9b",
+    "model/hash-relay.adl": "sha256:a3c60ff346bcf02d3183c5ef2f3aba1ba336cb7fd55993c8bf4cd5217a1b6f53",
     "model/hash-relay.adl-manifest.json": "sha256:cb2a3c7c8ba6a52dc0e89bc7f74b0d0b244e1d27cf0581234e48ee4fb6da76d8",
-    "model/hash-relay.adl.txt": "sha256:fc5ba2ac6ddf5eb828469d16897d0291bf8d19fbe44f655e4e2877ffb7aeb99b",
+    "model/hash-relay.adl.txt": "sha256:cb95e4e5269e42693a348307eccb65ebd38cc7aec4df7adee8a1d3268f40252c",
     "model/hash-relay.bdl": "sha256:7133685df46e17bfb6c20972a69ae08a79e16cd5d62a53ca0a7229be7f2f86d6",
-    "model/linux-desktop.adl-binding.json": "sha256:3d785af171eb42a52b47832d92baea871250ad20105c8990de45e53bded4cd21",
-    "model/local-development.adl-binding.json": "sha256:3a017d493e491b24c3e2b849c4dfa88a5225d9e985f08e8fe02f744bf48691f5",
-    "model/mac-osdesktop.adl-binding.json": "sha256:b03c05e47de185715468bd0e65c28c3a300f4984e2b0987d6f1c33ea2d0353a1"
+    "model/linux-desktop.adl-binding.json": "sha256:725f01be2dcb7a3de4f30d7112931e23cfad786cd271cbc19b5738e16f206719",
+    "model/local-development.adl-binding.json": "sha256:1cd321cf45929cc4b447dd72d329dc2bff119dfff1513bfd4fff9639998345b9",
+    "model/mac-osdesktop.adl-binding.json": "sha256:e5c147cfaee0efa7f00acdd24d0ed1a8e640a0cddb740d12d4a6a517cbfa37db"
   }
 }

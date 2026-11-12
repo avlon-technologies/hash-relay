@@ -27,7 +27,7 @@
           "library": "atom",
           "notificationAdapter": "atom",
           "permissionState": "atom",
-          "grantProtector": "atom",
+          "secretStore": "atom",
           "updater": "atom"
         }
       },

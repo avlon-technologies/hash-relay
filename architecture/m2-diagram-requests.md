@@ -7,8 +7,8 @@ here was rendered, substituted or approximated.
 Model to import for all three (state B, the proposal):
 
 - manifest: `continuum/model/hash-relay.adl-manifest.json` (document `continuum/model/hash-relay.adl`)
-- attestation `sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870`
-- changeState `sha256:847cb3c84834a50ddec4f6190a01fb65fe6bd49d28c1f81235be766cc1a8dc1f`
+- attestation `sha256:60306b31735e0c39d70e8f8e04de6c8e92e388ab0a6ef9742e1447aa86f8b93a`
+- changeState `sha256:61fd8f85cb390ca71bbcb90823fbfe94c422d92dfdad26ab22959c7b714ed493`
 - derived by `architecture/changes/2026-11-11-m2-desktop-portability.adl-change` from state A
   `architecture/model/hash-relay.adl-manifest.json` (changeState `sha256:a89061e4…f7f`). Everything the change
   adds is a PROPOSAL and should be drawn and labelled as proposed.

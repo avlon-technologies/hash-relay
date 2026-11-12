@@ -33,6 +33,10 @@ decision below can change without touching the attestation.
 | D-M2-10 | **Supported Linux desktops at M2: Ubuntu LTS and Fedora Workstation (GNOME), KDE Plasma; x64 only.** GNOME shows no tray without an extension, so the Linux agent must work headless (CLI + notifications). | Any freedesktop desktop, best effort; arm64 at M2 | Bounded test matrix; matches BDL `SupportedLinuxDesktops` (unresolved) | Linux `DesktopAgent` |
 | D-M2-11 | **Linux pairing UX: browser device-authorization flow started from `hashrelay login`/tray**, code shown in a notification and in the terminal; no GUI toolkit dependency. | Avalonia pairing window (shared with macOS) | Avoids a GUI toolkit on Linux; the device flow already works from the CLI | Linux `DesktopAgent` |
 
+| D-M2-12 | **One credential store shared by CLI and agent**: move pairing into `HashRelay.Client`; add a key-value `ISecretStore` (Keychain / Secret Service / DPAPI) holding the device credential and grant; `config.json` keeps only non-secrets; first run migrates a plaintext `ApiKey` from `config.json` into the store and removes it. | keep CLI plaintext config and give the agent its own pairing | required for `LocalCredentialCustody`; found by the cold review (RelayConfig.cs:12, Cli.cs:167, OneClickApprovals.cs:9-60) | `AgentRuntime`, `DeviceVault` (all) |
+
+Blocking for implementation start: D-M2-01, D-M2-03, D-M2-06, D-M2-07, D-M2-09, D-M2-12. The rest can be revised during implementation.
+
 ## Language/model limits recorded, not modelled around
 
 - ADL forbids `Service writes Resource[secret-store]` (`adl/architectural/secret-store-write`). The agent does

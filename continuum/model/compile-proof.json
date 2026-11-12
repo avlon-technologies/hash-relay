@@ -11,8 +11,8 @@
     ]
   },
   "ok": true,
-  "attestation": "sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870",
-  "changeState": "sha256:847cb3c84834a50ddec4f6190a01fb65fe6bd49d28c1f81235be766cc1a8dc1f",
+  "attestation": "sha256:60306b31735e0c39d70e8f8e04de6c8e92e388ab0a6ef9742e1447aa86f8b93a",
+  "changeState": "sha256:61fd8f85cb390ca71bbcb90823fbfe94c422d92dfdad26ab22959c7b714ed493",
   "ledger": {
     "passed": 78,
     "failed": 0,
@@ -32,11 +32,11 @@
     "documents": [
       {
         "path": "hash-relay.adl",
-        "digest": "sha256:1f5a45c2fb8e444bb9627a76d6590dcf57e11716948d982e7135ea1556b92bed",
-        "bytes": 31353
+        "digest": "sha256:a3c60ff346bcf02d3183c5ef2f3aba1ba336cb7fd55993c8bf4cd5217a1b6f53",
+        "bytes": 31463
       }
     ],
-    "inputSet": "sha256:4de3deb21a0cd356da039f01fcadc10c28b5494370817bda4626974f1ad18166",
+    "inputSet": "sha256:dfb5dd4d4c05cccd8eea3e1fb5fdaa0c17d7f283bbdb1d273b041b697c39fa1b",
     "note": "digests over the AUTHORED input bytes, distinct from the attestation (the engine's digest over canonical content)."
   },
   "verifier": {
@@ -294,7 +294,7 @@
         "id": "25837588-bbd7-4026-8dda-de3943124679",
         "document": "model/linux-desktop.adl-binding.json",
         "completeness": "passed",
-        "bindingDigest": "sha256:f509d27e1230f9bd71fede7183fb0078c7c3927a0a2acf026f8ecd12695e261b",
+        "bindingDigest": "sha256:98f889ec5102257311263c57d3ec2bbeacc2c10952d52efa3dafe95dc65ab515",
         "notEvaluated": []
       },
       {
@@ -302,7 +302,7 @@
         "id": "21212121-2121-4121-8121-212121212121",
         "document": "model/local-development.adl-binding.json",
         "completeness": "passed",
-        "bindingDigest": "sha256:05698241e5f4ea3111cee41075fd5a3bb48fcc8274e4a64be3aec693c900b3c8",
+        "bindingDigest": "sha256:9a3bb51569aaea6d408c96ecbced86ed1c83f648c3581c6b112f54619a6d7d76",
         "notEvaluated": []
       },
       {
@@ -310,7 +310,7 @@
         "id": "dfd21f47-8a5f-4de4-b242-0de6617f3420",
         "document": "model/mac-osdesktop.adl-binding.json",
         "completeness": "passed",
-        "bindingDigest": "sha256:6d5e3b8ae419334b1cf5012dd753912238a53836fb3bf851e9227d6b15e361d7",
+        "bindingDigest": "sha256:5de7662ce6600babddfe85d52eb1bdee851382cbe79c56e0410654a573201e96",
         "notEvaluated": []
       }
     ],
@@ -321,11 +321,11 @@
       },
       {
         "vocabulary": "avlon.hashrelay.bindings.linux m2-draft-1",
-        "digest": "sha256:14498c41f3a4647d1bbe3483195524e693ef9dfde6c9c0f5855a7b2f71e2c727"
+        "digest": "sha256:48d303ed2a8e7d5a35944f6eb99d0659210332a452c85d4a778f36e3671fdb94"
       },
       {
         "vocabulary": "avlon.hashrelay.bindings.macos m2-draft-1",
-        "digest": "sha256:a82908851701c63775e9142eff9adae47546fc3c2b1c4efe448e51095d7536d7"
+        "digest": "sha256:5e5c31cb9cde018e067c279030b78c88d947265e42a1b795a745b1a69547eaaa"
       },
       {
         "vocabulary": "avlon.hashrelay.bindings.windows m2-draft-1",

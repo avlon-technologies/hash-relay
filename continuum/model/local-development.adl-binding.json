@@ -5,7 +5,7 @@
     "base": {
       "package": "Avlon.HashRelay",
       "version": "draft-1",
-      "canonicalModel": "sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870"
+      "canonicalModel": "sha256:60306b31735e0c39d70e8f8e04de6c8e92e388ab0a6ef9742e1447aa86f8b93a"
     },
     "vocabularies": [
       {

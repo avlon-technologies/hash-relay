@@ -31,8 +31,8 @@ The implementation realizes all of the above — and is not in this package.
 | | |
 |---|---|
 | semantic package | `Avlon.HashRelay` `draft-1` (`adl/1.4`) |
-| attestation | `sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870` |
-| changeState | `sha256:847cb3c84834a50ddec4f6190a01fb65fe6bd49d28c1f81235be766cc1a8dc1f` |
+| attestation | `sha256:60306b31735e0c39d70e8f8e04de6c8e92e388ab0a6ef9742e1447aa86f8b93a` |
+| changeState | `sha256:61fd8f85cb390ca71bbcb90823fbfe94c422d92dfdad26ab22959c7b714ed493` |
 | environment | `MacOSDesktop` (also bound: `LinuxDesktop`, `LocalDevelopment`) |
 | scenarios | 19, resolved against the model; no adapter ships — the implementation writes one and runs them with `package run` |
 | compiler warnings | 15 |

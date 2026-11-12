@@ -43,7 +43,7 @@ change DesktopPortability core adl/1.4 {
   }
   add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
     requirement DesktopProtocolParity #4443b53f-df3c-41ac-b013-574d9ae3b2c7 {
-      desc "Every desktop agent, on every supported platform, pairs through the device-authorization flow, re-registers its endpoint after every connect and reconnect reporting its platform and agent version, acknowledges each delivery once received, suppresses notification ids it has recently presented, presents a replayed backlog as one catch-up summary while presenting live deliveries at once, and offers approval actions under the same rules. Platforms differ only in how they present, start, update and keep local secrets."
+      desc "Every desktop agent, on every supported platform, pairs through the device-authorization flow, re-registers its endpoint after every connect and reconnect reporting its platform and agent version, acknowledges each delivery once received, suppresses notification ids it has recently presented, presents a replayed backlog of two or more as one catch-up summary (a lone replayed item, and a bounded number of high-priority items, may be shown on their own) while presenting live deliveries at once, and offers approval actions under the same rules. Platforms differ only in how they present, start, update and keep local secrets."
     }
   }
   add into #da84779c-9ed5-4266-9878-0a44acbefce5 {

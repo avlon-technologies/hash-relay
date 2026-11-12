@@ -5,7 +5,7 @@
     "base": {
       "package": "Avlon.HashRelay",
       "version": "draft-1",
-      "canonicalModel": "sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870"
+      "canonicalModel": "sha256:60306b31735e0c39d70e8f8e04de6c8e92e388ab0a6ef9742e1447aa86f8b93a"
     },
     "vocabularies": [
       {
@@ -233,7 +233,7 @@
         "kind": "Binding",
         "id": "60016fc3-4d15-4ff4-8c89-379bed4d9f00",
         "name": "B11",
-        "description": "Deployable ::HashRelay.CloudApi — The hosted HashRelay cloud every desktop agent connects to. Realised in M1; M2 changes nothing server-side.",
+        "description": "Deployable ::HashRelay.CloudApi — The hosted HashRelay cloud every desktop agent connects to. Realised in M1. M2 server work is limited to what D-M2-09 decides for uninstall (endpoint delete or device-credential self-revoke API; none exists today).",
         "attributes": {
           "vocabulary": "avlon.hashrelay.bindings.hosted",
           "technology": "aspnetcore-container-app",
@@ -374,10 +374,10 @@
           "vocabulary": "avlon.hashrelay.bindings.linux",
           "technology": "hashrelay-client-runtime",
           "configuration": {
-            "library": "src/HashRelay.Client (net10.0); protocol unchanged: pairing device flow, hub Hello on every (re)connect with platform=linux, ack, replay, duplicate suppression, catch-up summary",
+            "library": "src/HashRelay.Client (net10.0) for hub Hello on every (re)connect with platform=linux, ack, replay, duplicate suppression, catch-up summary; REQUIRED CLIENT WORK: shared pairing flow and credential-store interface as for macOS (D-M2-12), ack, replay, duplicate suppression, catch-up summary",
             "notificationAdapter": "org.freedesktop.Notifications over the session D-Bus (Tmds.DBus.Protocol): Notify with desktop-entry hint; approval actions only when GetCapabilities lists actions; ActionInvoked goes to OneClickApprovals or opens the review page with xdg-open; otherwise the default action opens the review page",
             "permissionState": "notification server presence and capabilities, reported in status",
-            "grantProtector": "IGrantProtector over the Secret Service (DeviceVault); none when it is unavailable, so grants are refused",
+            "secretStore": "NEW key-value ISecretStore over the Secret Service (DeviceVault); when unavailable, a 0600 credential file and no grant",
             "updater": "in-agent updater: signed release manifest from the release channel, artifact SHA-256 check, atomic swap of the per-user install dir"
           }
         },
