@@ -1,0 +1,72 @@
+{
+  "adl-json": "adl-json/1.0",
+  "vocabulary-claims": {
+    "vocabulary": "avlon.hashrelay.bindings.hosted",
+    "version": "m2-draft-1",
+    "technologies": {
+      "in-process-dispatch": {
+        "claims": [],
+        "configuration": {
+          "module": "atom"
+        }
+      },
+      "sqlite-efcore": {
+        "claims": [
+          "PersistenceExpectation.durability/durable",
+          "PersistenceExpectation.consistency/strong",
+          "retention-honored",
+          "erasure-capable",
+          "access-controlled",
+          "auditable"
+        ],
+        "configuration": {
+          "engine": "atom",
+          "orm": "atom",
+          "file": "atom",
+          "note": "atom",
+          "table": "atom"
+        }
+      },
+      "aspnetcore-service": {
+        "claims": [],
+        "configuration": {
+          "module": "atom",
+          "platforms": "atom"
+        }
+      },
+      "sqlite-transactional-outbox": {
+        "claims": [],
+        "configuration": {
+          "table": "atom",
+          "processor": "atom"
+        }
+      },
+      "aspnetcore-container-app": {
+        "claims": [],
+        "configuration": {
+          "runtime": "atom",
+          "framework": "atom",
+          "hosting": "atom",
+          "image": "atom",
+          "publicOrigin": "atom"
+        }
+      },
+      "expo-react-native": {
+        "claims": [],
+        "configuration": {
+          "module": "atom",
+          "scope": "atom"
+        }
+      },
+      "aspnetcore-signalr-hub": {
+        "claims": [],
+        "configuration": {
+          "module": "atom",
+          "hub": "atom",
+          "transport": "atom",
+          "push": "atom"
+        }
+      }
+    }
+  }
+}

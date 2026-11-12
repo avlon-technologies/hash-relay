@@ -1,0 +1,51 @@
+{
+  "adl-json": "adl-json/1.0",
+  "vocabulary-claims": {
+    "vocabulary": "avlon.hashrelay.bindings.macos",
+    "version": "m2-draft-1",
+    "technologies": {
+      "dotnet-macos-app-bundle": {
+        "claims": [],
+        "configuration": {
+          "runtime": "atom",
+          "architectures": "atom",
+          "minimumOS": "atom",
+          "ui": "atom",
+          "bundleId": "atom",
+          "signing": "atom",
+          "notarization": "atom",
+          "distribution": "atom",
+          "startAtLogin": "atom",
+          "uninstall": "atom",
+          "diagnostics": "atom",
+          "ci": "atom"
+        }
+      },
+      "hashrelay-client-runtime": {
+        "claims": [],
+        "configuration": {
+          "library": "atom",
+          "notificationAdapter": "atom",
+          "permissionState": "atom",
+          "grantProtector": "atom",
+          "updater": "atom"
+        }
+      },
+      "macos-keychain": {
+        "claims": [
+          "PersistenceExpectation.durability/durable",
+          "PersistenceExpectation.consistency/strong",
+          "retention-honored",
+          "erasure-capable",
+          "access-controlled"
+        ],
+        "configuration": {
+          "keychain": "atom",
+          "service": "atom",
+          "accounts": "atom",
+          "access": "atom"
+        }
+      }
+    }
+  }
+}

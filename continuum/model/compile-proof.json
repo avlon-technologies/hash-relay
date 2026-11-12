@@ -1,0 +1,342 @@
+{
+  "development-package-proof": "1",
+  "normative": false,
+  "note": "the compiler's result relayed by tools/development-package.mjs — diagnostics and the ledger have no ratified wire form; the attestation and changeState are the engines' own digests",
+  "package": {
+    "name": "Avlon.HashRelay",
+    "version": "draft-1",
+    "core": "adl/1.4",
+    "documents": [
+      "hash-relay.adl"
+    ]
+  },
+  "ok": true,
+  "attestation": "sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870",
+  "changeState": "sha256:847cb3c84834a50ddec4f6190a01fb65fe6bd49d28c1f81235be766cc1a8dc1f",
+  "ledger": {
+    "passed": 78,
+    "failed": 0,
+    "notEvaluated": 0,
+    "byReason": {}
+  },
+  "notEvaluated": [],
+  "inputs": {
+    "manifest": {
+      "name": "Avlon.HashRelay",
+      "version": "draft-1",
+      "core": "adl/1.4",
+      "imports": [],
+      "extensions": [],
+      "digest": "sha256:cb2a3c7c8ba6a52dc0e89bc7f74b0d0b244e1d27cf0581234e48ee4fb6da76d8"
+    },
+    "documents": [
+      {
+        "path": "hash-relay.adl",
+        "digest": "sha256:1f5a45c2fb8e444bb9627a76d6590dcf57e11716948d982e7135ea1556b92bed",
+        "bytes": 31353
+      }
+    ],
+    "inputSet": "sha256:4de3deb21a0cd356da039f01fcadc10c28b5494370817bda4626974f1ad18166",
+    "note": "digests over the AUTHORED input bytes, distinct from the attestation (the engine's digest over canonical content)."
+  },
+  "verifier": {
+    "recordedBeside": "compile-proof.verifier.json",
+    "note": "the verifier that decided this judgment is NOT in this proof: it is acquired by the client and recorded beside it (continuum-verifier-record/1). When that record is absent the judgment is UNIDENTIFIED — a historical record, not attributable, not replayable, never a current claim."
+  },
+  "warnings": [
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "016836e1-a201-4cfd-9e8b-3c114c612ee3",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "deployedAs",
+        "searched": [
+          "deployedAs"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.MobileApp"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "13131313-1313-4313-8313-131313131313",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "owns",
+        "searched": [
+          "owns"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.Delivery"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "19191919-1919-4919-8919-191919191919",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "deployedAs",
+        "searched": [
+          "deployedAs"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.CloudApi"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "2beb7660-867d-4a33-b29c-b66f4732bdb6",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.HashtagDelivery.BoundedOfflineRetention"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "32323232-3232-4232-8232-323232323232",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Access.TenantAdministration.TenantKeyIsolation"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "33333334-3333-4333-8333-333333333334",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "owns",
+        "searched": [
+          "owns"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Access.TenantIdentity"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "49ca33cb-df60-4ef4-9280-7807328ea2d5",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.HashtagDelivery.ForwardOnlySubscription"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "4b83047e-c625-485c-8330-1a6a171bd029",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.HashtagDelivery.DeliveryEvidence"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "5bd1be10-b48e-4b77-a7c6-9e57f06d1003",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Approvals.HumanDecision.DecisionIntegrity"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "5bd1be10-b48e-4b77-a7c6-9e57f06d1004",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "owns",
+        "searched": [
+          "owns"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Approvals.DecisionManagement"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "99999999-9999-4999-8999-999999999999",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.HashtagDelivery.WorkspaceIsolation"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "abb41875-38c1-4a85-a377-293012ad4b3d",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.HashtagDelivery.PublisherAttribution"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "owns",
+        "searched": [
+          "owns"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.Routing"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "d8f8d42f-f7c1-4d35-b9e2-ab5d4d760c64",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "verifies",
+        "searched": [
+          "verifies"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Approvals.HumanDecision.OutcomeLifecycle"
+    },
+    {
+      "severity": "warning",
+      "id": "adl/architectural/unrealized-intent",
+      "subject": "e75644cf-4246-45ee-a9d7-427c4c541207",
+      "level": "element",
+      "member": null,
+      "detail": {
+        "form": "obligation",
+        "required": "owns",
+        "searched": [
+          "owns"
+        ],
+        "found": []
+      },
+      "subjectName": "::HashRelay.Notifications.EndpointAgent"
+    }
+  ],
+  "errors": [],
+  "derivedFrom": null,
+  "binding": {
+    "environments": [
+      {
+        "name": "LinuxDesktop",
+        "id": "25837588-bbd7-4026-8dda-de3943124679",
+        "document": "model/linux-desktop.adl-binding.json",
+        "completeness": "passed",
+        "bindingDigest": "sha256:f509d27e1230f9bd71fede7183fb0078c7c3927a0a2acf026f8ecd12695e261b",
+        "notEvaluated": []
+      },
+      {
+        "name": "LocalDevelopment",
+        "id": "21212121-2121-4121-8121-212121212121",
+        "document": "model/local-development.adl-binding.json",
+        "completeness": "passed",
+        "bindingDigest": "sha256:05698241e5f4ea3111cee41075fd5a3bb48fcc8274e4a64be3aec693c900b3c8",
+        "notEvaluated": []
+      },
+      {
+        "name": "MacOSDesktop",
+        "id": "dfd21f47-8a5f-4de4-b242-0de6617f3420",
+        "document": "model/mac-osdesktop.adl-binding.json",
+        "completeness": "passed",
+        "bindingDigest": "sha256:6d5e3b8ae419334b1cf5012dd753912238a53836fb3bf851e9227d6b15e361d7",
+        "notEvaluated": []
+      }
+    ],
+    "claims": [
+      {
+        "vocabulary": "avlon.hashrelay.bindings.hosted m2-draft-1",
+        "digest": "sha256:b555ca8acbc9088826cf83defea054d116f303ea08a6134f816e3c82392df210"
+      },
+      {
+        "vocabulary": "avlon.hashrelay.bindings.linux m2-draft-1",
+        "digest": "sha256:14498c41f3a4647d1bbe3483195524e693ef9dfde6c9c0f5855a7b2f71e2c727"
+      },
+      {
+        "vocabulary": "avlon.hashrelay.bindings.macos m2-draft-1",
+        "digest": "sha256:a82908851701c63775e9142eff9adae47546fc3c2b1c4efe448e51095d7536d7"
+      },
+      {
+        "vocabulary": "avlon.hashrelay.bindings.windows m2-draft-1",
+        "digest": "sha256:a667f819a83e17399af18b6efef8711c776905a670f324ed54c3707f72ef31ab"
+      }
+    ],
+    "secretMaterial": {
+      "status": "not-evaluated",
+      "reason": "unresolved-normative-dependency",
+      "detail": "R12-1"
+    },
+    "unboundEnvironments": []
+  }
+}

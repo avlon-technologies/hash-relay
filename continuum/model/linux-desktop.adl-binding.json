@@ -1,0 +1,475 @@
+{
+  "adl-json": "adl-json/1.0",
+  "document": {
+    "universe": "binding",
+    "base": {
+      "package": "Avlon.HashRelay",
+      "version": "draft-1",
+      "canonicalModel": "sha256:f2b757e3706b13154fba281d4a9e15ef9513d12a0d2e486d8b4a4a08da528870"
+    },
+    "vocabularies": [
+      {
+        "name": "avlon.hashrelay.bindings.hosted",
+        "version": "m2-draft-1"
+      },
+      {
+        "name": "avlon.hashrelay.bindings.linux",
+        "version": "m2-draft-1"
+      }
+    ],
+    "environment": {
+      "ref": "25837588-bbd7-4026-8dda-de3943124679",
+      "hint": "HashRelay.LinuxDesktop"
+    },
+    "bindings": [
+      {
+        "kind": "Binding",
+        "id": "9eec7c1d-b2ed-4c3c-b78f-62abb11a025d",
+        "name": "B1",
+        "description": "MessageChannel ::HashRelay.AcceptedNotificationChannel — Accepted notifications pass from routing to delivery inside the one CloudApi process.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "in-process-dispatch",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/RoutingService.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "9e0ca284-2b31-4e9d-949b-07d69a184ff1",
+            "hint": "HashRelay.AcceptedNotificationChannel"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "6fe76dc3-b618-4081-8673-22d8363e7337",
+        "name": "B2",
+        "description": "Resource ::HashRelay.Access.TenantIdentity.ApiKeyRegistry — Realised M1 store, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "sqlite-efcore",
+          "configuration": {
+            "engine": "sqlite",
+            "orm": "entity-framework-core",
+            "file": "HashRelay:DatabasePath (Azure Files share in hosting)",
+            "note": "realised in M1; unchanged by M2",
+            "table": "ApiKeys"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "39393939-3939-4939-8939-393939393939",
+            "hint": "HashRelay.Access.TenantIdentity.ApiKeyRegistry"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "ccb3dfef-a198-4ebd-9dd8-9f64f1107a7a",
+        "name": "B3",
+        "description": "Service ::HashRelay.Access.TenantIdentity.ApiKeyService — Realised M1 service, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-service",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/CredentialService.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "41414141-4141-4141-8141-414141414141",
+            "hint": "HashRelay.Access.TenantIdentity.ApiKeyService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "996a3db9-2c42-4a13-b15a-388eb84dd30e",
+        "name": "B4",
+        "description": "Service ::HashRelay.Access.TenantIdentity.TenantAdministrationService — Realised M1 service, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-service",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/AccountService.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "40404040-4040-4040-8040-404040404040",
+            "hint": "HashRelay.Access.TenantIdentity.TenantAdministrationService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "2ad1da4a-d3da-4ad7-8383-4453cf4ae4e9",
+        "name": "B5",
+        "description": "Resource ::HashRelay.Access.TenantIdentity.TenantRegistry — Realised M1 store, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "sqlite-efcore",
+          "configuration": {
+            "engine": "sqlite",
+            "orm": "entity-framework-core",
+            "file": "HashRelay:DatabasePath (Azure Files share in hosting)",
+            "note": "realised in M1; unchanged by M2",
+            "table": "Tenants, Memberships"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "38383838-3838-4838-8838-383838383838",
+            "hint": "HashRelay.Access.TenantIdentity.TenantRegistry"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "e8d9902d-448e-42fb-b726-a348a5976ab3",
+        "name": "B6",
+        "description": "Service ::HashRelay.Approvals.DecisionManagement.ApprovalOutcomeReader — Realised service, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-service",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/Approvals/ApprovalOutboxProcessor.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "5bd1be10-b48e-4b77-a7c6-9e57f06d1015",
+            "hint": "HashRelay.Approvals.DecisionManagement.ApprovalOutcomeReader"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "8c145932-d0a4-472d-8287-7e849afb7546",
+        "name": "B7",
+        "description": "Event ::HashRelay.Approvals.DecisionManagement.ApprovalResolved — ApprovalResolved is written to the ApprovalOutbox table in the deciding transaction and processed by ApprovalOutboxProcessor.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "sqlite-transactional-outbox",
+          "configuration": {
+            "table": "ApprovalOutbox",
+            "processor": "src/HashRelay.Server/Services/Approvals/ApprovalOutboxProcessor.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "5bd1be10-b48e-4b77-a7c6-9e57f06d1009",
+            "hint": "HashRelay.Approvals.DecisionManagement.ApprovalResolved"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "3394bd9a-25ef-4796-b9bc-fe91b4b498eb",
+        "name": "B8",
+        "description": "Service ::HashRelay.Approvals.DecisionManagement.ApprovalService — Realised service, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-service",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/Approvals/ApprovalService.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "5bd1be10-b48e-4b77-a7c6-9e57f06d1011",
+            "hint": "HashRelay.Approvals.DecisionManagement.ApprovalService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "e35fd321-c9e9-44d8-95d8-5edf43a31c44",
+        "name": "B9",
+        "description": "Resource ::HashRelay.Approvals.DecisionManagement.ApprovalStore — Realised store, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "sqlite-efcore",
+          "configuration": {
+            "engine": "sqlite",
+            "orm": "entity-framework-core",
+            "file": "HashRelay:DatabasePath (Azure Files share in hosting)",
+            "note": "realised in M1; unchanged by M2",
+            "table": "Approvals"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "5bd1be10-b48e-4b77-a7c6-9e57f06d1010",
+            "hint": "HashRelay.Approvals.DecisionManagement.ApprovalStore"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "9e7e4573-73b8-4f98-bb09-ae8a9a94cc7c",
+        "name": "B10",
+        "description": "Resource ::HashRelay.Approvals.DecisionManagement.DecisionGrantStore — Realised store, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "sqlite-efcore",
+          "configuration": {
+            "engine": "sqlite",
+            "orm": "entity-framework-core",
+            "file": "HashRelay:DatabasePath (Azure Files share in hosting)",
+            "note": "realised in M1; unchanged by M2",
+            "table": "DecisionGrants"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "cad19393-5a26-44be-8f35-02f4e3960ef4",
+            "hint": "HashRelay.Approvals.DecisionManagement.DecisionGrantStore"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "60016fc3-4d15-4ff4-8c89-379bed4d9f00",
+        "name": "B11",
+        "description": "Deployable ::HashRelay.CloudApi — The hosted HashRelay cloud every desktop agent connects to. Realised in M1; M2 changes nothing server-side.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-container-app",
+          "configuration": {
+            "runtime": "net10.0",
+            "framework": "ASP.NET Core 10 + in-process SignalR",
+            "hosting": "Azure Container Apps, consumption plan, scale-to-zero, max one replica",
+            "image": "Dockerfile",
+            "publicOrigin": "https://hashrelay.avlon.ca"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "19191919-1919-4919-8919-191919191919",
+            "hint": "HashRelay.CloudApi"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "f4ce2af9-ee74-483a-81f1-0aa0c799b033",
+        "name": "B12",
+        "description": "Deployable ::HashRelay.DesktopAgent — PROPOSED (D-M2-02, D-M2-03, D-M2-05, D-M2-07, D-M2-08). Self-contained per-user install, no root.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.linux",
+          "technology": "dotnet-linux-user-install",
+          "configuration": {
+            "runtime": "net10.0, self-contained linux-x64",
+            "architectures": "x64 (arm64 deferred)",
+            "supportedDesktops": "Ubuntu LTS and Fedora Workstation with GNOME, KDE Plasma (proposed; BDL SupportedLinuxDesktops is unresolved)",
+            "ui": "StatusNotifierItem tray over D-Bus where the desktop shows one; otherwise headless with the hashrelay agent CLI; pairing through the browser device flow",
+            "distribution": "hashrelay-VERSION-linux-x64.tar.gz plus signed release manifest; install.sh --user into ~/.local/share/hashrelay, symlink ~/.local/bin/hashrelay",
+            "desktopEntry": "~/.local/share/applications/ca.avlon.HashRelay.desktop (the application identity notifications carry)",
+            "startAtLogin": "XDG autostart entry ~/.config/autostart/ca.avlon.HashRelay.desktop",
+            "uninstall": "hashrelay agent uninstall: revoke grant, clear Secret Service items and credential file, remove autostart entry, desktop entry, symlink and install dir",
+            "diagnostics": "$XDG_STATE_HOME/hashrelay/logs; hashrelay agent diagnostics --export writes a zip, secrets redacted",
+            "ci": "GitHub Actions Ubuntu runner: build, tar, sign the release manifest, publish to the release channel"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "20202020-2020-4020-8020-202020202020",
+            "hint": "HashRelay.DesktopAgent"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "a3270057-070c-4dd4-be17-cf1ec6636e3e",
+        "name": "B13",
+        "description": "Deployable ::HashRelay.MobileApp — Present in this environment only because environment completeness covers every owned Deployable; the mobile app is not part of M2 and nothing here changes it.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "expo-react-native",
+          "configuration": {
+            "module": "src/HashRelay.Mobile",
+            "scope": "unchanged-by-m2"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "016836e1-a201-4cfd-9e8b-3c114c612ee3",
+            "hint": "HashRelay.MobileApp"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "f2acf642-fafd-4125-a19d-ee73da0ba9de",
+        "name": "B14",
+        "description": "Service ::HashRelay.Notifications.Delivery.DeliveryService — Realtime delivery to connected agents: hub /hubs/notifications, Hello binds the connection to the endpoint, replay of unacknowledged deliveries flagged replayed; FCM HTTP v1 push for mobile endpoints. Unchanged by M2; macOS and Linux agents use the same hub protocol.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-signalr-hub",
+          "configuration": {
+            "module": "src/HashRelay.Server/Realtime, src/HashRelay.Server/Services/RoutingService.cs",
+            "hub": "/hubs/notifications",
+            "transport": "websocket",
+            "push": "FCM HTTP v1 via Services/Push/FcmPushSender.cs; credential secretLocator HashRelay:Push:Fcm:ServiceAccountJson"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "18181818-1818-4818-8818-181818181818",
+            "hint": "HashRelay.Notifications.Delivery.DeliveryService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "1c949287-b074-4212-b2d4-54658a23bdba",
+        "name": "B15",
+        "description": "Service ::HashRelay.Notifications.Delivery.EndpointService — Endpoint registration, unchanged by M2: the platform in Hello and POST /api/v1/endpoints is a free string (trimmed to 32 chars, lowercased; EndpointService.RegisterAsync), so macos and linux need no server change.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-service",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/EndpointService.cs",
+            "platforms": "free string; agents send windows, macos or linux"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "17171717-1717-4717-8717-171717171717",
+            "hint": "HashRelay.Notifications.Delivery.EndpointService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "6d4c76e6-2cef-4854-8624-aad713df3d70",
+        "name": "B16",
+        "description": "Resource ::HashRelay.Notifications.Delivery.EndpointStore — Realised store, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "sqlite-efcore",
+          "configuration": {
+            "engine": "sqlite",
+            "orm": "entity-framework-core",
+            "file": "HashRelay:DatabasePath (Azure Files share in hosting)",
+            "note": "realised in M1; unchanged by M2",
+            "table": "Endpoints"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "16161616-1616-4616-8616-161616161616",
+            "hint": "HashRelay.Notifications.Delivery.EndpointStore"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "bd7ac901-ae2c-4325-a439-3a4aba96e8e8",
+        "name": "B17",
+        "description": "Service ::HashRelay.Notifications.EndpointAgent.AgentRuntime — PROPOSED. The shared runtime with Linux adapters.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.linux",
+          "technology": "hashrelay-client-runtime",
+          "configuration": {
+            "library": "src/HashRelay.Client (net10.0); protocol unchanged: pairing device flow, hub Hello on every (re)connect with platform=linux, ack, replay, duplicate suppression, catch-up summary",
+            "notificationAdapter": "org.freedesktop.Notifications over the session D-Bus (Tmds.DBus.Protocol): Notify with desktop-entry hint; approval actions only when GetCapabilities lists actions; ActionInvoked goes to OneClickApprovals or opens the review page with xdg-open; otherwise the default action opens the review page",
+            "permissionState": "notification server presence and capabilities, reported in status",
+            "grantProtector": "IGrantProtector over the Secret Service (DeviceVault); none when it is unavailable, so grants are refused",
+            "updater": "in-agent updater: signed release manifest from the release channel, artifact SHA-256 check, atomic swap of the per-user install dir"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "d98a5831-e9da-404b-83db-38272f04abf8",
+            "hint": "HashRelay.Notifications.EndpointAgent.AgentRuntime"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "41e78bde-6233-4e7f-bcc3-960fff5e12fa",
+        "name": "B18",
+        "description": "Resource ::HashRelay.Notifications.EndpointAgent.DeviceVault — PROPOSED (D-M2-06). Secret Service API items (gnome-keyring, KWallet).",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.linux",
+          "technology": "freedesktop-secret-service",
+          "configuration": {
+            "api": "org.freedesktop.secrets over the session D-Bus, default collection",
+            "attributes": "application=ca.avlon.HashRelay, kind=device-credential or decision-grant",
+            "fallback": "no Secret Service: device credential in $XDG_CONFIG_HOME/hashrelay/credential (mode 0600), degraded custody in diagnostics, no decision grant"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "90dfe7e9-011e-43dd-9565-35ca8a78be38",
+            "hint": "HashRelay.Notifications.EndpointAgent.DeviceVault"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "cddb503b-2464-43bf-bad0-b4e1c3845ca2",
+        "name": "B19",
+        "description": "Event ::HashRelay.Notifications.Routing.NotificationAccepted — Raised and consumed inside CloudApi.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "in-process-dispatch",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/RoutingService.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "10101010-1010-4010-8010-101010101010",
+            "hint": "HashRelay.Notifications.Routing.NotificationAccepted"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "622cd52d-9cbb-4500-ba71-1b400cce2146",
+        "name": "B20",
+        "description": "Service ::HashRelay.Notifications.Routing.RoutingService — Realised service, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "aspnetcore-service",
+          "configuration": {
+            "module": "src/HashRelay.Server/Services/RoutingService.cs"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "12121212-1212-4212-8212-121212121212",
+            "hint": "HashRelay.Notifications.Routing.RoutingService"
+          }
+        }
+      },
+      {
+        "kind": "Binding",
+        "id": "c3c51e34-c18f-487f-84b0-07d43c616cf2",
+        "name": "B21",
+        "description": "Resource ::HashRelay.Notifications.Routing.RoutingStore — Realised store, unchanged by M2.",
+        "attributes": {
+          "vocabulary": "avlon.hashrelay.bindings.hosted",
+          "technology": "sqlite-efcore",
+          "configuration": {
+            "engine": "sqlite",
+            "orm": "entity-framework-core",
+            "file": "HashRelay:DatabasePath (Azure Files share in hosting)",
+            "note": "realised in M1; unchanged by M2",
+            "table": "Notifications, Subscriptions, Deliveries"
+          }
+        },
+        "relationships": {
+          "binds": {
+            "ref": "11111112-1111-4111-8111-111111111112",
+            "hint": "HashRelay.Notifications.Routing.RoutingStore"
+          }
+        }
+      }
+    ]
+  }
+}

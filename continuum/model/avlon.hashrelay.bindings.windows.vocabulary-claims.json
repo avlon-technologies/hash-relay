@@ -1,0 +1,54 @@
+{
+  "adl-json": "adl-json/1.0",
+  "vocabulary-claims": {
+    "vocabulary": "avlon.hashrelay.bindings.windows",
+    "version": "m2-draft-1",
+    "technologies": {
+      "windows-tray-agent": {
+        "claims": [],
+        "configuration": {
+          "runtime": "atom",
+          "ui": "atom",
+          "notifications": "atom",
+          "distribution": "atom",
+          "signing": "atom",
+          "startAtLogin": "atom",
+          "update": "atom",
+          "uninstall": "atom",
+          "diagnostics": "atom"
+        }
+      },
+      "hashrelay-client-runtime": {
+        "claims": [],
+        "configuration": {
+          "library": "atom",
+          "notificationAdapter": "atom",
+          "permissionState": "atom",
+          "grantProtector": "atom",
+          "updater": "atom"
+        }
+      },
+      "windows-dpapi-current-user": {
+        "claims": [
+          "PersistenceExpectation.durability/durable",
+          "PersistenceExpectation.consistency/strong",
+          "retention-honored",
+          "erasure-capable",
+          "access-controlled"
+        ],
+        "configuration": {
+          "grant": "atom",
+          "credential": "atom"
+        }
+      },
+      "aspnetcore-local-process": {
+        "claims": [],
+        "configuration": {
+          "runtime": "atom",
+          "framework": "atom",
+          "hosting": "atom"
+        }
+      }
+    }
+  }
+}

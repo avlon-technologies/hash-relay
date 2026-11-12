@@ -1,0 +1,96 @@
+{
+  "acceptance-scenario": "1",
+  "name": "macos-agent-registers-on-every-connect",
+  "purpose": "On macos, the agent re-registers its endpoint with platform and version after connecting and after a reconnect, and a live delivery is presented at once.",
+  "verifies": [
+    "::HashRelay.Notifications.DesktopEndpoint.DesktopProtocolParity",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.AgentRegistersOnEveryConnect",
+  "environment": "MacOSDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "macos",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on macos, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    }
+  ],
+  "when": [
+    {
+      "step": "agent.connect",
+      "text": "the agent connects to the realtime hub"
+    },
+    {
+      "step": "agent.reconnect",
+      "text": "the connection drops and the agent reconnects"
+    },
+    {
+      "step": "notification.publish",
+      "args": {
+        "notificationId": "n1",
+        "tags": [
+          "#builds"
+        ],
+        "title": "Build complete",
+        "body": "All tests passed"
+      },
+      "text": "a publisher publishes n1 to #builds"
+    }
+  ],
+  "then": [
+    {
+      "step": "hub.hello-count",
+      "args": {
+        "endpointId": "e1",
+        "count": 2,
+        "platform": "macos"
+      },
+      "text": "the hub received Hello from e1 twice, each naming the platform and the agent version"
+    },
+    {
+      "step": "notification.presented",
+      "args": {
+        "notificationId": "n1",
+        "count": 1
+      },
+      "text": "n1 is presented once, natively, at once"
+    },
+    {
+      "step": "delivery.acked",
+      "args": {
+        "notificationId": "n1",
+        "endpointId": "e1"
+      },
+      "text": "the delivery of n1 to e1 is acknowledged"
+    }
+  ],
+  "trace": {
+    "from": "::HashRelay.Notifications.Delivery.RegisterEndpoint"
+  }
+}

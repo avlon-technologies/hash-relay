@@ -1,0 +1,123 @@
+{
+  "acceptance-scenario": "1",
+  "name": "macos-backlog-presented-as-one-summary",
+  "purpose": "On macos, deliveries accumulated while offline are replayed on reconnect, acknowledged and presented as one catch-up summary; a later live delivery is presented on its own.",
+  "verifies": [
+    "::HashRelay.Notifications.DesktopEndpoint.DesktopProtocolParity",
+    "::HashRelay.Notifications.HashtagDelivery.CatchUpWithoutInterruption",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.BacklogPresentedAsOneSummary",
+  "environment": "MacOSDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "macos",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on macos, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    },
+    {
+      "step": "agent.disconnect",
+      "text": "the agent is offline"
+    }
+  ],
+  "when": [
+    {
+      "step": "notification.publish",
+      "args": {
+        "notificationIds": [
+          "n2",
+          "n3",
+          "n4"
+        ],
+        "tags": [
+          "#builds"
+        ]
+      },
+      "text": "n2, n3 and n4 are published to #builds while e1 is offline"
+    },
+    {
+      "step": "agent.reconnect",
+      "text": "the agent reconnects and the server replays the backlog flagged replayed"
+    },
+    {
+      "step": "notification.publish",
+      "args": {
+        "notificationId": "n5",
+        "tags": [
+          "#builds"
+        ]
+      },
+      "text": "n5 is published to #builds after the backlog settles"
+    }
+  ],
+  "then": [
+    {
+      "step": "summary.presented",
+      "args": {
+        "count": 1,
+        "items": 3
+      },
+      "text": "exactly one catch-up summary covering three notifications is presented"
+    },
+    {
+      "step": "notification.not-presented-individually",
+      "args": {
+        "notificationIds": [
+          "n2",
+          "n3",
+          "n4"
+        ]
+      },
+      "text": "n2, n3 and n4 are not presented one by one"
+    },
+    {
+      "step": "delivery.acked",
+      "args": {
+        "notificationIds": [
+          "n2",
+          "n3",
+          "n4"
+        ],
+        "endpointId": "e1"
+      },
+      "text": "n2, n3 and n4 are acknowledged as received"
+    },
+    {
+      "step": "notification.presented",
+      "args": {
+        "notificationId": "n5",
+        "count": 1
+      },
+      "text": "n5 is presented at once on its own"
+    }
+  ],
+  "trace": {
+    "from": "::HashRelay.Notifications.Routing.PublishNotification"
+  }
+}

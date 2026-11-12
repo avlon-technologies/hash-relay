@@ -1,0 +1,152 @@
+{
+  "acceptance-scenario": "1",
+  "name": "macos-approval-actions-need-grant",
+  "purpose": "On macos, an approval action decides only under an active grant; without one it opens the review page; a stale or foreign-origin action never decides.",
+  "verifies": [
+    "::HashRelay.Notifications.DesktopEndpoint.NativeActionFallback",
+    "::HashRelay.Approvals.HumanDecision.DeviceDecisionAuthority",
+    "::HashRelay.Notifications.EndpointAgent.ActionsConferNoAuthority",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.ApprovalActionsNeedGrant",
+  "environment": "MacOSDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "macos",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on macos, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    },
+    {
+      "step": "approval.pending",
+      "args": {
+        "approvalIds": [
+          "a1",
+          "a2"
+        ]
+      },
+      "text": "approvals a1 and a2 are pending in w1 with the paired person as designated approver"
+    },
+    {
+      "step": "approval.expired",
+      "args": {
+        "approvalId": "a3"
+      },
+      "text": "approval a3 has expired"
+    }
+  ],
+  "when": [
+    {
+      "step": "approval.action-invoked",
+      "args": {
+        "approvalId": "a1",
+        "action": "approve",
+        "grant": "none"
+      },
+      "text": "without a grant, the person presses Approve on a1"
+    },
+    {
+      "step": "grant.given",
+      "args": {
+        "endpointId": "e1"
+      },
+      "text": "the person grants one-click decisions to this device after signing in"
+    },
+    {
+      "step": "approval.action-invoked",
+      "args": {
+        "approvalId": "a2",
+        "action": "approve",
+        "grant": "active"
+      },
+      "text": "with the grant, the person presses Approve on a2"
+    },
+    {
+      "step": "approval.action-invoked",
+      "args": {
+        "approvalId": "a3",
+        "action": "approve",
+        "grant": "active"
+      },
+      "text": "with the grant, the person presses Approve on the expired a3"
+    },
+    {
+      "step": "approval.action-invoked",
+      "args": {
+        "approvalId": "a4",
+        "action": "approve",
+        "origin": "https://evil.example"
+      },
+      "text": "an action carrying a foreign-origin review URL is invoked"
+    }
+  ],
+  "then": [
+    {
+      "step": "review-page.opened",
+      "args": {
+        "approvalId": "a1",
+        "origin": "paired-server"
+      },
+      "text": "for a1 the review page on the paired server origin opened and nothing was decided"
+    },
+    {
+      "step": "approval.status",
+      "args": {
+        "approvalId": "a1",
+        "status": "Pending"
+      },
+      "text": "a1 is still Pending"
+    },
+    {
+      "step": "approval.status",
+      "args": {
+        "approvalId": "a2",
+        "status": "Approved"
+      },
+      "text": "a2 is Approved, decided once by the device under the grant"
+    },
+    {
+      "step": "approval.status",
+      "args": {
+        "approvalId": "a3",
+        "status": "Expired"
+      },
+      "text": "a3 is still Expired"
+    },
+    {
+      "step": "decision.not-submitted",
+      "args": {
+        "approvalId": "a4"
+      },
+      "text": "no decision was submitted for the foreign-origin action"
+    }
+  ],
+  "trace": {
+    "from": "::HashRelay.Approvals.DecisionManagement.DecideApproval"
+  }
+}

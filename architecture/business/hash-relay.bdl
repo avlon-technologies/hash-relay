@@ -2,11 +2,11 @@ model {
   bdl 1.0
   types adl-type/1.0
   expressions adl-expr/1.0
-  definition "2026-10-31.mobile-m3"
+  definition "2026-11-11.desktop-m2"
 }
 business HashRelayBusiness #b-hr {
-  description "Tenant-scoped hashtag notification service for desktop and mobile subscribers."
-  purpose { "Enable developers to manage tenant API keys and publish notifications to subscribed users on their Windows desktops and iOS or Android phones." }
+  description "Tenant-scoped hashtag notification service for desktop (Windows, macOS, Linux) and mobile subscribers."
+  purpose { "Enable developers to manage tenant API keys and publish notifications to subscribed users on their Windows, macOS or Linux computers and iOS or Android phones." }
   modality { epistemic stated }
   provenance { source domain-expert, assertedBy "Product owner", assertedOn 2026-10-31 }
   domain Notifications #d-hr {
@@ -20,6 +20,59 @@ business HashRelayBusiness #b-hr {
     action IssueApiKey [permitted] #ac-key { mayPerform Developer exercises DeveloperOnboarding creates ApiKey }
     action SubscribeHashtag [permitted] #ac-sub { mayPerform Subscriber exercises HashtagNotifications creates Subscription }
     action PublishNotification [permitted] #ac-notif { mayPerform Developer exercises HashtagNotifications creates Notification }
+    capability DesktopPresence #c-desktop { purpose { "Let a subscriber receive their notifications natively on their own Windows, macOS or Linux computer, with the same behaviour on each." } }
+    enum DesktopPlatform #en-platform { Windows MacOS Linux }
+    enum DesktopEndpointStatus #en-dstatus { Installed Paired Removed }
+    entity DesktopEndpoint #e-desktop {
+      identity endpointId
+      endpointId: text
+      platform: DesktopPlatform
+      subscriberId: text
+      tenantId: text
+      status: DesktopEndpointStatus
+      state-model DesktopEndpointLifecycle for status #sm-desktop {
+        initial Installed
+        terminal Removed
+        transition Pair #t-pair { from Installed to Paired triggeredBy PairDesktopAgent }
+        transition RemovePaired #t-remove-paired { from Paired to Removed triggeredBy UninstallDesktopAgent produces DesktopAgentRemoved }
+        transition RemoveUnpaired #t-remove-unpaired { from Installed to Removed triggeredBy UninstallDesktopAgent produces DesktopAgentRemoved }
+      }
+    }
+    fact DesktopAgentRemoved #f-removed { endpointId: text }
+    fact AgentReleasePublished #f-release { version: text platform: DesktopPlatform }
+    action InstallDesktopAgent [permitted] #ac-install { mayPerform Subscriber exercises DesktopPresence creates DesktopEndpoint outcome { DesktopEndpoint.status == DesktopEndpointStatus "Installed" } }
+    action PairDesktopAgent [permitted] #ac-pair { mayPerform Subscriber exercises DesktopPresence changes DesktopEndpoint }
+    action UninstallDesktopAgent [permitted] #ac-uninstall { mayPerform Subscriber exercises DesktopPresence changes DesktopEndpoint produces DesktopAgentRemoved }
+    action PublishAgentRelease [permitted] #ac-release { mayPerform HashRelayPublisher exercises DesktopPresence produces AgentReleasePublished }
+    obligation ShipOnlySignedAgents [internal-commitment] #o-signed {
+      borneBy HashRelayPublisher
+      activatedBy AgentReleasePublished
+      statement "Every agent release offered to subscribers on any desktop platform is signed with the HashRelay publisher identity, and notarized where the platform requires it, before it is offered."
+    }
+    obligation ForgetDeviceOnUninstall [internal-commitment] #o-forget {
+      borneBy HashRelayPublisher
+      activatedBy DesktopAgentRemoved
+      statement "When a subscriber removes the agent, the device credential and any decision grant on that computer are removed and the grant is revoked; nothing that can decide or receive on the subscriber's behalf is left behind."
+    }
+    unspecified UninstallServerDisposition #u-uninstall {
+      modality { epistemic underspecified }
+      questions UninstallDesktopAgent
+      question "When the agent is uninstalled, is the endpoint also removed at the server, or does it stay listed (offline) until the subscriber removes it in the dashboard?"
+      reason "The Windows uninstaller today removes neither the server endpoint nor the local credential; M2 proposes removing local secrets and revoking the grant, but the server-side endpoint record was never decided."
+      accountable "Product owner"
+      alternatives
+        "Keep the endpoint listed as offline until removed in the dashboard (no network call needed at uninstall)"
+        "Best-effort unregister the endpoint at uninstall, falling back to offline listing"
+    }
+    unspecified SupportedLinuxDesktops #u-linux {
+      modality { epistemic underspecified }
+      question "Which Linux distributions and desktop environments does HashRelay support at the M2 release?"
+      reason "Notification actions, a secret service and start-at-login behave differently across desktops; support cannot be claimed for all of them."
+      accountable "Product owner"
+      alternatives
+        "Ubuntu LTS and Fedora Workstation with GNOME, and KDE Plasma, x64 only (proposed)"
+        "Any freedesktop-compliant desktop, best effort"
+    }
     unspecified ClientEnrollment #u-client {
       modality { epistemic underspecified }
       question "How should an installed client (desktop agent, CLI or mobile app) authenticate as a subscriber without embedding a shared tenant publishing key?"
@@ -33,4 +86,5 @@ business HashRelayBusiness #b-hr {
   }
   actor Developer [external-party] #a-dev { }
   actor Subscriber [external-party] #a-sub { }
+  actor HashRelayPublisher [organization] #a-publisher { description "The organisation that builds, signs and publishes HashRelay agents." }
 }

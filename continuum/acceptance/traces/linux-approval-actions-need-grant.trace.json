@@ -1,0 +1,50 @@
+{
+  "development-package-trace": "1",
+  "normative": false,
+  "note": "derived from the compiler's process graph; declared causality only — never a runtime claim",
+  "scenario": "linux-approval-actions-need-grant",
+  "from": "::HashRelay.Approvals.DecisionManagement.DecideApproval",
+  "ok": true,
+  "hops": [
+    {
+      "consumed": "::HashRelay.Approvals.DecisionManagement.DecideApproval",
+      "participant": "::HashRelay.Approvals.DecisionManagement.ApprovalService",
+      "consequence": "::HashRelay.Approvals.DecisionManagement.ApprovalResolved",
+      "receiveKind": "handles",
+      "strength": "topological",
+      "provenance": "topological-only",
+      "exclusivity": null,
+      "boundary": "causal-relation-undeclared",
+      "crossings": 0
+    }
+  ],
+  "sinks": [],
+  "openConsumptions": [
+    {
+      "participant": "::HashRelay.Approvals.DecisionManagement.ApprovalService",
+      "consumed": "::HashRelay.Approvals.DecisionManagement.DecideApproval",
+      "boundary": "causal-relation-undeclared"
+    },
+    {
+      "participant": "::HashRelay.Approvals.DecisionManagement.ApprovalOutcomeReader",
+      "consumed": "::HashRelay.Approvals.DecisionManagement.ApprovalResolved",
+      "boundary": "causal-relation-undeclared"
+    }
+  ],
+  "productions": [],
+  "cycles": [],
+  "messagesReached": [
+    "::HashRelay.Approvals.DecisionManagement.DecideApproval",
+    "::HashRelay.Approvals.DecisionManagement.ApprovalResolved"
+  ],
+  "participantsReached": [
+    "::HashRelay.Approvals.DecisionManagement.ApprovalService",
+    "::HashRelay.Approvals.DecisionManagement.ApprovalOutcomeReader"
+  ],
+  "weakestStrength": "topological",
+  "declaredCausalClosure": {
+    "closed": false,
+    "meaning": "every consumption reached along declared hops carries a declaration (sinks included); NOT runtime completion, success, or that any Event occurs"
+  },
+  "expected": null
+}

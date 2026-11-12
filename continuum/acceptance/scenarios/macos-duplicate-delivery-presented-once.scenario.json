@@ -1,0 +1,79 @@
+{
+  "acceptance-scenario": "1",
+  "name": "macos-duplicate-delivery-presented-once",
+  "purpose": "On macos, a notification matching two subscribed tags, and the same notification redelivered after reconnect, is presented once.",
+  "verifies": [
+    "::HashRelay.Notifications.HashtagDelivery.OncePerEndpoint",
+    "::HashRelay.Notifications.DesktopEndpoint.DesktopProtocolParity",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.DuplicateDeliveryPresentedOnce",
+  "environment": "MacOSDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "macos",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on macos, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    }
+  ],
+  "when": [
+    {
+      "step": "notification.publish",
+      "args": {
+        "notificationId": "n6",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "n6 is published to #builds and #deploys"
+    },
+    {
+      "step": "hub.redeliver",
+      "args": {
+        "notificationId": "n6",
+        "endpointId": "e1"
+      },
+      "text": "the hub delivers n6 to e1 a second time after a reconnect"
+    }
+  ],
+  "then": [
+    {
+      "step": "notification.presented",
+      "args": {
+        "notificationId": "n6",
+        "count": 1
+      },
+      "text": "n6 is presented exactly once"
+    }
+  ],
+  "trace": {
+    "from": "::HashRelay.Notifications.Routing.PublishNotification"
+  }
+}

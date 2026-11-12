@@ -1,0 +1,107 @@
+{
+  "acceptance-scenario": "1",
+  "name": "linux-no-action-capability-opens-review-page",
+  "purpose": "On a Linux notification server without the actions capability, an approval notification is still shown and its default action opens the review page, even with an active grant.",
+  "verifies": [
+    "::HashRelay.Notifications.DesktopEndpoint.NativeActionFallback",
+    "::HashRelay.Notifications.EndpointAgent.ActionsConferNoAuthority",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.ApprovalActionsNeedGrant",
+  "environment": "LinuxDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "linux",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on linux, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    },
+    {
+      "step": "platform.notification-capabilities",
+      "args": {
+        "actions": false
+      },
+      "text": "the notification server does not list the actions capability"
+    },
+    {
+      "step": "grant.given",
+      "args": {
+        "endpointId": "e1"
+      },
+      "text": "the person grants one-click decisions to this device"
+    },
+    {
+      "step": "approval.pending",
+      "args": {
+        "approvalIds": [
+          "a5"
+        ]
+      },
+      "text": "approval a5 is pending for the paired person"
+    }
+  ],
+  "when": [
+    {
+      "step": "approval.notification-clicked",
+      "args": {
+        "approvalId": "a5"
+      },
+      "text": "the person clicks the a5 notification"
+    }
+  ],
+  "then": [
+    {
+      "step": "notification.presented",
+      "args": {
+        "notificationId": "a5-notification",
+        "count": 1,
+        "actions": false
+      },
+      "text": "the a5 approval notification was presented without buttons"
+    },
+    {
+      "step": "review-page.opened",
+      "args": {
+        "approvalId": "a5",
+        "origin": "paired-server"
+      },
+      "text": "the review page for a5 on the paired server origin opened"
+    },
+    {
+      "step": "approval.status",
+      "args": {
+        "approvalId": "a5",
+        "status": "Pending"
+      },
+      "text": "a5 is still Pending"
+    }
+  ],
+  "trace": {
+    "from": "::HashRelay.Approvals.DecisionManagement.DecideApproval"
+  }
+}

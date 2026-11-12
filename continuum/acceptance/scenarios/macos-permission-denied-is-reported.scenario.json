@@ -1,0 +1,88 @@
+{
+  "acceptance-scenario": "1",
+  "name": "macos-permission-denied-is-reported",
+  "purpose": "On macOS, when the person has denied notification permission the agent reports it in its status and does not fail silently; deliveries are still acknowledged as received.",
+  "verifies": [
+    "::HashRelay.Notifications.DesktopEndpoint.UserSessionPresentation",
+    "::HashRelay.Notifications.DesktopEndpoint.AgentDiagnostics",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.DiagnosticsWithoutSecrets",
+  "environment": "MacOSDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "macos",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on macos, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    },
+    {
+      "step": "platform.notification-permission",
+      "args": {
+        "state": "denied"
+      },
+      "text": "notification permission for HashRelay is denied in System Settings"
+    }
+  ],
+  "when": [
+    {
+      "step": "notification.publish",
+      "args": {
+        "notificationId": "n8",
+        "tags": [
+          "#builds"
+        ]
+      },
+      "text": "n8 is published to #builds"
+    },
+    {
+      "step": "agent.status",
+      "text": "the person opens the agent status"
+    }
+  ],
+  "then": [
+    {
+      "step": "status.reports",
+      "args": {
+        "fields": [
+          "notificationPermission"
+        ],
+        "notificationPermission": "denied"
+      },
+      "text": "the status shows notification permission as denied"
+    },
+    {
+      "step": "delivery.acked",
+      "args": {
+        "notificationId": "n8",
+        "endpointId": "e1"
+      },
+      "text": "n8 is acknowledged as received (acknowledgement means received, not shown)"
+    }
+  ]
+}

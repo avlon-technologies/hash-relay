@@ -1,0 +1,48 @@
+{
+  "adl-json": "adl-json/1.0",
+  "vocabulary-claims": {
+    "vocabulary": "avlon.hashrelay.bindings.linux",
+    "version": "m2-draft-1",
+    "technologies": {
+      "dotnet-linux-user-install": {
+        "claims": [],
+        "configuration": {
+          "runtime": "atom",
+          "architectures": "atom",
+          "supportedDesktops": "atom",
+          "ui": "atom",
+          "distribution": "atom",
+          "desktopEntry": "atom",
+          "startAtLogin": "atom",
+          "uninstall": "atom",
+          "diagnostics": "atom",
+          "ci": "atom"
+        }
+      },
+      "hashrelay-client-runtime": {
+        "claims": [],
+        "configuration": {
+          "library": "atom",
+          "notificationAdapter": "atom",
+          "permissionState": "atom",
+          "grantProtector": "atom",
+          "updater": "atom"
+        }
+      },
+      "freedesktop-secret-service": {
+        "claims": [
+          "PersistenceExpectation.durability/durable",
+          "PersistenceExpectation.consistency/strong",
+          "retention-honored",
+          "erasure-capable",
+          "access-controlled"
+        ],
+        "configuration": {
+          "api": "atom",
+          "attributes": "atom",
+          "fallback": "atom"
+        }
+      }
+    }
+  }
+}

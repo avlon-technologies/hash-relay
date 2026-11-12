@@ -1,0 +1,50 @@
+{
+  "development-package-trace": "1",
+  "normative": false,
+  "note": "derived from the compiler's process graph; declared causality only — never a runtime claim",
+  "scenario": "linux-duplicate-delivery-presented-once",
+  "from": "::HashRelay.Notifications.Routing.PublishNotification",
+  "ok": true,
+  "hops": [
+    {
+      "consumed": "::HashRelay.Notifications.Routing.PublishNotification",
+      "participant": "::HashRelay.Notifications.Routing.RoutingService",
+      "consequence": "::HashRelay.Notifications.Routing.NotificationAccepted",
+      "receiveKind": "handles",
+      "strength": "topological",
+      "provenance": "topological-only",
+      "exclusivity": null,
+      "boundary": "causal-relation-undeclared",
+      "crossings": 0
+    }
+  ],
+  "sinks": [],
+  "openConsumptions": [
+    {
+      "participant": "::HashRelay.Notifications.Delivery.DeliveryService",
+      "consumed": "::HashRelay.Notifications.Routing.NotificationAccepted",
+      "boundary": "causal-relation-undeclared"
+    },
+    {
+      "participant": "::HashRelay.Notifications.Routing.RoutingService",
+      "consumed": "::HashRelay.Notifications.Routing.PublishNotification",
+      "boundary": "causal-relation-undeclared"
+    }
+  ],
+  "productions": [],
+  "cycles": [],
+  "messagesReached": [
+    "::HashRelay.Notifications.Routing.NotificationAccepted",
+    "::HashRelay.Notifications.Routing.PublishNotification"
+  ],
+  "participantsReached": [
+    "::HashRelay.Notifications.Routing.RoutingService",
+    "::HashRelay.Notifications.Delivery.DeliveryService"
+  ],
+  "weakestStrength": "topological",
+  "declaredCausalClosure": {
+    "closed": false,
+    "meaning": "every consumption reached along declared hops carries a declaration (sinks included); NOT runtime completion, success, or that any Event occurs"
+  },
+  "expected": null
+}

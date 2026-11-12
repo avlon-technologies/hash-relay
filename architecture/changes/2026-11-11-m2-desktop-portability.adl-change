@@ -1,0 +1,189 @@
+// M2 — Desktop portability (docs/ROADMAP.md). Per-user HashRelay agents for macOS and Linux at parity
+// with the shipped Windows agent. A PROPOSAL: authored 2026-11-11 by an agent on branch
+// continuum/m2-desktop-portability; not approved, not adopted, no decision accepted.
+//
+// Grounding (repository facts, read 2026-11-11):
+//  - src/HashRelay.Client (net10.0, platform-neutral) already holds the protocol behaviour every agent
+//    shares: RelayListener (Hello after every (re)connect, carrying platform and agent version),
+//    NotificationPresenter (replayed backlog -> one catch-up summary), OneClickApprovals
+//    (decision grant behind IGrantProtector; the Windows agent seals it with DPAPI, current user).
+//  - src/HashRelay.Agent is Windows-only (net10.0-windows, HKCU Run key, toast API, AUMID).
+//  - installer/HashRelay.iss: per-user, no elevation, signed with Azure Artifact Signing; uninstall
+//    stops the agent and unregisters toasts but leaves %APPDATA%\HashRelay (credential, grant).
+//  - The model already says DesktopAgent is platform-neutral and DesktopNotificationCenter covers
+//    Windows, macOS and Linux. What it never said is what an agent IS: no service is deployed as
+//    DesktopAgent, so nothing in the model owns parity, local secrets, lifecycle or updates.
+//
+// What this change declares: the client side of a desktop endpoint as one platform-neutral service
+// (AgentRuntime) deployed as the existing DesktopAgent, the local secret store it keeps, the
+// requirements that make "parity" checkable, the release channel updates come from, the two new
+// Environments (macOS, Linux) bindings attach to, and the tests that verify each requirement.
+//
+// Language limit recorded, not modelled around: ADL forbids a Service `writes` to a [secret-store]
+// (adl/architectural/secret-store-write, LANGUAGE-SPEC §15.3). The agent does put the credential and the
+// grant into the store, at the end of pairing and of granting. DeviceVault stays a secret-store, read by
+// AgentRuntime; the provisioning path is stated in its desc and listed as a gap for review.
+//
+// What it deliberately does NOT claim: no new protocol message or hub operation (Hello is the existing
+// RegisterEndpoint; ack and replay stay as CatchUpWithoutInterruption/BoundedOfflineRetention state
+// them), no per-platform deployable (a platform is a binding, not an architecture), no technology
+// (UNUserNotificationCenter, D-Bus, Keychain, libsecret, LaunchAgent, XDG autostart, notarization,
+// AppImage are all in the macOS/Linux binding documents), no change to server behaviour.
+
+change DesktopPortability core adl/1.4 {
+  desc "Per-user HashRelay agents for macOS and Linux at parity with the Windows agent: one platform-neutral agent runtime, native presentation in the user's session, local secrets in the user's platform secret store, per-user lifecycle, verified updates and diagnostics."
+
+  base package Avlon.HashRelay version "draft-1" state "sha256:a89061e4c049377dbe06faf4e79fe9fd6fd97fff1e3d2281a50cc26bddc13f7f"
+
+  // 1. Intent: what a desktop endpoint owes its person, on every platform.
+  add into #77777777-7777-4777-8777-777777777777 {
+    capability DesktopEndpoint #da84779c-9ed5-4266-9878-0a44acbefce5 {
+      desc "A person runs a per-user HashRelay agent on Windows, macOS or Linux and receives their hashtag notifications natively, with the same protocol behaviour on each platform."
+    }
+  }
+  add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
+    requirement DesktopProtocolParity #4443b53f-df3c-41ac-b013-574d9ae3b2c7 {
+      desc "Every desktop agent, on every supported platform, pairs through the device-authorization flow, re-registers its endpoint after every connect and reconnect reporting its platform and agent version, acknowledges each delivery once received, suppresses notification ids it has recently presented, presents a replayed backlog as one catch-up summary while presenting live deliveries at once, and offers approval actions under the same rules. Platforms differ only in how they present, start, update and keep local secrets."
+    }
+  }
+  add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
+    requirement UserSessionPresentation #a6ed8272-35e8-4a52-af87-32c4ad7e6d4f {
+      desc "Notifications are presented only by the agent running in the signed-in user's session, through that platform's native notification facility, under a stable application identity. No system service or daemon outside the user session presents notifications. When the person has denied notification permission the agent says so in its own status rather than failing silently."
+    }
+  }
+  add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
+    requirement LocalCredentialCustody #533a1606-4ea0-4595-8294-5a140197f728 {
+      desc "The paired device credential and any decision grant an agent holds are kept in the signed-in user's platform secret store, readable only by that user, and never written to logs or diagnostics. Where no secret store is available the device credential is kept in a file readable only by that user, the agent reports this degraded custody in its diagnostics, it accepts no decision grant, and its approval actions stay review-intent only."
+    }
+  }
+  add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
+    requirement NativeActionFallback #aa7fd1eb-7f2a-4048-bf7c-3ede7b72cd33 {
+      desc "An approval notification is presented on every platform. Where the platform cannot show actions on it, or the agent holds no active decision grant, its only action opens the first-party review page on the paired server's origin. An action on a terminal, expired or foreign-origin approval never decides."
+    }
+  }
+  add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
+    requirement PerUserLifecycle #46079815-7d22-4b99-b717-d197f26c5806 {
+      desc "Install, start-at-login, upgrade and uninstall are per user and need no administrator rights. Upgrade preserves the endpoint identity and pairing. Uninstall stops the agent, removes start-at-login and the notification registration, revokes any decision grant it holds and removes the local credential."
+    }
+  }
+  add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
+    requirement VerifiedUpdates #36195a10-6692-4f91-ba27-ca05dff98826 {
+      desc "An agent installs only a release whose publisher signature verifies against the HashRelay publisher identity for its platform, obtained from the HashRelay release channel. An update needs no administrator rights, preserves the endpoint identity, and when it fails the installed version keeps running."
+    }
+  }
+  add into #da84779c-9ed5-4266-9878-0a44acbefce5 {
+    requirement AgentDiagnostics #27b3d6b2-742b-4c77-80c7-605a46194ec1 {
+      desc "Every agent reports its version, platform, endpoint id, connection state, last successful registration, notification-permission state and start-at-login state, and can export a diagnostic bundle of its recent logs. Diagnostics never contain the device credential or a decision grant."
+    }
+  }
+
+  // 2. The release channel updates come from. External: HashRelay publishes into it, agents read it.
+  add into #11111111-1111-4111-8111-111111111111 {
+    external-system AgentReleaseChannel #359469d8-cb2f-4304-98cc-22d802f967fd {
+      desc "Where HashRelay publishes signed agent releases and per-platform update metadata. Agents read it; nothing in HashRelay's cloud depends on it."
+    }
+  }
+
+  // 3. The client side of a desktop endpoint: one platform-neutral runtime, deployed as DesktopAgent.
+  add into #77777777-7777-4777-8777-777777777777 {
+    bounded-context EndpointAgent #e75644cf-4246-45ee-a9d7-427c4c541207 {
+      desc "The subscriber-side endpoint on a person's computer: pairing, registration, presentation, approval actions and the agent's own lifecycle. Owns no server state."
+      realizes: #da84779c-9ed5-4266-9878-0a44acbefce5
+    }
+  }
+  add into #e75644cf-4246-45ee-a9d7-427c4c541207 {
+    resource DeviceVault #90dfe7e9-011e-43dd-9565-35ca8a78be38 [secret-store] {
+      desc "The signed-in user's platform secret store entries holding this agent's device credential and decision grant. They are provisioned by the two person-approved ceremonies, device pairing and granting decisions, and removed by unpairing, revocation and uninstall; the runtime otherwise only reads them. Endpoint id and display preferences are configuration, not secrets, and do not live here."
+      persistence[durable; strong; retention="until uninstall or unpairing"]
+    }
+  }
+  add into #e75644cf-4246-45ee-a9d7-427c4c541207 {
+    business-rule ActionsConferNoAuthority #add2a038-12cd-42f4-911a-88a8a4b835ae {
+      statement "A notification's URL, payload and action identifier confer no authority: a decision is made only by a signed-in person on the review page, or by the device under an active decision grant together with its device credential and the approval's own delivery id."
+    }
+  }
+  add into #e75644cf-4246-45ee-a9d7-427c4c541207 {
+    service AgentRuntime #d98a5831-e9da-404b-83db-38272f04abf8 {
+      desc "The platform-neutral agent: pairs, re-registers its endpoint on every connect, receives live and replayed deliveries over the realtime transport, acknowledges, suppresses duplicates, presents through the platform notification centre, offers approval actions, keeps its secrets in the device vault, starts at login, updates itself from the release channel and reports diagnostics. Platform differences are bindings of this one service."
+      realizes: #da84779c-9ed5-4266-9878-0a44acbefce5
+      deployedAs: #20202020-2020-4020-8020-202020202020
+      dependsOn: #18181818-1818-4818-8818-181818181818, #17171717-1717-4717-8717-171717171717, #66666666-6666-4666-8666-666666666666, #359469d8-cb2f-4304-98cc-22d802f967fd
+      sends: #15151515-1515-4515-8515-151515151515, #5bd1be10-b48e-4b77-a7c6-9e57f06d1008, #629a27a5-b5d9-4095-809d-d9623906ad77
+      reads: #90dfe7e9-011e-43dd-9565-35ca8a78be38
+      applies: #add2a038-12cd-42f4-911a-88a8a4b835ae
+      satisfies: #4443b53f-df3c-41ac-b013-574d9ae3b2c7, #a6ed8272-35e8-4a52-af87-32c4ad7e6d4f, #533a1606-4ea0-4595-8294-5a140197f728, #aa7fd1eb-7f2a-4048-bf7c-3ede7b72cd33, #46079815-7d22-4b99-b717-d197f26c5806, #36195a10-6692-4f91-ba27-ca05dff98826, #27b3d6b2-742b-4c77-80c7-605a46194ec1
+    }
+  }
+
+  // 4. The agent's duplicate suppression is half of once-per-endpoint, and its summary is the
+  //    presentation half of catch-up. Say so; the server side keeps satisfying both as before.
+  link #d98a5831-e9da-404b-83db-38272f04abf8 satisfies #aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
+    hint "The agent suppresses notification ids it has recently presented, so a redelivery after reconnect is not shown twice."
+  link #d98a5831-e9da-404b-83db-38272f04abf8 satisfies #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb
+    hint "The agent records replayed deliveries and presents them as one catch-up summary."
+
+  modify #20202020-2020-4020-8020-202020202020 description = "Installable per-user client for Windows, macOS and Linux, running in the signed-in user's session and displaying native notifications. One agent runtime; each platform is a separately bound build."
+
+  // 5. Where the new bindings attach. LocalDevelopment stays the Windows/developer environment.
+  add into #11111111-1111-4111-8111-111111111111 {
+    environment MacOSDesktop #dfd21f47-8a5f-4de4-b242-0de6617f3420 {
+      desc "A person's Mac, signed in, running the HashRelay agent against the hosted HashRelay cloud."
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    environment LinuxDesktop #25837588-bbd7-4026-8dda-de3943124679 {
+      desc "A person's Linux desktop session, signed in, running the HashRelay agent against the hosted HashRelay cloud."
+    }
+  }
+
+  // 6. Tests: each new requirement is verified, and the parity tests also evidence the existing
+  //    delivery requirements the agent now helps satisfy.
+  add into #11111111-1111-4111-8111-111111111111 {
+    test AgentRegistersOnEveryConnect #fd332d4f-1a0f-494b-8f38-abe2a397fbc7 {
+      desc "A paired agent re-registers its endpoint with platform and version after a connect and after a reconnect, and receives a live delivery for a subscribed tag."
+      verifies: #4443b53f-df3c-41ac-b013-574d9ae3b2c7, #d98a5831-e9da-404b-83db-38272f04abf8
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    test BacklogPresentedAsOneSummary #e81abd3f-f66b-42d3-a663-620df4ea3cbd {
+      desc "Deliveries replayed on reconnect are acknowledged and presented as one catch-up summary; a live delivery is presented at once."
+      verifies: #4443b53f-df3c-41ac-b013-574d9ae3b2c7, #fb42409f-e5a7-42f9-bb02-ffa24e4fd1eb
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    test DuplicateDeliveryPresentedOnce #ad1df664-273a-42ee-8087-a2875e14228b {
+      desc "A notification matching two subscribed tags, and the same notification redelivered after reconnect, is presented once."
+      verifies: #aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa, #4443b53f-df3c-41ac-b013-574d9ae3b2c7
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    test ApprovalActionsNeedGrant #769b5b79-e7fa-4421-a019-32149a49b301 {
+      desc "Without a grant, or where the platform shows no actions, an approval's action opens the review page; with an active grant it decides once; a stale or foreign-origin action never decides."
+      verifies: #aa7fd1eb-7f2a-4048-bf7c-3ede7b72cd33, #f8c9062d-d840-4c17-bb33-c6994f644ca4
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    test SecretsStayInVault #d21e3412-99bf-4397-9892-8227ecb0e680 {
+      desc "After pairing and granting, the device credential and the grant are in the user's secret store and in no configuration file, log or diagnostic bundle; with no secret store the credential is in a user-only file, diagnostics report degraded custody and the agent refuses a grant."
+      verifies: #533a1606-4ea0-4595-8294-5a140197f728
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    test PerUserInstallLifecycle #5072d7f4-0188-4d13-ba5a-9fe93137adaf {
+      desc "A non-administrator installs, the agent starts at login and presents natively in the user session; an upgrade keeps the endpoint id; uninstall leaves no start-at-login entry, notification registration, credential or active grant."
+      verifies: #46079815-7d22-4b99-b717-d197f26c5806, #a6ed8272-35e8-4a52-af87-32c4ad7e6d4f
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    test OnlySignedUpdatesApply #c2d2b986-c69e-421d-bb5e-fec463e4dc65 {
+      desc "A correctly signed newer release from the release channel is applied without administrator rights and keeps the endpoint id; a release with a bad or foreign signature is refused and the installed version keeps running."
+      verifies: #36195a10-6692-4f91-ba27-ca05dff98826
+    }
+  }
+  add into #11111111-1111-4111-8111-111111111111 {
+    test DiagnosticsWithoutSecrets #358a32b0-40fb-4738-a0e9-8bd74d8f3688 {
+      desc "The agent's status reports version, platform, endpoint id, connection, registration, permission and start-at-login state; an exported bundle contains logs and no credential or grant."
+      verifies: #27b3d6b2-742b-4c77-80c7-605a46194ec1
+    }
+  }
+}

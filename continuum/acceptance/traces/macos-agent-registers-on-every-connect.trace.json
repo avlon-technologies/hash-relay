@@ -1,0 +1,31 @@
+{
+  "development-package-trace": "1",
+  "normative": false,
+  "note": "derived from the compiler's process graph; declared causality only — never a runtime claim",
+  "scenario": "macos-agent-registers-on-every-connect",
+  "from": "::HashRelay.Notifications.Delivery.RegisterEndpoint",
+  "ok": true,
+  "hops": [],
+  "sinks": [],
+  "openConsumptions": [
+    {
+      "participant": "::HashRelay.Notifications.Delivery.EndpointService",
+      "consumed": "::HashRelay.Notifications.Delivery.RegisterEndpoint",
+      "boundary": "causal-relation-undeclared"
+    }
+  ],
+  "productions": [],
+  "cycles": [],
+  "messagesReached": [
+    "::HashRelay.Notifications.Delivery.RegisterEndpoint"
+  ],
+  "participantsReached": [
+    "::HashRelay.Notifications.Delivery.EndpointService"
+  ],
+  "weakestStrength": "correlated",
+  "declaredCausalClosure": {
+    "closed": false,
+    "meaning": "every consumption reached along declared hops carries a declaration (sinks included); NOT runtime completion, success, or that any Event occurs"
+  },
+  "expected": null
+}

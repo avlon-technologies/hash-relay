@@ -1,0 +1,97 @@
+{
+  "acceptance-scenario": "1",
+  "name": "linux-only-signed-updates-apply",
+  "purpose": "On linux, a correctly signed newer release is applied without administrator rights and keeps the endpoint id; a badly signed one is refused and the running version stays.",
+  "verifies": [
+    "::HashRelay.Notifications.DesktopEndpoint.VerifiedUpdates",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.OnlySignedUpdatesApply",
+  "environment": "LinuxDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "linux",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on linux, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    },
+    {
+      "step": "agent.version",
+      "args": {
+        "version": "2.0.0"
+      },
+      "text": "agent 2.0.0 is running"
+    },
+    {
+      "step": "release.published",
+      "args": {
+        "releases": [
+          {
+            "version": "2.0.1",
+            "signature": "publisher"
+          },
+          {
+            "version": "2.0.2",
+            "signature": "foreign"
+          }
+        ]
+      },
+      "text": "release 2.0.1 signed with the HashRelay publisher identity and release 2.0.2 signed with a foreign key are in the release channel"
+    }
+  ],
+  "when": [
+    {
+      "step": "update.check",
+      "text": "the agent checks the release channel"
+    }
+  ],
+  "then": [
+    {
+      "step": "update.refused",
+      "args": {
+        "version": "2.0.2"
+      },
+      "text": "release 2.0.2 is refused for its signature"
+    },
+    {
+      "step": "agent.version",
+      "args": {
+        "version": "2.0.1",
+        "adminPrompt": false
+      },
+      "text": "agent 2.0.1 is running after the update, without an administrator prompt"
+    },
+    {
+      "step": "endpoint.id-unchanged",
+      "args": {
+        "endpointId": "e1"
+      },
+      "text": "the endpoint id is still e1"
+    }
+  ]
+}

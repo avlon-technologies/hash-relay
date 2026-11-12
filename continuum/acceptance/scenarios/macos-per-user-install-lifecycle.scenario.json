@@ -1,0 +1,138 @@
+{
+  "acceptance-scenario": "1",
+  "name": "macos-per-user-install-lifecycle",
+  "purpose": "On macos, a non-administrator installs, the agent starts at login and presents in the user session; upgrade keeps the endpoint; uninstall leaves nothing that can receive or decide.",
+  "verifies": [
+    "::HashRelay.Notifications.DesktopEndpoint.PerUserLifecycle",
+    "::HashRelay.Notifications.DesktopEndpoint.UserSessionPresentation",
+    "::HashRelay.Notifications.EndpointAgent.AgentRuntime"
+  ],
+  "test": "::HashRelay.PerUserInstallLifecycle",
+  "environment": "MacOSDesktop",
+  "given": [
+    {
+      "step": "server.running",
+      "text": "the HashRelay cloud is running with workspace w1"
+    },
+    {
+      "step": "agent.installed",
+      "args": {
+        "platform": "macos",
+        "scope": "per-user"
+      },
+      "text": "the HashRelay agent is installed per user on macos, by a non-administrator"
+    },
+    {
+      "step": "agent.paired",
+      "args": {
+        "workspace": "w1",
+        "endpointId": "e1"
+      },
+      "text": "the agent is paired to workspace w1 through the device-authorization flow as endpoint e1"
+    },
+    {
+      "step": "tag.subscribed",
+      "args": {
+        "endpointId": "e1",
+        "tags": [
+          "#builds",
+          "#deploys"
+        ]
+      },
+      "text": "endpoint e1 subscribes to #builds and #deploys"
+    },
+    {
+      "step": "startup.enabled",
+      "text": "start-at-login is enabled"
+    },
+    {
+      "step": "grant.given",
+      "args": {
+        "endpointId": "e1"
+      },
+      "text": "the person grants one-click decisions to this device"
+    }
+  ],
+  "when": [
+    {
+      "step": "session.sign-in",
+      "text": "the person signs out and signs in again"
+    },
+    {
+      "step": "notification.publish",
+      "args": {
+        "notificationId": "n7",
+        "tags": [
+          "#builds"
+        ]
+      },
+      "text": "n7 is published to #builds"
+    },
+    {
+      "step": "agent.upgrade",
+      "args": {
+        "version": "2.0.1"
+      },
+      "text": "the person installs a newer signed release"
+    },
+    {
+      "step": "agent.uninstall",
+      "text": "the person uninstalls the agent"
+    }
+  ],
+  "then": [
+    {
+      "step": "agent.started-at-login",
+      "args": {
+        "session": "user"
+      },
+      "text": "the agent was running in the user session after sign-in, with no system service involved"
+    },
+    {
+      "step": "notification.presented",
+      "args": {
+        "notificationId": "n7",
+        "count": 1
+      },
+      "text": "n7 was presented natively"
+    },
+    {
+      "step": "endpoint.id-unchanged",
+      "args": {
+        "endpointId": "e1"
+      },
+      "text": "after the upgrade the endpoint id was still e1"
+    },
+    {
+      "step": "startup.registered",
+      "args": {
+        "registered": false
+      },
+      "text": "after uninstall no start-at-login entry remains"
+    },
+    {
+      "step": "vault.holds",
+      "args": {
+        "items": []
+      },
+      "text": "after uninstall the secret store holds no HashRelay item"
+    },
+    {
+      "step": "grant.status",
+      "args": {
+        "status": "revoked"
+      },
+      "text": "the decision grant is revoked at the server"
+    },
+    {
+      "step": "agent.running",
+      "args": {
+        "running": false
+      },
+      "text": "no agent process is running"
+    }
+  ],
+  "trace": {
+    "from": "::HashRelay.Approvals.DecisionManagement.RevokeDeviceDecisions"
+  }
+}
