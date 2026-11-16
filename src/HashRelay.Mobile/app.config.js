@@ -11,7 +11,13 @@ const androidFirebaseFile = process.env.GOOGLE_SERVICES_JSON || local('google-se
 const iosFirebaseFile = process.env.GOOGLE_SERVICE_INFO_PLIST || local('GoogleService-Info.plist');
 const hasAndroidFirebase = !!androidFirebaseFile;
 const hasIosFirebase = !!iosFirebaseFile;
-const firebase = hasAndroidFirebase || hasIosFirebase;
+// Decided per platform being built. @react-native-firebase/app's iOS plugin throws when GoogleService-Info.plist is
+// missing, so an Android file alone must not switch Firebase on for an iOS build (and vice versa). EAS sets
+// EAS_BUILD_PLATFORM; locally (expo start / run) either file is enough.
+const buildPlatform = process.env.EAS_BUILD_PLATFORM;
+const firebase = buildPlatform === 'ios' ? hasIosFirebase
+  : buildPlatform === 'android' ? hasAndroidFirebase
+  : hasAndroidFirebase || hasIosFirebase;
 
 module.exports = ({ config }) => ({
   ...config,
@@ -53,7 +59,8 @@ module.exports = ({ config }) => ({
   ],
   extra: {
     defaultServerUrl: process.env.HASHRELAY_SERVER_URL || 'https://hashrelay.dev.avlon.ca',
-    firebase,
+    // Read at run time per OS (src/config.ts): a dev build gets this from Metro, which does not know the target platform.
+    firebase: { ios: hasIosFirebase, android: hasAndroidFirebase },
     eas: { projectId: process.env.EAS_PROJECT_ID || 'fd639ff4-b880-4458-88ff-5ef8bb5675d6' }, // EAS project under avlon-technologies-inc
   },
 });
