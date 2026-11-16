@@ -22,3 +22,6 @@ src/HashRelay.Server/wwwroot/downloads/*
 
 # Local secrets
 *.local.json
+
+# ASP.NET Data Protection key ring written by local runs
+src/HashRelay.Server/Data/keys/
