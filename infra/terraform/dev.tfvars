@@ -1,3 +1,5 @@
+# Account-specific values (subscription_id, dns_zone_resource_group, github_oidc_subject) live in the
+# git-ignored local.auto.tfvars next to this file; Terraform loads it automatically.
 name_prefix             = "hashrelay"
 environment             = "dev"
 location                = "canadacentral"

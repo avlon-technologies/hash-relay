@@ -51,7 +51,10 @@ function Out-TF([string]$Name) { & $terraform -chdir="$tf" output -raw $Name }
 if ($Build) { & (Join-Path $root "build.ps1") }
 
 Write-Host "`n== Terraform init ($Environment)" -ForegroundColor Cyan
-& $terraform -chdir="$tf" init -input=false -backend-config="backend.$Environment.hcl" | Out-Host
+# The state account's resource group and name are account-specific and live in a git-ignored backend.<env>.local.hcl.
+$backendArgs = @("-backend-config=backend.$Environment.hcl")
+if (Test-Path (Join-Path $tf "backend.$Environment.local.hcl")) { $backendArgs += "-backend-config=backend.$Environment.local.hcl" }
+& $terraform -chdir="$tf" init -input=false @backendArgs | Out-Host
 if ($LASTEXITCODE -ne 0) { throw "terraform init failed" }
 
 if (-not $SkipInfra) {

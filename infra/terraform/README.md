@@ -25,6 +25,8 @@ terraform apply tfplan
 terraform output web_app_url
 ```
 
+**Account-specific values:** `dev.tfvars` and `backend.dev.hcl` hold only shareable settings. Put `subscription_id`, `dns_zone_resource_group` and `github_oidc_subject` in a git-ignored `local.auto.tfvars`, and the state account's `resource_group_name` and `storage_account_name` in a git-ignored `backend.dev.local.hcl`; Terraform and `deploy.ps1` pick both up automatically.
+
 **Costs:** The B1 App Service plan incurs charges. SignalR Free_F1 is intended for initial development only and subject to availability and limits. Confirm pricing before apply. No resources are provisioned until apply is run.
 
 **App integration:** Configure ASP.NET Core SignalR with `AddSignalR().AddAzureSignalR()`; the Web App setting `Azure__SignalR__ConnectionString` is read automatically. Managed-identity RBAC permissions may take time to propagate. Deploy published web artifacts separately.

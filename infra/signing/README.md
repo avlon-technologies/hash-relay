@@ -20,10 +20,13 @@ Cost: Basic SKU is about USD 10/month including 5,000 signatures.
 
 ## One-time setup
 
-1. **Apply the account** (the certificate profile is skipped while `identity_validation_id` is unset):
+1. **Apply the account** (the certificate profile is skipped while `identity_validation_id` is unset).
+   First create two git-ignored files in `infra/signing`: `local.auto.tfvars` with `subscription_id`,
+   `verifier_object_ids` and `signer_object_ids`, and `backend.local.hcl` with the state account's
+   `resource_group_name` and `storage_account_name`.
 
    ```powershell
-   terraform -chdir=infra/signing init -backend-config=backend.hcl
+   terraform -chdir=infra/signing init -backend-config=backend.hcl -backend-config=backend.local.hcl
    terraform -chdir=infra/signing plan -var-file=signing.tfvars -out=tfplan
    terraform -chdir=infra/signing apply tfplan
    ```

@@ -6,3 +6,7 @@ crash.log
 terraform.tfvars
 tfplan*
 *.log
+
+# Account-specific values (subscription, principals, state storage) stay out of git.
+*.auto.tfvars
+*.local.hcl
